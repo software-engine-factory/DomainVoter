@@ -1,0 +1,26 @@
+domain,price,premium,notes
+alpha.com,"$12.00",yes,first
+bravo.com,20,no,second
+cedar.com,15,true,third
+delta.com,"1,200",1,fourth
+echo.com,8,y,fifth
+foxtrot.com,40,premium,sixth
+golf.com,5,no,seventh
+hotel.com,18,yes,eighth
+india.com,9,no,ninth
+juliet.com,22,yes,tenth
+kilo.com,11,no,eleventh
+lima.com,30,yes,twelfth
+mike.com,7,no,thirteenth
+november.com,16,yes,fourteenth
+oscar.com,4,no,fifteenth
+papa.com,19,yes,sixteenth
+quebec.com,13,no,seventeenth
+romeo.com,28,yes,eighteenth
+sierra.com,6,no,nineteenth
+tango.com,21,yes,twentieth
+uniform.com,17,no,twentyfirst
+victor.com,14,yes,twentysecond
+,10,no,empty name
+alpha.com,99,no,duplicate of alpha
+whiskey.com,3,no,outside a short range if used
