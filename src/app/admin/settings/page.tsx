@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { buttonClass } from "@/components/ui";
+import { requireAdmin } from "@/lib/auth";
 import { saveVotePageSizeAction } from "@/lib/actions/settings";
 import { getVotePageSize } from "@/lib/settings";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "@/lib/vote-view";
@@ -9,6 +10,7 @@ export const metadata: Metadata = { title: t.uiSettings.title };
 export const dynamic = "force-dynamic";
 
 export default async function UiSettingsPage() {
+  await requireAdmin(); // layout checks too, but pages render in parallel with it
   const size = getVotePageSize();
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-10">

@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { Alert } from "@/components/ui";
 import { listBatches } from "@/lib/batches";
 import { formatWhen, one } from "@/lib/format";
 import { SET_LABELS, poolFacets } from "@/lib/pool";
+import { listAssignableUsers } from "@/lib/assignees";
 import { BatchForm } from "./batch-form";
 import { t } from "@/lib/copy/fa";
 
 export const metadata: Metadata = { title: t.batch.title };
 
 export default async function BatchPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const error = one((await searchParams).error);
   const facets = poolFacets();
   const batches = listBatches();
@@ -18,7 +21,7 @@ export default async function BatchPage({ searchParams }: { searchParams: Promis
       <h1 className="font-display text-3xl sm:text-4xl">{t.batch.title}</h1>
       <p className="mt-1 max-w-2xl text-sm text-muted">{t.batch.lead}</p>
       {error ? <div className="mt-3"><Alert tone="danger">{error}</Alert></div> : null}
-      <BatchForm classes={facets.classes} providers={facets.providers} setLabels={SET_LABELS} poolTotal={facets.totals.total} />
+      <BatchForm classes={facets.classes} providers={facets.providers} setLabels={SET_LABELS} poolTotal={facets.totals.total} users={listAssignableUsers()} />
       {batches.length ? (
         <section className="mt-8">
           <h2 className="font-semibold">{t.batch.previous}</h2>

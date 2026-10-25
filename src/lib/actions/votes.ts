@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getDb, getSqlite } from "@/db";
 import { domains, rounds, votes } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { canSeeRound } from "@/lib/assignees";
 import { t } from "@/lib/copy/fa";
 
 export async function toggleVote(domainId: number): Promise<{ voted: boolean; count: number } | { error: string }> {
@@ -15,6 +16,7 @@ export async function toggleVote(domainId: number): Promise<{ voted: boolean; co
   const domain = getDb().select().from(domains).where(eq(domains.id, domainId)).get();
   if (!domain) return { error: t.vote.err.notInRound };
 
+  if (!canSeeRound(domain.roundId, session.userId)) return { error: t.vote.err.notInRound };
   const round = getDb().select().from(rounds).where(eq(rounds.id, domain.roundId)).get();
   if (!round || round.status !== "open") return { error: t.vote.err.closed };
 
@@ -59,6 +61,7 @@ export async function setVote(domainId: number, want: boolean): Promise<{ voted:
   if (!Number.isInteger(domainId) || typeof want !== "boolean") return { error: t.vote.err.notInRound };
   const domain = getDb().select().from(domains).where(eq(domains.id, domainId)).get();
   if (!domain) return { error: t.vote.err.notInRound };
+  if (!canSeeRound(domain.roundId, session.userId)) return { error: t.vote.err.notInRound };
   const round = getDb().select().from(rounds).where(eq(rounds.id, domain.roundId)).get();
   if (!round || round.status !== "open") return { error: t.vote.err.closed };
   const sqlite = getSqlite();
@@ -83,6 +86,7 @@ export async function recordViews(roundId: number, domainIds: number[]) {
   if (!session) return;
   if (!Number.isInteger(roundId)) return;
 
+  if (!canSeeRound(roundId, session.userId)) return;
   const round = getDb().select().from(rounds).where(eq(rounds.id, roundId)).get();
   if (!round || round.status !== "open") return;
 

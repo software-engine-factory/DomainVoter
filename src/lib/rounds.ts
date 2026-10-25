@@ -1,5 +1,6 @@
 import { hasFilters, patternActive, type VoteView } from "@/lib/vote-view";
 import { eq } from "drizzle-orm";
+import { roundVisibleSql } from "@/lib/assignees";
 import { getDb, getSqlite } from "@/db";
 import { rounds } from "@/db/schema";
 import type { RoundFilters } from "@/lib/filters";
@@ -29,7 +30,9 @@ export function getRound(id: number) {
   return getDb().select().from(rounds).where(eq(rounds.id, id)).get();
 }
 
-export function listRounds(): RoundListItem[] {
+/** All rounds (admin). With `visibleTo`, only the rounds that user may see on the voter side. */
+export function listRounds(visibleTo?: number): RoundListItem[] {
+  const visible = visibleTo === undefined ? "" : `WHERE ${roundVisibleSql("r")}`;
   return getSqlite()
     .prepare(
       `SELECT r.id, r.title, r.status, r.parent_round_id AS parentRoundId, p.title AS parentTitle,
@@ -38,13 +41,14 @@ export function listRounds(): RoundListItem[] {
               (SELECT COUNT(DISTINCT v.domain_id) FROM views v WHERE v.round_id = r.id) AS viewedCount
        FROM rounds r
        LEFT JOIN rounds p ON p.id = r.parent_round_id
+       ${visible}
        ORDER BY r.id DESC`,
     )
-    .all() as RoundListItem[];
+    .all(...(visibleTo === undefined ? [] : [visibleTo])) as RoundListItem[];
 }
 
-export function listOpenRounds(): RoundListItem[] {
-  return listRounds().filter((round) => round.status === "open");
+export function listOpenRounds(userId: number): RoundListItem[] {
+  return listRounds(userId).filter((round) => round.status === "open");
 }
 
 export function countDomains(roundId: number) {

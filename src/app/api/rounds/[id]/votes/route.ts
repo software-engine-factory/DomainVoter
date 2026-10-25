@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/auth";
+import { canSeeRound } from "@/lib/assignees";
 import { getUserVoteCount, getUserVotedIds } from "@/lib/rounds";
 
 /** The signed-in user's (voters and admins both vote) own votes for a set of cards. User data: never long-cached. */
@@ -13,6 +14,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/rounds/[id]/
     .filter(Number.isInteger)
     .slice(0, 100);
   if (!Number.isInteger(roundId)) return Response.json({ error: "bad round" }, { status: 400 });
+  if (!canSeeRound(roundId, session.userId)) return Response.json({ error: "not found" }, { status: 404 });
   return Response.json(
     { votedIds: getUserVotedIds(roundId, session.userId, ids), count: getUserVoteCount(roundId, session.userId) },
     { headers: { "Cache-Control": "no-store" } },

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { BATCH_ORDERS, countBlock, createBatch, openBatchRound, type BatchOrder } from "@/lib/batches";
+import { parseAssigneeIds } from "@/lib/assignees";
 import { normalizePoolFilters } from "@/lib/pool";
 import { t } from "@/lib/copy/fa";
 
@@ -63,6 +64,7 @@ export async function createBatchAction(formData: FormData) {
     plan: { rounds, perRound, remainderMode: remainder === "last" || remainder === "extra" ? remainder : "drop" },
     createNow: formData.get("createMode") === "first" ? 1 : 0,
     adminId: session.userId,
+    assignees: parseAssigneeIds(formData),
   });
   if (!result.batchId) redirect(`${back}?error=${encodeURIComponent(t.batch.noMatch)}`);
   revalidatePath("/admin");

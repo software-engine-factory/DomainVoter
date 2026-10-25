@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { HourChart, PerUserChart, ViewsVotesChart } from "@/components/admin/charts";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
@@ -11,6 +12,7 @@ import { t } from "@/lib/copy/fa";
 export const metadata: Metadata = { title: t.stats.title };
 
 export default async function StatsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const params = await searchParams;
   const days = [7, 14, 30, 90].includes(Number(one(params.days))) ? Number(one(params.days)) : 14;
   const totals = overallTotals();

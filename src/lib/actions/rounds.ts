@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getSession, requireAdmin } from "@/lib/auth";
 import { parseDomainCsv } from "@/lib/csv";
 import { normalizeFilters } from "@/lib/filters";
+import { parseAssigneeIds, setRoundAssignees } from "@/lib/assignees";
 import { closeRound, createRound, getRound, countMatching, deriveRound } from "@/lib/rounds";
 import { t } from "@/lib/copy/fa";
 
@@ -114,4 +115,16 @@ export async function deriveRoundAction(formData: FormData) {
 
   revalidatePath("/admin");
   redirect(`/admin/rounds/${id}?derived=1`);
+}
+
+/** Round edit: who may see this round (none checked = everyone). */
+export async function setRoundAssigneesAction(formData: FormData) {
+  await requireAdmin();
+  const roundId = Number(formData.get("roundId"));
+  if (!getRound(roundId)) redirect("/admin");
+  setRoundAssignees(roundId, parseAssigneeIds(formData));
+  revalidatePath("/admin");
+  revalidatePath(`/admin/rounds/${roundId}`);
+  revalidatePath("/vote", "layout");
+  redirect(`/admin/rounds/${roundId}?assigned=1`);
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { BookmarkButton } from "@/components/admin/bookmark-button";
@@ -12,6 +13,7 @@ import { t } from "@/lib/copy/fa";
 export const metadata: Metadata = { title: t.bookmarks.title };
 
 export default async function BookmarksPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const params = await searchParams;
   const status = one(params.status) ?? "";
   const userId = Number(one(params.user)) || null;

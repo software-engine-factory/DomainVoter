@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { rate } from "@/components/admin/stat-card";
 import { formatWhen } from "@/lib/format";
@@ -7,7 +8,8 @@ import { t } from "@/lib/copy/fa";
 
 export const metadata: Metadata = { title: t.users.title };
 
-export default function UsersPage() {
+export default async function UsersPage() {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const users = listUserStats();
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">

@@ -1,5 +1,6 @@
 "use client";
 
+import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { buttonClass, fieldBase } from "@/components/ui";
 import { countBlockAction, createBatchAction } from "@/lib/actions/batches";
@@ -8,7 +9,7 @@ import { t } from "@/lib/copy/fa";
 
 type Facet = { value: string | null; count: number };
 
-export function BatchForm({ classes, providers, setLabels, poolTotal }: { classes: Facet[]; providers: Facet[]; setLabels: Record<number, string>; poolTotal: number }) {
+export function BatchForm({ classes, providers, setLabels, poolTotal, users }: { classes: Facet[]; providers: Facet[]; setLabels: Record<number, string>; poolTotal: number; users: PickerUser[] }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [block, setBlock] = useState(poolTotal);
   const [counting, startCount] = useTransition();
@@ -154,6 +155,7 @@ export function BatchForm({ classes, providers, setLabels, poolTotal }: { classe
           {plan.sizes.length ? <div className="flex justify-between text-xs text-muted"><dt>{t.batch.lastSize}</dt><dd>{plan.sizes[plan.sizes.length - 1]}</dd></div> : null}
         </dl>
         <input name="title" required maxLength={70} placeholder={t.batch.titlePlaceholder} className={field} />
+        <AssigneePicker users={users} compact />
         <div className="grid gap-2">
           <button name="createMode" value="all" disabled={!block} className={buttonClass("primary")}>{t.batch.createAll(plan.sizes.length)}</button>
           <button name="createMode" value="first" disabled={!block} className={buttonClass("secondary")}>{t.batch.createFirst}</button>

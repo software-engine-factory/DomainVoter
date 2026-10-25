@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
 import { syncPoolAction, uploadPoolAction } from "@/lib/actions/pool";
@@ -34,6 +35,7 @@ export default async function PoolPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const query = await searchParams;
   const { totals, classes, providers, evidence } = poolFacets();
   const imports = recentImports();

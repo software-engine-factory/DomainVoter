@@ -1,5 +1,6 @@
 "use client";
 
+import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
 import { countPoolAction, createPoolRoundAction } from "@/lib/actions/pool";
@@ -47,12 +48,14 @@ export function PoolRoundForm({
   setCounts,
   total,
   error,
+  users,
 }: {
   classes: Facet[];
   providers: Facet[];
   setCounts: Array<{ n: number; label: string; count: number }>;
   total: number;
   error?: string;
+  users: PickerUser[];
 }) {
   const form = useRef<HTMLFormElement>(null);
   const [count, setCount] = useState<number>(total);
@@ -90,6 +93,7 @@ export function PoolRoundForm({
         {t.newRound.roundTitle}
         <input name="title" required maxLength={80} className={fieldClass} placeholder={t.newRound.poolPlaceholder} />
       </label>
+      <AssigneePicker users={users} />
       <div className="grid gap-4 md:grid-cols-2">
         <Checks name="classes" facets={classes} label={t.pool.facetClass} />
         <Checks name="providers" facets={providers} label={t.pool.facetProvider} />
