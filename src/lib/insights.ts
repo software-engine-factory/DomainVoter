@@ -40,7 +40,6 @@ export function listUserStats(): UserStat[] {
          FROM votes v JOIN domains d ON d.id = v.domain_id JOIN picks k ON k.name = lower(d.name)
          GROUP BY v.user_id
        ) h ON h.user_id = u.id
-       WHERE u.role = 'voter'
        ORDER BY bookmarkedHits DESC, votes DESC, views DESC, u.username`,
     )
     .all(Date.now() - 86_400_000) as UserStat[];
@@ -361,7 +360,7 @@ export function overallTotals() {
       `SELECT (SELECT COUNT(*) FROM views) AS views, (SELECT COUNT(*) FROM votes) AS votes,
               (SELECT COUNT(DISTINCT domain_id) FROM views) AS distinctViewed,
               (SELECT COUNT(DISTINCT user_id) FROM views) AS activeUsers,
-              (SELECT COUNT(*) FROM users WHERE role = 'voter') AS voters,
+              (SELECT COUNT(*) FROM users) AS voters,
               (SELECT COUNT(*) FROM views WHERE viewed_at >= ?) AS views24h,
               (SELECT COUNT(*) FROM votes WHERE created_at >= ?) AS votes24h,
               (SELECT COUNT(*) FROM picks) AS bookmarks`,
@@ -406,7 +405,7 @@ export type ProvenanceEntry = {
 };
 
 export function voterOptions() {
-  return getSqlite().prepare("SELECT id, username FROM users WHERE role = 'voter' ORDER BY username").all() as Array<{
+  return getSqlite().prepare("SELECT id, username FROM users ORDER BY username").all() as Array<{
     id: number;
     username: string;
   }>;

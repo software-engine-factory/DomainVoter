@@ -88,7 +88,7 @@ export async function requireAdmin() {
 
 export async function requireVoter() {
   const session = await getSession();
+  // Admins vote too: any signed-in user may use the voter flow.
   if (!session) redirect("/login");
-  if (session.role !== "voter") redirect("/admin");
   return session;
 }
