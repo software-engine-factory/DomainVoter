@@ -61,7 +61,7 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users }: {
           <div className="mt-3 font-medium">{t.batch.sets}</div>
           <div className="mt-1 flex flex-wrap gap-2">
             {[1, 2, 3, 4, 5].map((n) => (
-              <label key={n} className={chip}><input type="checkbox" name="sets" value={n} /><span dir="ltr">{n} · {setLabels[n]}</span></label>
+              <label key={n} className={chip}><input type="checkbox" name="sets" value={n} /><span>{setLabels[n]}</span></label>
             ))}
             <select name="setMode" defaultValue="any" className={`${fieldBase} h-9 w-28`} aria-label={t.batch.setMode}>
               <option value="any">{t.batch.setAny}</option>

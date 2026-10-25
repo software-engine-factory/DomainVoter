@@ -68,7 +68,7 @@ export default async function UserPage({
           <ul className="mt-2 space-y-1">
             {[1, 2, 3, 4, 5].map((n) => (
               <li key={n} className="flex justify-between gap-2">
-                <span dir="ltr">set {n} · {SET_LABELS[n]}</span>
+                <span>{SET_LABELS[n]}</span>
                 <span className="tabular-nums">{sets[`s${n}`] ?? 0}</span>
               </li>
             ))}
@@ -116,7 +116,7 @@ export default async function UserPage({
               {t.user.onlyBookmarked} {bookmarkedOnly ? "✕" : ""}
             </Link>
             <span className="text-muted">{t.user.rows(activity.total)}</span>
-            <Link className="text-muted underline" href={withParams("/admin/explore", { user: user.id, kind: tab === "chosen" ? "vote" : "view", round: roundId ?? undefined })}>{t.user.inExplore}</Link>
+            <Link className="text-muted underline" href={withParams("/admin/explore", { mode: "activity", user: user.id, kind: tab === "chosen" ? "vote" : "view", round: roundId ?? undefined })}>{t.user.inExplore}</Link>
           </div>
           <ul className="mt-2 divide-y divide-line rounded-xl border border-line">
             {activity.rows.map((row) => (

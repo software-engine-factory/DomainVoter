@@ -106,7 +106,7 @@ export function PoolRoundForm({
               <label key={s.n} className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-2">
                   <input type="checkbox" name="sets" value={s.n} />
-                  <span dir="ltr" className="font-mono">set_{s.n}</span> {s.label}
+                  {s.label}
                 </span>
                 <span className="tabular-nums text-muted">{s.count.toLocaleString("fa-IR")}</span>
               </label>

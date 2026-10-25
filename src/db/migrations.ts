@@ -153,6 +153,29 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
       ) WITHOUT ROWID;
     `,
   },
+  {
+    version: 6,
+    name: "pool explorer: derived price source / has-price / label length columns + indexes",
+    sql: `
+      -- VIRTUAL generated columns: computed on read, no data rewrite, nothing to backfill.
+      -- price_source: where the price comes from (landing-page marketplace first, else best_source without its "lp:" prefix);
+      -- NULL when the name has no price at all.
+      ALTER TABLE pool ADD COLUMN price_source TEXT GENERATED ALWAYS AS (
+        CASE
+          WHEN lp_price IS NULL AND best_price IS NULL THEN NULL
+          WHEN lp_price IS NOT NULL AND nullif(trim(lp_marketplace), '') IS NOT NULL THEN lower(trim(lp_marketplace))
+          ELSE coalesce(lower(nullif(trim(replace(replace(best_source, 'lp:', ''), 'LP:', '')), '')), lower(nullif(trim(lp_marketplace), '')), 'unknown')
+        END
+      ) VIRTUAL;
+      ALTER TABLE pool ADD COLUMN has_price INTEGER GENERATED ALWAYS AS (lp_price IS NOT NULL OR best_price IS NOT NULL) VIRTUAL;
+      ALTER TABLE pool ADD COLUMN name_len INTEGER GENERATED ALWAYS AS (instr(name || '.', '.') - 1) VIRTUAL;
+      CREATE INDEX IF NOT EXISTS pool_price_source_idx ON pool(price_source, price_usd);
+      CREATE INDEX IF NOT EXISTS pool_has_price_idx ON pool(has_price);
+      CREATE INDEX IF NOT EXISTS pool_name_len_idx ON pool(name_len);
+      CREATE INDEX IF NOT EXISTS pool_lp_url_idx ON pool(lp_url IS NOT NULL);
+      CREATE INDEX IF NOT EXISTS pool_currency_idx ON pool(lp_currency);
+    `,
+  },
 ];
 
 export function runMigrations(sqlite: Database.Database) {
