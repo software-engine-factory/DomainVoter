@@ -186,10 +186,5 @@ export function recentImports(limit = 5) {
   }>;
 }
 
-export const SET_LABELS: Record<number, string> = {
-  1: "loose",
-  2: "persian",
-  3: "persian wider endings",
-  4: "recovered",
-  5: "multivowel",
-};
+/** Persian set names (provisional; see t.poolSets). */
+export const SET_LABELS: Record<number, string> = t.poolSets.name;

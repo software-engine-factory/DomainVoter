@@ -5,6 +5,9 @@ import { one } from "@/lib/format";
 import { poolFacets, SET_LABELS } from "@/lib/pool";
 import { listAssignableUsers } from "@/lib/assignees";
 import { PoolRoundForm } from "./pool-form";
+import { ExploreRoundForm } from "./explore-form";
+import { browseToParams, countBrowse, parseBrowse } from "@/lib/pool-browse";
+import { withParams } from "@/lib/format";
 import { UploadForm } from "./upload-form";
 import { t } from "@/lib/copy/fa";
 
@@ -26,7 +29,10 @@ export default async function NewRoundPage({
   const code = one(query.error);
   const error = code === "parse" ? one(query.message) || t.newRound.err.unreadable : errors[code ?? ""];
 
-  const mode = one(query.mode) === "csv" ? "csv" : "pool";
+  const rawMode = one(query.mode);
+  const mode = rawMode === "csv" ? "csv" : rawMode === "explore" ? "explore" : "pool";
+  const browse = mode === "explore" ? parseBrowse(query) : null;
+  const explore = browse ? withParams("", browseToParams(browse)).replace(/^\?/, "") : "";
   const facets = mode === "pool" ? poolFacets() : null;
   const tab = (id: string, label: string) => (
     <Link
@@ -38,14 +44,16 @@ export default async function NewRoundPage({
   );
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
-      <h1 className="font-display text-4xl">{t.newRound.title}</h1>
-      <div className="mt-6 flex gap-1 border-b border-line">
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+      <h1 className="font-display text-3xl sm:text-4xl">{t.newRound.title}</h1>
+      <div className="mt-6 flex gap-1 overflow-x-auto whitespace-nowrap border-b border-line">
         {tab("pool", t.newRound.tabPool)}
         {tab("csv", t.newRound.tabCsv)}
         <Link href="/admin/rounds/batch" className="px-4 py-2 text-sm text-muted hover:text-ink">{t.newRoundUx.batchLink}</Link>
       </div>
-      {facets ? (
+      {browse ? (
+        <ExploreRoundForm explore={explore} count={countBrowse(browse)} users={listAssignableUsers()} error={error} />
+      ) : facets ? (
         <PoolRoundForm
           users={listAssignableUsers()}
           classes={facets.classes}
@@ -56,10 +64,6 @@ export default async function NewRoundPage({
         />
       ) : (
         <>
-          <p className="mt-6 max-w-xl text-muted">
-            {t.newRound.csvLead1}
-            {t.newRound.csvLead2}
-          </p>
           <UploadForm error={error} />
         </>
       )}

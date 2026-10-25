@@ -78,26 +78,13 @@ export function VoteBoard({
 
   return (
     <>
-      <FilterBar key={filterReset} view={view} onChange={(patch) => update(patch)} />
-
-      <p className="mt-2 hidden shrink-0 text-xs text-muted sm:block" aria-live="polite">
-        {filtered ? (
-          <span className="font-semibold text-ink">{t.vote.matched(data.matched)}</span>
-        ) : (
-          <>
-            {t.vote.showing}{" "}
-            <span className="font-semibold tabular-nums text-ink">
-              {data.from + data.offset - 1}–{data.from + data.offset - 2 + cards.length}
-            </span>{" "}
-            {t.vote.windowInfo(data.from, data.to, page, pages, total)}
-          </>
-        )}
-      </p>
-      {filtered ? (
-        <p className="mt-1.5 shrink-0 text-xs font-semibold text-ink sm:hidden" aria-hidden>
-          {t.vote.matched(data.matched)}
-        </p>
-      ) : null}
+      <FilterBar
+        key={filterReset}
+        view={view}
+        total={total}
+        matched={filtered || view.from != null || view.to != null ? data.matched : null}
+        onChange={(patch) => update(patch)}
+      />
 
       <div className={`mt-2 min-h-0 flex-1 transition-opacity duration-200 ${exact ? "" : "opacity-60"}`} aria-busy={!exact}>
         {exact ? <RecordViews roundId={roundId} domainIds={ids} /> : null}
@@ -110,7 +97,7 @@ export function VoteBoard({
                 type="button"
                 onClick={() => {
                   setFilterReset((n) => n + 1);
-                  update({ q: "", pat: "", exact: false });
+                  update({ q: "", pat: "", exact: false, from: null, to: null });
                 }}
                 className="press mt-1 h-9 rounded-lg border border-line bg-paper px-3 text-sm font-semibold text-ink"
               >
@@ -126,13 +113,12 @@ export function VoteBoard({
             size={view.size}
             cards={cards}
             votedIds={votes.votedIds}
-            count={votes.count}
             ready={exact}
           />
         )}
       </div>
 
-      <Pager page={page} pages={pages} onGo={(p) => goPage(p)} />
+      <Pager page={page} pages={pages} voted={votes.count} onGo={(p) => goPage(p)} />
     </>
   );
 }

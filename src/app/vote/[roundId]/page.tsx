@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Alert, buttonClass, fieldClass } from "@/components/ui";
+import { Alert } from "@/components/ui";
 import { requireVoter } from "@/lib/auth";
 import { one } from "@/lib/format";
 import { countDomains, getRound, getUserVoteCount, getUserVotedIds, queryVoteCards } from "@/lib/rounds";
@@ -54,47 +53,8 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
     >
       <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="hidden text-xs text-muted sm:block">
-            <Link href="/vote" className="underline decoration-line underline-offset-4 hover:text-ink">
-              {t.vote.listTitle}
-            </Link>
-          </p>
           <h1 className="truncate font-display text-xl leading-tight sm:text-3xl sm:leading-none">{round.title}</h1>
         </div>
-        {board ? (
-          <form action={`/vote/${round.id}`} className="hidden flex-wrap items-end gap-2 sm:flex">
-            <label className="grid gap-1 text-xs font-medium">
-              {t.vote.rangeFrom}
-              <input
-                name="from"
-                dir="ltr"
-                type="number"
-                min={1}
-                max={total}
-                defaultValue={initialPage.from}
-                required
-                className={`${fieldClass} h-9! w-20 text-sm!`}
-              />
-            </label>
-            <label className="grid gap-1 text-xs font-medium">
-              {t.vote.rangeTo}
-              <input
-                name="to"
-                dir="ltr"
-                type="number"
-                min={1}
-                max={total}
-                defaultValue={initialPage.to}
-                required
-                className={`${fieldClass} h-9! w-20 text-sm!`}
-              />
-            </label>
-            {view.q ? <input type="hidden" name="q" value={view.q} /> : null}
-            {view.pat ? <input type="hidden" name="pat" value={view.pat} /> : null}
-            {view.exact ? <input type="hidden" name="exact" value="1" /> : null}
-            <button className={buttonClass("secondary", "sm")}>{t.vote.showRange}</button>
-          </form>
-        ) : null}
       </div>
 
       {round.status !== "open" ? (

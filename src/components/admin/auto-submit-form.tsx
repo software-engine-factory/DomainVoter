@@ -32,6 +32,7 @@ export function AutoSubmitForm({ action, children, className }: { action: string
       }}
       onChange={(event) => {
         const target = event.target as unknown as HTMLInputElement;
+        if (target.dataset.nosubmit != null) return;
         if (target.tagName === "SELECT" || target.type === "checkbox" || target.type === "radio" || target.type === "date") go();
       }}
     >

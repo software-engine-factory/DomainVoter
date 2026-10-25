@@ -69,7 +69,7 @@ export function UploadForm({ error }: { error?: string }) {
   return (
     <form action={createRoundAction} className="mt-8 grid gap-6">
       {error ? <Alert tone="danger">{error}</Alert> : null}
-      <Field label={t.newRound.roundTitle} hint={t.newRound.roundTitleHint}>
+      <Field label={t.newRound.roundTitle}>
         <input name="title" required maxLength={80} className={fieldClass} placeholder={t.newRound.csvPlaceholder} />
       </Field>
 
@@ -156,7 +156,7 @@ export function UploadForm({ error }: { error?: string }) {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label={t.newRound.startRow} hint={t.newRound.startRowHint}>
+            <Field label={t.newRound.startRow}>
               <input
                 name="from"
                 type="number"

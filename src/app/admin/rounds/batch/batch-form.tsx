@@ -57,11 +57,10 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users }: {
       <div className="space-y-4">
         <fieldset className="rounded-xl border border-line p-3 text-sm">
           <legend className="px-1 font-semibold">{t.batch.blockLegend}</legend>
-          <div className="text-xs text-muted">{t.batch.blockHint}</div>
           <div className="mt-3 font-medium">{t.batch.sets}</div>
           <div className="mt-1 flex flex-wrap gap-2">
             {[1, 2, 3, 4, 5].map((n) => (
-              <label key={n} className={chip}><input type="checkbox" name="sets" value={n} /><span dir="ltr">{n} · {setLabels[n]}</span></label>
+              <label key={n} className={chip}><input type="checkbox" name="sets" value={n} /><span>{setLabels[n]}</span></label>
             ))}
             <select name="setMode" defaultValue="any" className={`${fieldBase} h-9 w-28`} aria-label={t.batch.setMode}>
               <option value="any">{t.batch.setAny}</option>

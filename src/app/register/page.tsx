@@ -32,7 +32,6 @@ export default async function RegisterPage({
     <main className="mx-auto w-full max-w-md px-4 py-16 sm:px-6">
       <p className="text-sm font-medium text-accent">{t.auth.registerEyebrow}</p>
       <h1 className="mt-2 font-display text-5xl">{t.auth.createAccount}</h1>
-      <p className="mt-3 text-muted">{t.auth.registerLead}</p>
       <form action={registerAction} className="mt-8 grid gap-5">
         {error ? <Alert tone="danger">{error}</Alert> : null}
         <Field label={t.auth.username} hint={t.auth.usernameHint}>

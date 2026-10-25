@@ -19,7 +19,6 @@ export default async function BatchPage({ searchParams }: { searchParams: Promis
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="font-display text-3xl sm:text-4xl">{t.batch.title}</h1>
-      <p className="mt-1 max-w-2xl text-sm text-muted">{t.batch.lead}</p>
       {error ? <div className="mt-3"><Alert tone="danger">{error}</Alert></div> : null}
       <BatchForm classes={facets.classes} providers={facets.providers} setLabels={SET_LABELS} poolTotal={facets.totals.total} users={listAssignableUsers()} />
       {batches.length ? (

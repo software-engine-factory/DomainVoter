@@ -32,6 +32,7 @@ export function parseExplore(params: Params, pageSize = 50): ActivityQuery {
 
 export function exploreToParams(q: ActivityQuery): Record<string, string | number | undefined> {
   return {
+    mode: "activity",
     kind: q.kind === "all" ? undefined : q.kind,
     group: q.group === "event" ? undefined : q.group,
     user: q.userId ?? undefined,

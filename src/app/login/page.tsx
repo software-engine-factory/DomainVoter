@@ -29,7 +29,6 @@ export default async function LoginPage({
     <main className="mx-auto w-full max-w-md px-4 py-16 sm:px-6">
       <p className="text-sm font-medium text-accent">{t.auth.loginEyebrow}</p>
       <h1 className="mt-2 font-display text-5xl">{t.nav.login}</h1>
-      <p className="mt-3 text-muted">{t.auth.loginLead}</p>
       <form action={loginAction} className="mt-8 grid gap-5">
         {error ? <Alert tone="danger">{error}</Alert> : null}
         <Field label={t.auth.username}>

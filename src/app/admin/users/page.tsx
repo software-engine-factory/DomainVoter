@@ -14,9 +14,6 @@ export default async function UsersPage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="font-display text-3xl sm:text-4xl">{t.users.title}</h1>
-      <p className="mt-1 text-sm text-muted">
-        {t.users.lead}
-      </p>
       <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {users.map((u) => (
           <li key={u.id}>
