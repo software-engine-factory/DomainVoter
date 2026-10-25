@@ -1,0 +1,45 @@
+import type { Metadata } from "next";
+import { buttonClass } from "@/components/ui";
+import { saveVotePageSizeAction } from "@/lib/actions/settings";
+import { getVotePageSize } from "@/lib/settings";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "@/lib/vote-view";
+import { t } from "@/lib/copy/fa";
+
+export const metadata: Metadata = { title: t.uiSettings.title };
+export const dynamic = "force-dynamic";
+
+export default async function UiSettingsPage() {
+  const size = getVotePageSize();
+  return (
+    <main className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
+      <h1 className="font-display text-3xl sm:text-4xl">{t.uiSettings.title}</h1>
+      <p className="mt-1 text-sm text-muted">{t.uiSettings.lead}</p>
+
+      <form action={saveVotePageSizeAction} className="mt-6 rounded-xl border border-line bg-card p-4 sm:p-5">
+        <fieldset>
+          <legend className="text-sm font-semibold text-ink">{t.uiSettings.perPage}</legend>
+          <p className="mt-1 text-xs text-muted">{t.uiSettings.perPageHint}</p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {PAGE_SIZES.map((n) => (
+              <label
+                key={n}
+                className="press relative flex cursor-pointer flex-col items-center gap-0.5 rounded-lg border border-line bg-paper px-2 py-3 text-ink has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/40"
+              >
+                <input type="radio" name="size" value={n} defaultChecked={n === size} className="sr-only" />
+                <span className="text-2xl font-semibold tabular-nums">{n}</span>
+                <span className="text-xs text-muted">
+                  {t.uiSettings.option(n)}
+                  {n === DEFAULT_PAGE_SIZE ? ` · ${t.uiSettings.isDefault}` : ""}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className="text-xs text-muted">{t.uiSettings.current(size)}</p>
+          <button className={buttonClass("primary", "sm")}>{t.uiSettings.save}</button>
+        </div>
+      </form>
+    </main>
+  );
+}

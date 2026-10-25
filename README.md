@@ -56,7 +56,7 @@ Rounds can be built from a pool of for-sale names instead of a hand-made CSV.
 - **Admin → استخر فروشی (`/admin/pool`)** syncs the pool from a CSV or SQLite file under the data folder, or from an uploaded file. Rows are upserted by `name`. Names missing from a later file are kept.
   Expected columns: `name, set_1..set_5, evidence, dns_ns_class, dns_parking_provider, lp_marketplace, lp_price, lp_currency, lp_url, best_price, best_source`.
 - **Admin → دور جدید** filters the pool by NS class, parking provider, set, evidence and a USD price band, shows a live count, and opens the round with a single `INSERT … SELECT`.
-- Voters see **only the domain name**. Price (in its original currency, or "price on page" when unknown), marketplace, evidence, sale-page link and vote tallies are admin-only.
+- Voters see **the domain name and its price** (pool price in its original currency; hidden when unknown). Marketplace, evidence, sale-page link and vote tallies are admin-only.
 - **Admin → منتخب‌ها (`/admin/picks`)** is a curated list (★ in round results) with sale links and vote tallies summed across all rounds and voters.
 - Legacy CSV rounds (with premium) still work under "بارگذاری CSV".
 

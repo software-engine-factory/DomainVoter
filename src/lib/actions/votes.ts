@@ -86,7 +86,7 @@ export async function recordViews(roundId: number, domainIds: number[]) {
   const round = getDb().select().from(rounds).where(eq(rounds.id, roundId)).get();
   if (!round || round.status !== "open") return;
 
-  const ids = domainIds.filter((id) => Number.isInteger(id)).slice(0, 20);
+  const ids = domainIds.filter((id) => Number.isInteger(id)).slice(0, 100);
   if (ids.length === 0) return;
 
   const sqlite = getSqlite();

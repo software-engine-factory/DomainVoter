@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
 import { requireVoter } from "@/lib/auth";
 import { one } from "@/lib/format";
-import { countDomains, getRound, getUserVoteCount, getUserVotedIds, getVoteCards } from "@/lib/rounds";
-import { resolveWindow } from "@/lib/window";
+import { countDomains, getRound, getUserVoteCount, getUserVotedIds, queryVoteCards } from "@/lib/rounds";
+import { getVotePageSize } from "@/lib/settings";
+import { parseView } from "@/lib/vote-view";
 import { VoteBoard } from "./vote-board";
 import { t } from "@/lib/copy/fa";
 
@@ -28,12 +29,12 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
   if (!round) notFound();
 
   const total = countDomains(round.id);
-  const window = resolveWindow(total, one(query.from), one(query.to), one(query.page));
-  const cards = total === 0 ? [] : getVoteCards(round.id, window.start, window.end);
+  const view = parseView((key) => one(query[key]), getVotePageSize());
+  const initialPage = queryVoteCards(round.id, view, total);
   const votedIds = getUserVotedIds(
     round.id,
     session.userId,
-    cards.map((card) => card.id),
+    initialPage.cards.map((card) => card.id),
   );
   const voteCount = getUserVoteCount(round.id, session.userId);
 
@@ -54,7 +55,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
               {t.vote.listTitle}
             </Link>
           </p>
-          <h1 className="truncate font-display text-2xl leading-none sm:text-3xl">{round.title}</h1>
+          <h1 className="truncate font-display text-xl leading-tight sm:text-3xl sm:leading-none">{round.title}</h1>
         </div>
         {board ? (
           <form action={`/vote/${round.id}`} className="hidden flex-wrap items-end gap-2 sm:flex">
@@ -66,7 +67,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
                 type="number"
                 min={1}
                 max={total}
-                defaultValue={window.from}
+                defaultValue={initialPage.from}
                 required
                 className={`${fieldClass} h-9! w-20 text-sm!`}
               />
@@ -79,11 +80,14 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
                 type="number"
                 min={1}
                 max={total}
-                defaultValue={window.to}
+                defaultValue={initialPage.to}
                 required
                 className={`${fieldClass} h-9! w-20 text-sm!`}
               />
             </label>
+            {view.q ? <input type="hidden" name="q" value={view.q} /> : null}
+            {view.pat ? <input type="hidden" name="pat" value={view.pat} /> : null}
+            {view.exact ? <input type="hidden" name="exact" value="1" /> : null}
             <button className={buttonClass("secondary", "sm")}>{t.vote.showRange}</button>
           </form>
         ) : null}
@@ -101,10 +105,8 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
         <VoteBoard
           roundId={round.id}
           total={total}
-          from={window.from}
-          to={window.to}
-          initialPage={window.page}
-          initialCards={cards}
+          initialView={{ ...view, page: initialPage.page }}
+          initialPage={initialPage}
           initialVotes={{ votedIds, count: voteCount }}
         />
       )}

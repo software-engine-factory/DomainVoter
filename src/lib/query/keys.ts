@@ -7,9 +7,10 @@
  */
 export const qk = {
   datasetVersion: () => ["meta", "dataset-version"] as const,
-  roundCards: (roundId: number, start: number, end: number) => ["dataset", "round", roundId, "cards", start, end] as const,
+  /** `view` is the canonical viewParams() string, so equal views share one cache entry. */
+  roundCards: (roundId: number, view: string) => ["dataset", "round", roundId, "cards", view] as const,
   myVotesAll: (roundId: number) => ["user", "votes", roundId] as const,
-  myVotesPage: (roundId: number, start: number, end: number) => ["user", "votes", roundId, start, end] as const,
+  myVotesPage: (roundId: number, view: string) => ["user", "votes", roundId, view] as const,
 };
 
 export const TWELVE_HOURS = 12 * 60 * 60 * 1000;
