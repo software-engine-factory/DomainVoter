@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { buttonClass, fieldClass } from "@/components/ui";
+import { buttonClass, fieldBase } from "@/components/ui";
 import { countBlockAction, createBatchAction } from "@/lib/actions/batches";
 import { planBatch } from "@/lib/batch-plan";
 import { t } from "@/lib/copy/fa";
@@ -48,7 +48,7 @@ export function BatchForm({ classes, providers, setLabels, poolTotal }: { classe
   }, []);
 
   const plan = useMemo(() => planBatch({ total: block, rounds, perRound, remainderMode }), [block, rounds, perRound, remainderMode]);
-  const field = `${fieldClass} h-9`;
+  const field = `${fieldBase} h-9 w-full`;
   const chip = "flex items-center gap-1.5 rounded-lg border border-line px-2 py-1";
 
   return (
@@ -62,7 +62,7 @@ export function BatchForm({ classes, providers, setLabels, poolTotal }: { classe
             {[1, 2, 3, 4, 5].map((n) => (
               <label key={n} className={chip}><input type="checkbox" name="sets" value={n} /><span dir="ltr">{n} · {setLabels[n]}</span></label>
             ))}
-            <select name="setMode" defaultValue="any" className={`${field} w-28`} aria-label={t.batch.setMode}>
+            <select name="setMode" defaultValue="any" className={`${fieldBase} h-9 w-28`} aria-label={t.batch.setMode}>
               <option value="any">{t.batch.setAny}</option>
               <option value="all">{t.batch.setAll}</option>
             </select>
@@ -114,7 +114,7 @@ export function BatchForm({ classes, providers, setLabels, poolTotal }: { classe
           {order === "random" ? (
             <label className="mt-2 flex items-center gap-2">
               <span className="text-muted">{t.batch.seed}</span>
-              <input name="seed" defaultValue={seed} dir="ltr" className={`${field} w-32`} />
+              <input name="seed" defaultValue={seed} dir="ltr" className={`${fieldBase} h-9 w-32`} />
               <span className="text-xs text-muted">{t.batch.seedHint}</span>
             </label>
           ) : null}
