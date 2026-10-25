@@ -71,7 +71,7 @@ export async function createPoolRoundAction(formData: FormData) {
   if (!title || title.length > 80) redirect(`${back}&error=title`);
   const { filters, error } = normalizePoolFilters(filterInput(formData));
   if (error) redirect(`${back}&error=parse&message=${encodeURIComponent(error)}`);
-  const result = createRoundFromPool(title, filters);
+  const result = createRoundFromPool(title, filters, String(formData.get("seed") ?? "").trim().slice(0, 40) || null);
   if (result.count === 0) redirect(`${back}&error=parse&message=${encodeURIComponent(t.pool.err.noMatch)}`);
   setRoundAssignees(result.id, parseAssigneeIds(formData));
   revalidatePath("/admin");

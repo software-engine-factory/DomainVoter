@@ -153,17 +153,40 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
       ) WITHOUT ROWID;
     `,
   },
+  {
+    // 7, not 6: W3 (explore) claims 6. Idempotent so the order they land in doesn't matter.
+    version: 7,
+    name: "round funnel: index the parent link, remember how a round was carried over",
+    sql: `
+      CREATE INDEX IF NOT EXISTS rounds_parent_idx ON rounds(parent_round_id);
+      ALTER TABLE rounds ADD COLUMN next_rule TEXT;
+    `,
+  },
 ];
 
+/**
+ * Applies every migration not yet recorded in schema_migrations, so parallel branches can land
+ * numbered migrations in any order (e.g. 7 before 6). user_version stays the highest applied number.
+ */
 export function runMigrations(sqlite: Database.Database) {
   const current = sqlite.pragma("user_version", { simple: true }) as number;
+  sqlite.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
+  const known = sqlite.prepare("SELECT COUNT(*) AS n FROM schema_migrations").get() as { n: number };
+  if (known.n === 0 && current > 0) {
+    // Databases from before this table: everything up to user_version was applied in order.
+    const mark = sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)");
+    for (const m of MIGRATIONS) if (m.version <= current) mark.run(m.version, Date.now());
+  }
+  const applied = new Set((sqlite.prepare("SELECT version FROM schema_migrations").all() as Array<{ version: number }>).map((r) => r.version));
   for (const migration of MIGRATIONS) {
-    if (migration.version <= current) continue;
+    if (applied.has(migration.version)) continue;
     sqlite.transaction(() => {
       sqlite.exec(migration.sql);
-      sqlite.pragma(`user_version = ${migration.version}`);
+      sqlite.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(migration.version, Date.now());
+      const top = sqlite.pragma("user_version", { simple: true }) as number;
+      if (migration.version > top) sqlite.pragma(`user_version = ${migration.version}`);
     })();
   }
 }
 
-export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
+export const LATEST_SCHEMA_VERSION = Math.max(...MIGRATIONS.map((m) => m.version));

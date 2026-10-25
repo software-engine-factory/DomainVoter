@@ -653,6 +653,32 @@ export const t = {
     violet: "بنفش شیشه‌ای",
     emerald: "زمرد و طلا",
   },
+  w4: {
+    steps: ["نام‌ها", "ترتیب", "اسم و دسترسی"],
+    stepOf: (i: number, n: number) => `مرحله ${i} از ${n}`,
+    back: "قبلی",
+    forward: "بعدی",
+    more: "ارائه‌دهنده و کلاس",
+    seed: "کد شانسی",
+    reshuffle: "بُر بزن",
+    names: (n: number) => `${n.toLocaleString("fa-IR")} نام`,
+    rename: "تغییر نام",
+    save: "ذخیره",
+    cancel: "انصراف",
+    funnel: "قیف دورها",
+    next: {
+      title: "دور بعد از رأی‌ها",
+      open: "دور بعد",
+      atLeast: "حداقل رأی",
+      top: "بهترین‌ها",
+      n: "عدد",
+      carry: "همین دسترسی‌ها",
+      create: (n: number) => `ساخت دور بعد با ${n.toLocaleString("fa-IR")} نام`,
+      none: "هنوز نامی به این حد نرسیده",
+      badN: "یک عدد درست بنویس",
+      defaultTitle: (title: string) => `${title} · دور بعد`,
+    },
+  },
 } as const;
 
 export type Copy = typeof t;

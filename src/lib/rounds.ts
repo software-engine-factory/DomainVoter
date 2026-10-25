@@ -5,6 +5,7 @@ import { getDb, getSqlite } from "@/db";
 import { rounds } from "@/db/schema";
 import type { RoundFilters } from "@/lib/filters";
 import { poolOrder, poolWhere, type PoolFilters } from "@/lib/pool";
+import { ensureFunctions } from "@/lib/batches";
 
 
 export type RoundListItem = {
@@ -258,10 +259,13 @@ export function deriveRound(input: { title: string; parentRoundId: number; filte
 }
 
 /** Opens a round straight from the pool: one INSERT…SELECT, no rows pass through JS. */
-export function createRoundFromPool(title: string, filters: PoolFilters) {
+export function createRoundFromPool(title: string, filters: PoolFilters, seed?: string | null) {
   const sqlite = getSqlite();
   const where = poolWhere(filters);
-  const order = poolOrder(filters.order);
+  const seeded = filters.order === "random" && !!seed;
+  if (seeded) ensureFunctions();
+  const order = seeded ? "dv_seeded_rank(?, p.name), p.name" : poolOrder(filters.order);
+  const orderParams = seeded ? [seed] : [];
   return sqlite.transaction(() => {
     const now = Date.now();
     const info = sqlite
@@ -269,7 +273,7 @@ export function createRoundFromPool(title: string, filters: PoolFilters) {
         `INSERT INTO rounds (title, status, parent_round_id, filter_json, sort_mode, created_at, opened_at, source)
          VALUES (?, 'open', NULL, ?, ?, ?, ?, 'pool')`,
       )
-      .run(title, JSON.stringify(filters), filters.order, now, now);
+      .run(title, JSON.stringify(seeded ? { ...filters, seed } : filters), filters.order, now, now);
     const id = Number(info.lastInsertRowid);
     const inserted = sqlite
       .prepare(
@@ -278,7 +282,7 @@ export function createRoundFromPool(title: string, filters: PoolFilters) {
          FROM pool p ${where.sql}
          ORDER BY ${order}`,
       )
-      .run(id, ...where.params);
+      .run(id, ...orderParams, ...where.params, ...orderParams);
     if (inserted.changes === 0) {
       sqlite.prepare("DELETE FROM rounds WHERE id = ?").run(id);
     }
@@ -559,4 +563,106 @@ export function queryVoteCards(roundId: number, view: VoteView, total = countDom
           )
           .all(...params, view.size, offsetRows) as VoteCard[]);
   return { cards, matched, page, pages, from, to, offset: offsetRows + 1 };
+}
+
+export function renameRound(roundId: number, title: string) {
+  getSqlite().prepare("UPDATE rounds SET title = ? WHERE id = ?").run(title, roundId);
+}
+
+export type NextRule = { mode: "min" | "top"; n: number; carryAssignees: boolean };
+
+const VOTES_OF = `(SELECT domain_id, COUNT(*) AS votes FROM votes WHERE round_id = ? GROUP BY domain_id)`;
+
+/** How many names a "next round" rule would carry over (top N counts only names with ≥1 vote). */
+export function countNext(roundId: number, rule: Pick<NextRule, "mode" | "n">) {
+  const sqlite = getSqlite();
+  if (rule.mode === "top") {
+    const voted = (sqlite.prepare(`SELECT COUNT(*) AS n FROM ${VOTES_OF}`).get(roundId) as { n: number }).n;
+    return Math.min(voted, rule.n);
+  }
+  return (
+    sqlite.prepare(`SELECT COUNT(*) AS n FROM domains d JOIN ${VOTES_OF} v ON v.domain_id = d.id WHERE d.round_id = ? AND v.votes >= ?`).get(roundId, roundId, rule.n) as {
+      n: number;
+    }
+  ).n;
+}
+
+/** One click: a new open round with the names voted on in `parentId`, most votes first. */
+export function createNextRound(parentId: number, title: string, rule: NextRule) {
+  const sqlite = getSqlite();
+  const parent = getRound(parentId);
+  if (!parent) return { id: 0, count: 0 };
+  const order = "v.votes DESC, d.position ASC";
+  return sqlite.transaction(() => {
+    const now = Date.now();
+    const info = sqlite
+      .prepare(
+        `INSERT INTO rounds (title, status, parent_round_id, filter_json, sort_mode, created_at, opened_at, source, next_rule)
+         VALUES (?, 'open', ?, ?, 'votes', ?, ?, ?, ?)`,
+      )
+      .run(
+        title,
+        parentId,
+        JSON.stringify({ minVotes: rule.mode === "min" ? rule.n : 1, maxVotes: null, premium: "any", minPrice: null, maxPrice: null, sort: "votes" }),
+        now,
+        now,
+        parent.source ?? "csv",
+        JSON.stringify(rule),
+      );
+    const id = Number(info.lastInsertRowid);
+    const where = rule.mode === "min" ? "v.votes >= ?" : "v.votes >= 1";
+    const limit = rule.mode === "top" ? `LIMIT ${Math.floor(rule.n)}` : "";
+    const inserted = sqlite
+      .prepare(
+        `INSERT INTO domains (round_id, position, name, price, is_premium, source_domain_id, pool_name, currency)
+         SELECT ?, ROW_NUMBER() OVER (ORDER BY votes DESC, position ASC), name, price, is_premium, id, pool_name, currency
+         FROM (
+           SELECT d.id, d.position, d.name, d.price, d.is_premium, d.pool_name, d.currency, v.votes
+           FROM domains d JOIN ${VOTES_OF} v ON v.domain_id = d.id
+           WHERE d.round_id = ? AND ${where}
+           ORDER BY ${order} ${limit}
+         )
+         ORDER BY votes DESC, position ASC`,
+      )
+      .run(id, parentId, parentId, ...(rule.mode === "min" ? [rule.n] : []));
+    if (inserted.changes === 0) {
+      sqlite.prepare("DELETE FROM rounds WHERE id = ?").run(id);
+      return { id: 0, count: 0 };
+    }
+    if (rule.carryAssignees) {
+      sqlite.prepare("INSERT OR IGNORE INTO round_assignees (round_id, user_id) SELECT ?, user_id FROM round_assignees WHERE round_id = ?").run(id, parentId);
+    }
+    return { id, count: inserted.changes };
+  })();
+}
+
+export type FunnelStep = { id: number; title: string; status: "open" | "closed"; count: number; voted: number };
+
+/** The chain this round sits in: root → … → this round → its first child → … (each step clickable). */
+export function roundFunnel(roundId: number): FunnelStep[] {
+  const sqlite = getSqlite();
+  const step = sqlite.prepare(
+    `SELECT r.id, r.title, r.status, r.parent_round_id AS parentId,
+            (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id) AS count,
+            (SELECT COUNT(DISTINCT domain_id) FROM votes v WHERE v.round_id = r.id) AS voted
+     FROM rounds r WHERE r.id = ?`,
+  );
+  const child = sqlite.prepare("SELECT id FROM rounds WHERE parent_round_id = ? ORDER BY id DESC LIMIT 1");
+  type Row = FunnelStep & { parentId: number | null };
+  const chain: Row[] = [];
+  const seen = new Set<number>();
+  let cur = step.get(roundId) as Row | undefined;
+  while (cur && !seen.has(cur.id)) {
+    chain.unshift(cur);
+    seen.add(cur.id);
+    cur = cur.parentId ? (step.get(cur.parentId) as Row | undefined) : undefined;
+  }
+  let next = child.get(roundId) as { id: number } | undefined;
+  while (next && !seen.has(next.id)) {
+    const row = step.get(next.id) as Row;
+    chain.push(row);
+    seen.add(row.id);
+    next = child.get(row.id) as { id: number } | undefined;
+  }
+  return chain.map(({ parentId: _p, ...rest }) => { void _p; return rest; });
 }
