@@ -145,6 +145,11 @@ export function NamesView({ query }: { query: Record<string, string | string[] |
           ) : null}
           <span className="ms-auto text-sm font-semibold tabular-nums">{t.browse.count(fa(result.total))}</span>
           <a href={withParams("/admin/explore/export", params)} className={buttonClass("ghost", "sm")}>CSV</a>
+          {result.total > 0 ? (
+            <Link href={withParams("/admin/rounds/new", { mode: "explore", ...params })} className={buttonClass("primary", "sm")} data-testid="explore-to-round">
+              {t.w4.toRound}
+            </Link>
+          ) : null}
         </div>
       </AutoSubmitForm>
 

@@ -267,6 +267,40 @@ export function browsePool(q: BrowseQuery, pageSize = BROWSE_PAGE_SIZE) {
   return { total, page, pages, rows };
 }
 
+/** Explore → round: the filtered names, in Explore's current order, become a new open round. */
+export function createRoundFromBrowse(title: string, q: BrowseQuery) {
+  const sqlite = getSqlite();
+  const where = browseWhere(q);
+  const order = orderSql(q);
+  return sqlite.transaction(() => {
+    const now = Date.now();
+    const id = Number(
+      sqlite
+        .prepare(
+          `INSERT INTO rounds (title, status, parent_round_id, filter_json, sort_mode, created_at, opened_at, source)
+           VALUES (?, 'open', NULL, ?, ?, ?, ?, 'pool')`,
+        )
+        .run(title, JSON.stringify({ explore: browseToParams(q) }), q.sort, now, now).lastInsertRowid,
+    );
+    const inserted = sqlite
+      .prepare(
+        `INSERT INTO domains (round_id, position, name, price, is_premium, source_domain_id, pool_name, currency)
+         SELECT ?, ROW_NUMBER() OVER (ORDER BY ${order.sql}), p.name, COALESCE(p.lp_price, p.best_price), 0, NULL, p.name, p.lp_currency
+         FROM pool p ${where.sql}
+         ORDER BY ${order.sql}`,
+      )
+      .run(id, ...order.params, ...where.params, ...order.params);
+    if (inserted.changes === 0) sqlite.prepare("DELETE FROM rounds WHERE id = ?").run(id);
+    return { id, count: inserted.changes };
+  })();
+}
+
+/** Total matches only (no rows). */
+export function countBrowse(q: BrowseQuery) {
+  const where = browseWhere(q);
+  return (getSqlite().prepare(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`).get(...where.params) as { n: number }).n;
+}
+
 export function* iterateBrowse(q: BrowseQuery) {
   const where = browseWhere(q);
   const order = orderSql(q);

@@ -10,6 +10,7 @@ import { countPool, normalizePoolFilters } from "@/lib/pool";
 import { importFile } from "@/lib/pool-import";
 import { dataDir, resolveImportPath } from "@/lib/paths";
 import { createRoundFromPool } from "@/lib/rounds";
+import { createRoundFromBrowse, parseBrowse } from "@/lib/pool-browse";
 import { t } from "@/lib/copy/fa";
 
 function done(result: { rowsUpserted: number; rowsSkipped: number; error?: string }) {
@@ -72,6 +73,22 @@ export async function createPoolRoundAction(formData: FormData) {
   const { filters, error } = normalizePoolFilters(filterInput(formData));
   if (error) redirect(`${back}&error=parse&message=${encodeURIComponent(error)}`);
   const result = createRoundFromPool(title, filters, String(formData.get("seed") ?? "").trim().slice(0, 40) || null);
+  if (result.count === 0) redirect(`${back}&error=parse&message=${encodeURIComponent(t.pool.err.noMatch)}`);
+  setRoundAssignees(result.id, parseAssigneeIds(formData));
+  revalidatePath("/admin");
+  redirect(`/admin/rounds/${result.id}?imported=${result.count}`);
+}
+
+/** Explore filters (as a query string) → new round. */
+export async function createExploreRoundAction(formData: FormData) {
+  await requireAdmin();
+  const explore = String(formData.get("explore") ?? "").slice(0, 4000);
+  const back = `/admin/rounds/new?mode=explore&${explore}`;
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title || title.length > 80) redirect(`${back}&error=title`);
+  const params: Record<string, string[]> = {};
+  for (const [k, v] of new URLSearchParams(explore)) (params[k] ??= []).push(v);
+  const result = createRoundFromBrowse(title, parseBrowse(params));
   if (result.count === 0) redirect(`${back}&error=parse&message=${encodeURIComponent(t.pool.err.noMatch)}`);
   setRoundAssignees(result.id, parseAssigneeIds(formData));
   revalidatePath("/admin");

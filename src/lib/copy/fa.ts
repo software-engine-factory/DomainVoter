@@ -763,6 +763,10 @@ export const t = {
     save: "ذخیره",
     cancel: "انصراف",
     funnel: "قیف دورها",
+    toRound: "ساخت دور از این نتایج",
+    fromExplore: "همهٔ نام‌های این نتیجهٔ کاوش، به همان ترتیب.",
+    editFilters: "تغییر فیلترها",
+    create: "ساخت دور",
     next: {
       title: "دور بعد از رأی‌ها",
       open: "دور بعد",
