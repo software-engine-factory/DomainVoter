@@ -48,7 +48,34 @@ export async function toggleVote(domainId: number): Promise<{ voted: boolean; co
 
   revalidatePath(`/admin/rounds/${domain.roundId}`);
   revalidatePath("/admin");
+  revalidatePath("/vote/bookmarks");
   return { voted: !existing, count: countRow.count };
+}
+
+/** Idempotent: sets the caller's vote on a domain to `want` (used by the bookmarks page, so double taps and undo can never flip twice). */
+export async function setVote(domainId: number, want: boolean): Promise<{ voted: boolean; count: number } | { error: string }> {
+  const session = await getSession();
+  if (!session) return { error: t.vote.err.login };
+  if (!Number.isInteger(domainId) || typeof want !== "boolean") return { error: t.vote.err.notInRound };
+  const domain = getDb().select().from(domains).where(eq(domains.id, domainId)).get();
+  if (!domain) return { error: t.vote.err.notInRound };
+  const round = getDb().select().from(rounds).where(eq(rounds.id, domain.roundId)).get();
+  if (!round || round.status !== "open") return { error: t.vote.err.closed };
+  const sqlite = getSqlite();
+  if (want) {
+    sqlite
+      .prepare("INSERT INTO votes (round_id, domain_id, user_id, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(domain_id, user_id) DO NOTHING")
+      .run(domain.roundId, domainId, session.userId, Date.now());
+  } else {
+    sqlite.prepare("DELETE FROM votes WHERE domain_id = ? AND user_id = ?").run(domainId, session.userId);
+  }
+  const countRow = sqlite
+    .prepare("SELECT COUNT(*) AS count FROM votes WHERE round_id = ? AND user_id = ?")
+    .get(domain.roundId, session.userId) as { count: number };
+  revalidatePath(`/admin/rounds/${domain.roundId}`);
+  revalidatePath("/admin");
+  revalidatePath("/vote/bookmarks");
+  return { voted: want, count: countRow.count };
 }
 
 export async function recordViews(roundId: number, domainIds: number[]) {

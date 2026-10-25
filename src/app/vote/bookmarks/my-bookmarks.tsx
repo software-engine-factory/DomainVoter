@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { toggleVote } from "@/lib/actions/votes";
+import { setVote } from "@/lib/actions/votes";
 import { qk } from "@/lib/query/keys";
 import { formatWhen } from "@/lib/format";
 import type { MyBookmark } from "@/lib/my-bookmarks";
@@ -28,8 +28,7 @@ export function MyBookmarks({ initial }: { initial: MyBookmark[] }) {
   const [undo, setUndo] = useState<MyBookmark | null>(null);
   const [error, setError] = useState("");
   const [, startTransition] = useTransition();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const busy = useRef<Set<number>>(new Set());
   useEffect(() => {
     if (!undo) return;
     const timer = setTimeout(() => setUndo(null), 6000);
@@ -46,38 +45,56 @@ export function MyBookmarks({ initial }: { initial: MyBookmark[] }) {
   }, [items, query, scope]);
 
   function remove(item: MyBookmark) {
+    if (busy.current.has(item.domainId)) return;
+    busy.current.add(item.domainId);
     setError("");
     setLeaving((s) => new Set(s).add(item.domainId));
     startTransition(async () => {
-      const result = await toggleVote(item.domainId);
+      const result = await setVote(item.domainId, false).catch(() => ({ error: t.common.error }));
       if ("error" in result) {
+        busy.current.delete(item.domainId);
         setLeaving((s) => { const n = new Set(s); n.delete(item.domainId); return n; });
         setError(result.error);
         return;
       }
       client.invalidateQueries({ queryKey: qk.myVotesAll(item.roundId) });
-      setTimeout(() => {
-        setItems((list) => list.filter((x) => x.domainId !== item.domainId));
-        setLeaving((s) => { const n = new Set(s); n.delete(item.domainId); return n; });
-      }, 220);
+      setItems((list) => list.filter((x) => x.domainId !== item.domainId));
+      setLeaving((s) => { const n = new Set(s); n.delete(item.domainId); return n; });
+      busy.current.delete(item.domainId);
       setUndo(item);
     });
   }
 
   function restore() {
     const item = undo;
-    if (!item) return;
+    if (!item || busy.current.has(item.domainId)) return;
+    busy.current.add(item.domainId);
     setUndo(null);
     startTransition(async () => {
-      const result = await toggleVote(item.domainId);
+      const result = await setVote(item.domainId, true).catch(() => ({ error: t.common.error }));
+      busy.current.delete(item.domainId);
       if ("error" in result) return setError(result.error);
       client.invalidateQueries({ queryKey: qk.myVotesAll(item.roundId) });
-      setItems((list) => [{ ...item, votedAt: Date.now() }, ...list]);
+      setItems((list) => (list.some((x) => x.domainId === item.domainId) ? list : [{ ...item, votedAt: Date.now() }, ...list]));
     });
   }
 
-  if (items.length === 0 && !undo) {
+  const toast = (
+    undo ? createPortal(
+        <div role="status" className="page-enter fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-full bg-ink px-5 py-3 text-sm text-paper shadow-lg">
+          <span dir="auto" className="truncate">{c.removed(undo.name)}</span>
+          <button type="button" onClick={restore} className="press shrink-0 font-semibold text-accent-soft underline-offset-2 hover:underline">
+            {c.undo}
+          </button>
+        </div>,
+        document.body,
+      ) : null
+  );
+
+  if (items.length === 0) {
     return (
+      <>
+      {toast}
       <div className="page-enter mt-8 rounded-2xl border border-dashed border-line bg-card px-6 py-14 text-center">
         <div className="mx-auto grid size-14 place-items-center rounded-full bg-accent-soft text-accent" aria-hidden>
           <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -90,6 +107,7 @@ export function MyBookmarks({ initial }: { initial: MyBookmark[] }) {
           {c.emptyCta}
         </Link>
       </div>
+      </>
     );
   }
 
@@ -188,15 +206,7 @@ export function MyBookmarks({ initial }: { initial: MyBookmark[] }) {
         </ul>
       )}
 
-      {undo && mounted ? createPortal(
-        <div role="status" className="page-enter fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-full bg-ink px-5 py-3 text-sm text-paper shadow-lg">
-          <span dir="auto" className="truncate">{c.removed(undo.name)}</span>
-          <button type="button" onClick={restore} className="press shrink-0 font-semibold text-accent-soft underline-offset-2 hover:underline">
-            {c.undo}
-          </button>
-        </div>,
-        document.body,
-      ) : null}
+      {toast}
     </div>
   );
 }
