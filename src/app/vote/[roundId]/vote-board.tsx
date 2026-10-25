@@ -6,6 +6,7 @@ import { buttonClass } from "@/components/ui";
 import { myVotesQuery, roundCardsQuery, useMyVotes, useRoundCards } from "@/lib/query/hooks";
 import type { Card, MyVotes } from "@/lib/query/fetchers";
 import { resolveWindow } from "@/lib/window";
+import { t } from "@/lib/copy/fa";
 import { RecordViews } from "./record-views";
 import { VoteGrid } from "./vote-grid";
 
@@ -78,11 +79,11 @@ export function VoteBoard({
   return (
     <>
       <p className="mt-2 shrink-0 text-xs text-muted">
-        نمایش{" "}
+        {t.vote.showing}{" "}
         <span className="font-semibold tabular-nums text-ink">
           {window_.start}–{window_.end}
         </span>{" "}
-        از بازه {window_.from}–{window_.to} · صفحه {window_.page} از {window_.pages} · {total} دامنه. برای رأی کلیک کنید، برای برداشتن دوباره کلیک کنید.
+        {t.vote.windowInfo(window_.from, window_.to, window_.page, window_.pages, total)}
       </p>
 
       <div className="mt-2 min-h-0 flex-1" aria-busy={!exact}>
@@ -105,10 +106,10 @@ export function VoteBoard({
           disabled={window_.page <= 1}
           onClick={() => setPage(window_.page - 1)}
         >
-          ۲۰ تای قبلی
+          {t.vote.prev20}
         </button>
         <p className="text-sm tabular-nums text-muted">
-          صفحه {window_.page} از {window_.pages}
+          {t.common.pageOf(window_.page, window_.pages)}
         </p>
         <button
           type="button"
@@ -116,7 +117,7 @@ export function VoteBoard({
           disabled={window_.page >= window_.pages}
           onClick={() => setPage(window_.page + 1)}
         >
-          ۲۰ تای بعدی
+          {t.vote.next20}
         </button>
       </div>
     </>

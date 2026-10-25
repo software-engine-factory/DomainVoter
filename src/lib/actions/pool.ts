@@ -9,6 +9,7 @@ import { countPool, normalizePoolFilters } from "@/lib/pool";
 import { importFile } from "@/lib/pool-import";
 import { dataDir, resolveImportPath } from "@/lib/paths";
 import { createRoundFromPool } from "@/lib/rounds";
+import { t } from "@/lib/copy/fa";
 
 function done(result: { rowsUpserted: number; rowsSkipped: number; error?: string }) {
   revalidatePath("/admin/pool");
@@ -21,18 +22,18 @@ export async function syncPoolAction(formData: FormData) {
   await requireAdmin();
   const input = String(formData.get("path") ?? "").trim();
   const file = input ? resolveImportPath(input) : null;
-  if (!file) redirect(`/admin/pool?error=${encodeURIComponent("مسیر باید داخل پوشهٔ داده (/app/data) باشد.")}`);
-  if (!fs.existsSync(file)) redirect(`/admin/pool?error=${encodeURIComponent(`فایل پیدا نشد: ${input}`)}`);
+  if (!file) redirect(`/admin/pool?error=${encodeURIComponent(t.pool.err.outside)}`);
+  if (!fs.existsSync(file)) redirect(`/admin/pool?error=${encodeURIComponent(t.pool.err.notFound(input))}`);
   done(await importFile(file, input));
 }
 
 export async function uploadPoolAction(formData: FormData) {
   await requireAdmin();
   const upload = formData.get("file");
-  if (!(upload instanceof File) || upload.size === 0) redirect(`/admin/pool?error=${encodeURIComponent("یک فایل CSV یا DB انتخاب کنید.")}`);
+  if (!(upload instanceof File) || upload.size === 0) redirect(`/admin/pool?error=${encodeURIComponent(t.pool.err.pick)}`);
   const ext = path.extname(upload.name).toLowerCase();
   if (![".csv", ".db", ".sqlite", ".sqlite3"].includes(ext)) {
-    redirect(`/admin/pool?error=${encodeURIComponent("فقط فایل CSV یا SQLite پذیرفته می‌شود.")}`);
+    redirect(`/admin/pool?error=${encodeURIComponent(t.pool.err.type)}`);
   }
   const dir = path.join(dataDir(), "uploads");
   fs.mkdirSync(dir, { recursive: true });
@@ -70,7 +71,7 @@ export async function createPoolRoundAction(formData: FormData) {
   const { filters, error } = normalizePoolFilters(filterInput(formData));
   if (error) redirect(`${back}&error=parse&message=${encodeURIComponent(error)}`);
   const result = createRoundFromPool(title, filters);
-  if (result.count === 0) redirect(`${back}&error=parse&message=${encodeURIComponent("هیچ نامی با این فیلترها جور نیست.")}`);
+  if (result.count === 0) redirect(`${back}&error=parse&message=${encodeURIComponent(t.pool.err.noMatch)}`);
   revalidatePath("/admin");
   redirect(`/admin/rounds/${result.id}?imported=${result.count}`);
 }

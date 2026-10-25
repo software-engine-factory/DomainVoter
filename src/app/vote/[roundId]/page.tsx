@@ -7,6 +7,7 @@ import { one } from "@/lib/format";
 import { countDomains, getRound, getUserVoteCount, getUserVotedIds, getVoteCards } from "@/lib/rounds";
 import { resolveWindow } from "@/lib/window";
 import { VoteBoard } from "./vote-board";
+import { t } from "@/lib/copy/fa";
 
 type PageProps = {
   params: Promise<{ roundId: string }>;
@@ -16,7 +17,7 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { roundId } = await params;
   const round = getRound(Number(roundId));
-  return { title: round?.title ?? "دور" };
+  return { title: round?.title ?? t.common.round };
 }
 
 export default async function VoteRoundPage({ params, searchParams }: PageProps) {
@@ -50,7 +51,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
         <div className="min-w-0">
           <p className="text-xs text-muted">
             <Link href="/vote" className="underline decoration-line underline-offset-4 hover:text-ink">
-              دورهای باز
+              {t.vote.listTitle}
             </Link>
           </p>
           <h1 className="truncate font-display text-3xl leading-none">{round.title}</h1>
@@ -58,7 +59,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
         {board ? (
           <form action={`/vote/${round.id}`} className="flex flex-wrap items-end gap-2">
             <label className="grid gap-1 text-xs font-medium">
-              از
+              {t.vote.rangeFrom}
               <input
                 name="from"
                 dir="ltr"
@@ -71,7 +72,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
               />
             </label>
             <label className="grid gap-1 text-xs font-medium">
-              تا
+              {t.vote.rangeTo}
               <input
                 name="to"
                 dir="ltr"
@@ -83,18 +84,18 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
                 className={`${fieldClass} h-9! w-20 text-sm!`}
               />
             </label>
-            <button className={buttonClass("secondary", "sm")}>نمایش این بازه</button>
+            <button className={buttonClass("secondary", "sm")}>{t.vote.showRange}</button>
           </form>
         ) : null}
       </div>
 
       {round.status !== "open" ? (
         <div className="mt-8">
-          <Alert tone="info">این دور بسته است، پس رأی‌ها و بازدیدها ثابت مانده‌اند.</Alert>
+          <Alert tone="info">{t.vote.closedNotice}</Alert>
         </div>
       ) : total === 0 ? (
         <div className="mt-8">
-          <Alert>این دور دامنه‌ای ندارد.</Alert>
+          <Alert>{t.vote.noDomains}</Alert>
         </div>
       ) : (
         <VoteBoard

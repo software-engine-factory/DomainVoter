@@ -1,7 +1,8 @@
+import { t } from "@/lib/copy/fa";
 export function formatPrice(price: number | null) {
   if (price == null) return "—";
   const amount = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 }).format(price);
-  return `${amount} دلار`;
+  return t.format.usd(amount);
 }
 
 export function formatWhen(value: Date | number | null | undefined) {
@@ -34,7 +35,7 @@ export function withParams(path: string, params: Record<string, string | number 
 
 /** Price in its original currency; pool rows without a price read "price on page". */
 export function formatMoney(price: number | null, currency: string | null, fromPool: boolean) {
-  if (price == null) return fromPool ? "قیمت در صفحه" : "—";
+  if (price == null) return fromPool ? t.format.priceOnPage : "—";
   const code = (currency ?? "USD").toUpperCase();
   if (code === "USD") return formatPrice(price);
   const amount = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 }).format(price);

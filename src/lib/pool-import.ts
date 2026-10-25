@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import Papa from "papaparse";
 import { getSqlite } from "@/db";
+import { t } from "@/lib/copy/fa";
 
 /** Columns of app_export_purchasable.{csv,db}. Anything else in the file is ignored. */
 export const POOL_COLUMNS = [
@@ -169,7 +170,7 @@ export function importCsvStream(stream: NodeJS.ReadableStream, source: string): 
       transformHeader: (header) => header.trim().toLowerCase(),
       step(result, parser) {
         if (writer.stats.read === 0 && !result.meta.fields?.includes("name")) {
-          headerError = "ستون name در فایل نیست.";
+          headerError = t.pool.err.noNameColumn;
           parser.abort();
           return;
         }
@@ -219,14 +220,14 @@ export function importSqliteFile(file: string, source: string): ImportResult {
         tables.find((t) => t.name === "app_export_purchasable") ??
         tables.find((t) => t.name === "names") ??
         (tables.length === 1 ? tables[0] : undefined);
-      if (!table) throw new Error(`جدول خروجی پیدا نشد (${tables.map((t) => t.name).join(", ") || "خالی"}).`);
+      if (!table) throw new Error(t.pool.err.noTable(tables.map((x) => x.name).join(", ")));
       const present = (sqlite.prepare(`PRAGMA src.table_info("${table.name.replaceAll('"', '""')}")`).all() as Array<{ name: string }>).map(
         (c) => c.name,
       );
       const find = (c: string) =>
         present.find((p) => p.toLowerCase() === c) ??
         (/^set_\d$/.test(c) ? present.find((p) => p.toLowerCase().startsWith(`${c}_`)) : undefined);
-      if (!find("name")) throw new Error("ستون name در جدول نیست.");
+      if (!find("name")) throw new Error(t.pool.err.noNameInTable);
       const columns = POOL_COLUMNS.flatMap((c) => {
         const col = find(c);
         return col ? [`"${col.replaceAll('"', '""')}" AS "${c}"`] : [];

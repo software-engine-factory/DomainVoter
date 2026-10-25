@@ -5,17 +5,18 @@ import { revalidatePath } from "next/cache";
 import { getDb, getSqlite } from "@/db";
 import { domains, rounds, votes } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { t } from "@/lib/copy/fa";
 
 export async function toggleVote(domainId: number): Promise<{ voted: boolean; count: number } | { error: string }> {
   const session = await getSession();
-  if (!session || session.role !== "voter") return { error: "برای رأی دادن با حساب رأی‌دهنده وارد شوید." };
-  if (!Number.isInteger(domainId)) return { error: "این دامنه در این دور نیست." };
+  if (!session || session.role !== "voter") return { error: t.vote.err.login };
+  if (!Number.isInteger(domainId)) return { error: t.vote.err.notInRound };
 
   const domain = getDb().select().from(domains).where(eq(domains.id, domainId)).get();
-  if (!domain) return { error: "این دامنه در این دور نیست." };
+  if (!domain) return { error: t.vote.err.notInRound };
 
   const round = getDb().select().from(rounds).where(eq(rounds.id, domain.roundId)).get();
-  if (!round || round.status !== "open") return { error: "این دور بسته است." };
+  if (!round || round.status !== "open") return { error: t.vote.err.closed };
 
   const existing = getDb()
     .select()
@@ -37,7 +38,7 @@ export async function toggleVote(domainId: number): Promise<{ voted: boolean; co
         })
         .run();
     } catch {
-      return { error: "این رأی ذخیره شده بود. صفحه را تازه کنید و دوباره تلاش کنید." };
+      return { error: t.vote.err.conflict };
     }
   }
 

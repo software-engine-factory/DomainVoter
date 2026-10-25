@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { t } from "@/lib/copy/fa";
 
 export type MappedDomain = {
   name: string;
@@ -52,7 +53,7 @@ export function readCsv(text: string): {
   error?: string;
 } {
   if (!text.trim()) {
-    return { headers: [], records: [], error: "این فایل خالی است." };
+    return { headers: [], records: [], error: t.csv.empty };
   }
 
   const parsed = Papa.parse<Record<string, string>>(text, {
@@ -62,10 +63,10 @@ export function readCsv(text: string): {
   });
   const headers = (parsed.meta.fields ?? []).map((header) => header.trim()).filter(Boolean);
   if (headers.length === 0) {
-    return { headers: [], records: [], error: "ردیف سرستون پیدا نشد. ردیف اول باید نام ستون‌ها باشد." };
+    return { headers: [], records: [], error: t.csv.noHeader };
   }
   if (parsed.data.length === 0) {
-    return { headers, records: [], error: "این فایل ردیف داده ندارد." };
+    return { headers, records: [], error: t.csv.noRows };
   }
   return { headers, records: parsed.data };
 }
@@ -78,7 +79,7 @@ export function mapRows(
 ): MappedCsv {
   const dataRowCount = records.length;
   if (!mapping.domainColumn) {
-    return { rows: [], dataRowCount, skippedEmpty: 0, skippedDuplicate: 0, error: "ستون دامنه را انتخاب کنید." };
+    return { rows: [], dataRowCount, skippedEmpty: 0, skippedDuplicate: 0, error: t.csv.pickDomain };
   }
   if (!headers.includes(mapping.domainColumn)) {
     return {
@@ -86,7 +87,7 @@ export function mapRows(
       dataRowCount,
       skippedEmpty: 0,
       skippedDuplicate: 0,
-      error: "یک ستون دامنه از فایل انتخاب کنید.",
+      error: t.csv.pickDomainFromFile,
     };
   }
 
@@ -98,7 +99,7 @@ export function mapRows(
   to = Math.floor(to);
 
   if (from < 1) {
-    return { rows: [], dataRowCount, skippedEmpty: 0, skippedDuplicate: 0, error: "ردیف شروع باید دست‌کم ۱ باشد." };
+    return { rows: [], dataRowCount, skippedEmpty: 0, skippedDuplicate: 0, error: t.csv.startMin };
   }
   if (from > dataRowCount) {
     return {
@@ -106,7 +107,7 @@ export function mapRows(
       dataRowCount,
       skippedEmpty: 0,
       skippedDuplicate: 0,
-      error: "ردیف شروع بعد از پایان فایل است.",
+      error: t.csv.startPastEnd,
     };
   }
   if (to < from) {
@@ -115,7 +116,7 @@ export function mapRows(
       dataRowCount,
       skippedEmpty: 0,
       skippedDuplicate: 0,
-      error: "ردیف پایان باید همان ردیف شروع یا بعد از آن باشد.",
+      error: t.csv.endBeforeStart,
     };
   }
   to = Math.min(to, dataRowCount);
@@ -149,7 +150,7 @@ export function mapRows(
       dataRowCount,
       skippedEmpty,
       skippedDuplicate,
-      error: "بعد از پاک‌سازی این فایل دامنه‌ای نماند.",
+      error: t.csv.nothingLeft,
     };
   }
 

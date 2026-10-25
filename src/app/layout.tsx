@@ -5,6 +5,7 @@ import { QueryProvider } from "@/components/query-provider";
 import { getSession } from "@/lib/auth";
 import { getDatasetVersion } from "@/lib/dataset-version";
 import "./globals.css";
+import { t } from "@/lib/copy/fa";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -28,10 +29,10 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "رأی دامنه",
-    template: "%s · رأی دامنه",
+    default: t.app.name,
+    template: t.app.titleTemplate,
   },
-  description: "به دامنه‌ها، دور به دور، رأی بدهید.",
+  description: t.app.description,
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
