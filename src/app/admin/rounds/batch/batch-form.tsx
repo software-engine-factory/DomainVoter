@@ -57,7 +57,6 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users }: {
       <div className="space-y-4">
         <fieldset className="rounded-xl border border-line p-3 text-sm">
           <legend className="px-1 font-semibold">{t.batch.blockLegend}</legend>
-          <div className="text-xs text-muted">{t.batch.blockHint}</div>
           <div className="mt-3 font-medium">{t.batch.sets}</div>
           <div className="mt-1 flex flex-wrap gap-2">
             {[1, 2, 3, 4, 5].map((n) => (

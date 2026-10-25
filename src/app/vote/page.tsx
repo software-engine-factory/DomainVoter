@@ -17,7 +17,6 @@ export default async function VoteHomePage() {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
       <h1 className="font-display text-5xl">{t.vote.listTitle}</h1>
-      <p className="mt-3 max-w-xl text-muted">{t.vote.listLead}</p>
       {rounds.length === 0 ? (
         <div className="mt-10 rounded-xl border border-dashed border-line px-6 py-16 text-center">
           <h2 className="font-display text-3xl">{t.vote.emptyTitle}</h2>

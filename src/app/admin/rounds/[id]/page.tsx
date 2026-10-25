@@ -220,9 +220,6 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
         {tab === "next" ? (
           <div>
             <h2 className="font-display text-2xl">{t.round.nextTitle}</h2>
-            <p className="mt-2 max-w-xl text-sm text-muted">
-              {t.round.nextLead}
-            </p>
             <div className="mt-6">
               <DeriveForm
                 roundId={round.id}

@@ -15,7 +15,6 @@ export default async function UiSettingsPage() {
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="font-display text-3xl sm:text-4xl">{t.uiSettings.title}</h1>
-      <p className="mt-1 text-sm text-muted">{t.uiSettings.lead}</p>
 
       <form action={saveVotePageSizeAction} className="mt-6 rounded-xl border border-line bg-card p-4 sm:p-5">
         <fieldset>
