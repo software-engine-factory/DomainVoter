@@ -1,18 +1,8 @@
 @import "tailwindcss";
 
-:root {
-  --paper: #f3efe6;
-  --ink: #1c1915;
-  --card: #fffdf8;
-  --muted: #5e574e;
-  --line: #e3dacd;
-  --accent: #085041;
-  --accent-soft: #e4f3ec;
-  --gold: #6d4d12;
-  --gold-soft: #f8efd8;
-  --danger: #8d2f2a;
-  --danger-soft: #f8e7e4;
-}
+@import "../styles/themes.css";
+@import "../styles/motion.css";
+@import "../styles/responsive.css";
 
 @theme inline {
   --color-paper: var(--paper);
@@ -22,6 +12,10 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
+  --color-on-accent: var(--on-accent);
+  --color-chip: var(--chip);
+  --color-hover: var(--hover);
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
   --color-danger: var(--danger);
@@ -33,74 +27,14 @@
 
 body {
   background:
-    radial-gradient(900px 420px at 100% -8%, rgb(8 80 65 / 0.07), transparent 60%),
+    radial-gradient(900px 420px at 100% -8%, var(--glow), transparent 60%),
+    radial-gradient(700px 380px at -10% 110%, var(--glow-2), transparent 60%),
     var(--paper);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font-vazirmatn), sans-serif;
 }
 
 ::selection {
-  background: #cfe8dc;
-}
-
-@keyframes tile-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.vote-enter {
-  animation: tile-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.vote-tile {
-  transition:
-    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.vote-tile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 30px -20px rgb(28 25 21 / 0.55);
-}
-
-.vote-tile:active {
-  transform: translateY(0) scale(0.985);
-  transition-duration: 80ms;
-}
-
-.vote-mark {
-  opacity: 0;
-  transform: scale(0.7);
-  transition:
-    opacity 160ms ease,
-    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.vote-tile[aria-pressed="true"] .vote-mark {
-  opacity: 1;
-  transform: scale(1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vote-tile,
-  .vote-tile:hover,
-  .vote-tile:active {
-    transform: none;
-    transition: none;
-    animation: none;
-  }
-
-  .vote-enter,
-  .vote-mark {
-    animation: none;
-    transition: none;
-  }
+  background: var(--selection);
 }

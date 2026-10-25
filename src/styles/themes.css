@@ -1,0 +1,127 @@
+/* Design tokens extracted from the dvote proposal mockups (base.css).
+   Every theme overrides the same variables; components only use tokens. */
+:root,
+[data-theme="kahroba"] {
+  --paper: #f3efe6;
+  --ink: #1c1915;
+  --card: #fffdf8;
+  --muted: #5e574e;
+  --line: #e3dacd;
+  --accent: #085041;
+  --accent-strong: #063d32;
+  --accent-soft: #e4f3ec;
+  --on-accent: #ffffff;
+  --gold: #6d4d12;
+  --gold-soft: #f8efd8;
+  --danger: #8d2f2a;
+  --danger-soft: #f8e7e4;
+  --chip: #efe8dc;
+  --hover: rgb(0 0 0 / 0.05);
+  --glow: rgb(8 80 65 / 0.07);
+  --glow-2: transparent;
+  --selection: #cfe8dc;
+  --radius-tile: 0.75rem;
+  --shadow-lift: 0 16px 30px -20px rgb(28 25 21 / 0.55);
+  --tile-border-width: 1px;
+  color-scheme: light;
+}
+
+[data-theme="shab"] {
+  --paper: #12151a;
+  --ink: #ecebe6;
+  --card: #1b2027;
+  --muted: #9aa3ad;
+  --line: #2a313a;
+  --accent: #4fd1a5;
+  --accent-strong: #7ee3c0;
+  --accent-soft: rgb(79 209 165 / 0.14);
+  --on-accent: #0b1512;
+  --gold: #e8b75c;
+  --gold-soft: rgb(232 183 92 / 0.14);
+  --danger: #ff8a80;
+  --danger-soft: rgb(255 138 128 / 0.12);
+  --chip: #252b33;
+  --hover: rgb(255 255 255 / 0.06);
+  --glow: rgb(79 209 165 / 0.12);
+  --glow-2: rgb(232 183 92 / 0.06);
+  --selection: rgb(79 209 165 / 0.35);
+  --shadow-lift: 0 18px 36px -18px rgb(0 0 0 / 0.8), 0 0 0 1px rgb(79 209 165 / 0.25);
+  color-scheme: dark;
+}
+
+[data-theme="firoozeh"] {
+  --paper: #eaf6f7;
+  --ink: #0f2a33;
+  --card: rgb(255 255 255 / 0.72);
+  --muted: #4b6670;
+  --line: #c9e3e7;
+  --accent: #0b7285;
+  --accent-strong: #095c6b;
+  --accent-soft: #d3eff3;
+  --on-accent: #ffffff;
+  --gold: #c2410c;
+  --gold-soft: #fde8dc;
+  --danger: #b42318;
+  --danger-soft: #fde7e5;
+  --chip: #dbeef1;
+  --hover: rgb(11 114 133 / 0.07);
+  --glow: rgb(11 114 133 / 0.16);
+  --glow-2: rgb(194 65 12 / 0.08);
+  --selection: #b7e4ec;
+  --radius-tile: 1.1rem;
+  --shadow-lift: 0 20px 40px -22px rgb(11 114 133 / 0.6);
+  color-scheme: light;
+}
+
+[data-theme="anar"] {
+  --paper: #fbf1ee;
+  --ink: #2a1215;
+  --card: #fffaf8;
+  --muted: #7a5257;
+  --line: #f0d9d4;
+  --accent: #b42335;
+  --accent-strong: #8f1a29;
+  --accent-soft: #fbe3e5;
+  --on-accent: #ffffff;
+  --gold: #7c3aed;
+  --gold-soft: #efe7fd;
+  --danger: #9f1239;
+  --danger-soft: #fde4ea;
+  --chip: #f6e4df;
+  --hover: rgb(180 35 53 / 0.06);
+  --glow: rgb(180 35 53 / 0.1);
+  --glow-2: rgb(124 58 237 / 0.07);
+  --selection: #f6c9cf;
+  --radius-tile: 1.4rem;
+  --shadow-lift: 0 18px 34px -18px rgb(180 35 53 / 0.45);
+  color-scheme: light;
+}
+
+[data-theme="jowhar"] {
+  --paper: #ffffff;
+  --ink: #111111;
+  --card: #ffffff;
+  --muted: #555555;
+  --line: #111111;
+  --accent: #111111;
+  --accent-strong: #ff4d00;
+  --accent-soft: #fff1e8;
+  --on-accent: #ffffff;
+  --gold: #ff4d00;
+  --gold-soft: #fff1e8;
+  --danger: #d00000;
+  --danger-soft: #ffe5e5;
+  --chip: #f2f2f2;
+  --hover: rgb(0 0 0 / 0.06);
+  --glow: transparent;
+  --glow-2: transparent;
+  --selection: #ffd6c2;
+  --radius-tile: 0.25rem;
+  --shadow-lift: 5px 5px 0 0 #111111;
+  --tile-border-width: 2px;
+  color-scheme: light;
+}
+
+[data-theme="jowhar"] .vote-tile[aria-pressed="true"] {
+  box-shadow: 4px 4px 0 0 var(--gold);
+}

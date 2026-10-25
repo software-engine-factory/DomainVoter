@@ -4,8 +4,8 @@ export function buttonClass(variant: "primary" | "secondary" | "ghost" = "primar
   const height = size === "sm" ? "h-9 px-3" : "h-11 px-4";
   const base = `inline-flex ${height} items-center justify-center rounded-lg text-sm font-semibold transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100`;
   if (variant === "secondary") return `${base} border border-line bg-card text-ink hover:border-ink/25 hover:bg-paper`;
-  if (variant === "ghost") return `${base} text-ink hover:bg-black/5`;
-  return `${base} bg-accent text-white shadow-sm shadow-accent/20 hover:bg-[#063d32]`;
+  if (variant === "ghost") return `${base} text-ink hover:bg-hover`;
+  return `${base} bg-accent text-on-accent shadow-sm shadow-accent/20 hover:-translate-y-px hover:bg-accent-strong hover:shadow-md hover:shadow-accent/25`;
 }
 
 export const fieldClass =
@@ -42,7 +42,7 @@ export function Alert({
     success: "border-accent/20 bg-accent-soft text-accent",
   };
   return (
-    <div role={tone === "danger" ? "alert" : "status"} className={`rounded-lg border px-4 py-3 text-sm ${tones[tone]}`}>
+    <div role={tone === "danger" ? "alert" : "status"} className={`pop-in rounded-lg border px-4 py-3 text-sm ${tones[tone]}`}>
       {children}
     </div>
   );
@@ -52,7 +52,7 @@ export function Badge({ tone, children }: { tone: "accent" | "gold" | "muted"; c
   const tones = {
     accent: "bg-accent-soft text-accent",
     gold: "bg-gold-soft text-gold",
-    muted: "bg-[#efe8dc] text-ink",
+    muted: "bg-chip text-ink",
   };
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${tones[tone]}`}>
@@ -77,7 +77,7 @@ export function ProgressBar({ value, label }: { value: number; label: string }) 
         aria-valuemax={100}
         aria-label={label}
       >
-        <div className="h-full rounded-full bg-accent transition-[width] duration-200" style={{ width: `${clamped}%` }} />
+        <div className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out" style={{ width: `${clamped}%` }} />
       </div>
     </div>
   );

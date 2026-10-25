@@ -12,8 +12,8 @@ export function NavLink({ href, children, exact = false }: { href: string; child
       aria-current={active ? "page" : undefined}
       className={
         active
-          ? "rounded-full bg-card px-3 py-1 font-semibold text-ink shadow-sm shadow-ink/5"
-          : "rounded-full px-3 py-1 text-muted transition hover:bg-card/70 hover:text-ink"
+          ? "press whitespace-nowrap rounded-full bg-card px-3 py-1 font-semibold text-ink shadow-sm shadow-ink/5 ring-1 ring-accent/15"
+          : "press whitespace-nowrap rounded-full px-3 py-1 text-muted hover:bg-card/70 hover:text-ink"
       }
     >
       {children}
