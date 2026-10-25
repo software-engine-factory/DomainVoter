@@ -34,6 +34,11 @@ export function VoteBoard({
   const client = useQueryClient();
   const restoring = useIsRestoring();
   const [page, setPage] = useState(initialPage);
+  const [enteredFromEnd, setEnteredFromEnd] = useState(false);
+  function goPage(next: number, fromEnd: boolean) {
+    setEnteredFromEnd(fromEnd);
+    setPage(next);
+  }
   const window_ = useMemo(() => resolveWindow(total, String(from), String(to), String(page)), [total, from, to, page]);
   const isInitial = page === initialPage;
 
@@ -56,7 +61,7 @@ export function VoteBoard({
     url.searchParams.set("from", String(window_.from));
     url.searchParams.set("to", String(window_.to));
     url.searchParams.set("page", String(window_.page));
-    window.history.replaceState(window.history.state, "", url);
+    window.history.replaceState(null, "", url.toString());
   }, [window_.from, window_.to, window_.page]);
 
   // Prefetch the next page (cards from cache or network, then that page's votes) so "next" is instant.
@@ -78,7 +83,7 @@ export function VoteBoard({
 
   return (
     <>
-      <p className="mt-2 shrink-0 text-xs text-muted">
+      <p className="mt-2 hidden shrink-0 text-xs text-muted sm:block">
         {t.vote.showing}{" "}
         <span className="font-semibold tabular-nums text-ink">
           {window_.start}–{window_.end}
@@ -96,15 +101,18 @@ export function VoteBoard({
           cards={cards}
           votedIds={votes.votedIds}
           count={votes.count}
+          onPrev={window_.page > 1 ? () => goPage(window_.page - 1, true) : undefined}
+          onNext={window_.page < window_.pages ? () => goPage(window_.page + 1, false) : undefined}
+          startAtEnd={enteredFromEnd}
         />
       </div>
 
-      <div className="mt-2 flex shrink-0 items-center justify-between gap-3">
+      <div className="mt-2 hidden shrink-0 items-center justify-between gap-3 sm:flex">
         <button
           type="button"
           className={buttonClass("secondary", "sm")}
           disabled={window_.page <= 1}
-          onClick={() => setPage(window_.page - 1)}
+          onClick={() => goPage(window_.page - 1, false)}
         >
           {t.vote.prev20}
         </button>
@@ -115,7 +123,7 @@ export function VoteBoard({
           type="button"
           className={buttonClass("primary", "sm")}
           disabled={window_.page >= window_.pages}
-          onClick={() => setPage(window_.page + 1)}
+          onClick={() => goPage(window_.page + 1, false)}
         >
           {t.vote.next20}
         </button>

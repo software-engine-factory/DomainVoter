@@ -151,7 +151,7 @@ export function PoolRoundForm({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-card p-4">
         <p className="text-sm" aria-live="polite">
           {countError ? (
-            <span className="text-red-700">{countError}</span>
+            <span className="text-danger">{countError}</span>
           ) : (
             <>
               <span className="font-display text-2xl tabular-nums">{count.toLocaleString("fa-IR")}</span> {t.newRound.countMid}{" "}

@@ -91,6 +91,8 @@ export const t = {
     windowInfo: (from: number, to: number, page: number, pages: number, total: number) => `از بازهٔ ${from}–${to} · صفحهٔ ${page} از ${pages} · ${total} دامنه. یک بار بزن تا رأی بدهی، دوباره بزن تا پسش بگیری.`,
     prev20: "۲۰ تای قبلی",
     next20: "۲۰ تای بعدی",
+    prevGroup: "گروه قبلی",
+    nextGroup: "گروه بعدی",
     votedPrefix: "تا حالا به",
     votedSuffix: "دامنه در این دور رأی داده‌ای.",
     voted: "رأی دادی ✓",
@@ -549,6 +551,14 @@ export const t = {
     lead: "نام‌هایی که نشان کرده‌ای، با لینک صفحهٔ فروش. این‌که چه کسی و کِی به هر کدام رأی داده در",
     leadLink: "پیگیری و پاداش",
     leadTail: "آمده. رأی‌ها از همهٔ دورها و همهٔ رأی‌دهنده‌ها جمع شده‌اند.",
+  },
+  theme: {
+    picker: "پوسته",
+    kahroba: "کهربا (اصلی)",
+    firoozeh: "فیروزه",
+    jowhar: "جوهر",
+    violet: "بنفش شیشه‌ای",
+    emerald: "زمرد و طلا",
   },
 } as const;
 

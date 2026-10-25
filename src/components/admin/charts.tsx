@@ -14,7 +14,8 @@ import {
   YAxis,
 } from "recharts";
 
-const PALETTE = ["#2563eb", "#d97706", "#059669", "#db2777", "#7c3aed", "#0891b2", "#65a30d", "#dc2626", "#475569", "#ca8a04"];
+// Theme tokens only, so charts follow the active [data-theme].
+const PALETTE = ["var(--color-accent)", "var(--color-gold)", "var(--color-ink)", "var(--color-danger)", "var(--color-accent-strong)", "var(--color-muted)"];
 const short = (day: string) => day.slice(5);
 
 /** Daily views (bars) vs votes (bars) with vote-per-view rate (line, right axis). */
