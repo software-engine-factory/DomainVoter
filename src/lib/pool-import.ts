@@ -206,6 +206,7 @@ export function importSqliteFile(file: string, source: string): ImportResult {
       const preferred = process.env.FORSALE_IMPORT_TABLE;
       const table =
         tables.find((t) => t.name === preferred) ??
+        tables.find((t) => t.name === "app_names") ??
         tables.find((t) => t.name === "app_export_purchasable") ??
         tables.find((t) => t.name === "names") ??
         (tables.length === 1 ? tables[0] : undefined);
