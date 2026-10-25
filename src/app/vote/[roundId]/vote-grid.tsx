@@ -69,7 +69,9 @@ export function VoteGrid({
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-2 flex shrink-0 items-baseline justify-between gap-3 text-sm empty:hidden">
         <p className="hidden text-muted sm:block">
-          {t.vote.votedPrefix} <span className="font-semibold tabular-nums text-ink">{count}</span> {t.vote.votedSuffix}
+          {t.vote.votedPrefix}{" "}
+          <span className="font-semibold tabular-nums text-ink">{count}</span>{" "}
+          {t.vote.votedSuffix}
         </p>
         {error ? (
           <p role="alert" className="text-danger">
@@ -107,14 +109,21 @@ export function VoteGrid({
                 disabled={pending}
                 onClick={() => onToggle(card.id)}
                 className={`vote-tile @container flex h-full w-full flex-col overflow-hidden rounded-xl border px-3 py-2.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:opacity-100 ${
-                  selected ? "border-accent bg-accent-soft" : "border-line bg-card hover:border-accent/40"
+                  selected
+                    ? "border-accent bg-accent-soft"
+                    : "border-line bg-card hover:border-accent/40"
                 }`}
               >
-                <span dir="ltr" className="flex min-h-0 w-full flex-1 items-center justify-start text-left">
+                <span
+                  dir="ltr"
+                  className="flex min-h-0 w-full flex-1 items-center justify-start text-left"
+                >
                   <span className="flex min-w-0 items-baseline">
                     <span
                       className="truncate font-mono leading-none font-semibold tracking-tight text-ink"
-                      style={{ fontSize: `clamp(1.15rem, ${Math.round(84 / Math.max(domain.label.length, 1))}cqw, 2.15rem)` }}
+                      style={{
+                        fontSize: `clamp(1.15rem, ${Math.round(84 / Math.max(domain.label.length, 1))}cqw, 2.15rem)`,
+                      }}
                     >
                       {domain.label}
                     </span>
@@ -125,20 +134,26 @@ export function VoteGrid({
                     ) : null}
                   </span>
                 </span>
-                <span className="mt-auto flex items-end justify-end gap-2 pt-2">
-                  <span className={`inline-flex items-center gap-1 text-xs font-semibold ${selected ? "text-accent" : "text-ink/70"}`}>
-                    <svg viewBox="0 0 16 16" className="vote-mark size-3.5" aria-hidden>
-                      <path
-                        d="M3.5 8.2 6.4 11l6.1-6.2"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    {selected ? t.vote.voted : t.vote.vote}
-                  </span>
+                <span className="mt-auto flex min-h-6 items-end justify-end gap-2 pt-2">
+                  {selected ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent">
+                      <svg
+                        viewBox="0 0 16 16"
+                        className="vote-mark size-3.5"
+                        aria-hidden
+                      >
+                        <path
+                          d="M3.5 8.2 6.4 11l6.1-6.2"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      {t.vote.voted}
+                    </span>
+                  ) : null}
                 </span>
               </button>
             </li>
@@ -146,7 +161,10 @@ export function VoteGrid({
         })}
       </ul>
       {chunkCount > 1 || onPrev || onNext ? (
-        <div className="flex shrink-0 items-center justify-center gap-3 pt-2 sm:hidden" dir="ltr">
+        <div
+          className="flex shrink-0 items-center justify-center gap-3 pt-2 sm:hidden"
+          dir="ltr"
+        >
           <button
             type="button"
             aria-label={t.vote.prevGroup}

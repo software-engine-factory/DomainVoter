@@ -1,6 +1,6 @@
 /* Theme tokens. Every theme sets the same variables; components only use tokens.
    To add a theme: add a block here + an entry in src/lib/theme/themes.ts.
-   Glass rule: tile/card surfaces stay (near) opaque; the only blur layer is the sticky header. */
+   Glass rule: see the glass-themes block at the end (firoozeh, violet, emerald only). */
 
 /* Shared defaults (overridden per theme) */
 :root {
@@ -158,4 +158,82 @@
 
 [data-theme="jowhar"] .vote-tile[aria-pressed="true"] {
   box-shadow: 4px 4px 0 0 var(--gold);
+}
+
+/* ---------- Glass themes (firoozeh, violet, emerald only) ----------
+   One fixed, GPU-composited gradient layer drifts behind the page (transform only, no JS).
+   Surfaces are translucent with blur+saturate, an inner highlight and a soft shadow.
+   Never blur on top of blur: surfaces nested in the header or in another glass surface drop the filter
+   and get a more solid backing instead. */
+[data-theme="firoozeh"] {
+  --glass-bg: rgb(255 255 255 / 0.66);
+  --glass-solid: rgb(255 255 255 / 0.9);
+  --glass-edge: rgb(255 255 255 / 0.85);
+  --glass-shadow: 0 10px 30px -14px rgb(11 80 95 / 0.35);
+  --blob-1: rgb(34 184 207 / 0.45);
+  --blob-2: rgb(251 146 60 / 0.3);
+  --blob-3: rgb(99 210 190 / 0.4);
+}
+[data-theme="violet"] {
+  --glass-bg: rgb(30 30 58 / 0.55);
+  --glass-solid: rgb(24 24 46 / 0.88);
+  --glass-edge: rgb(255 255 255 / 0.14);
+  --glass-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.75);
+  --blob-1: rgb(110 76 255 / 0.5);
+  --blob-2: rgb(224 69 123 / 0.35);
+  --blob-3: rgb(56 120 255 / 0.32);
+}
+[data-theme="emerald"] {
+  --glass-bg: rgb(20 44 38 / 0.55);
+  --glass-solid: rgb(14 32 28 / 0.88);
+  --glass-edge: rgb(255 240 210 / 0.14);
+  --glass-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.8);
+  --blob-1: rgb(20 140 110 / 0.5);
+  --blob-2: rgb(200 150 60 / 0.32);
+  --blob-3: rgb(40 100 140 / 0.3);
+}
+
+:is([data-theme="firoozeh"], [data-theme="violet"], [data-theme="emerald"]) body::before {
+  content: "";
+  position: fixed;
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(32% 28% at 22% 28%, var(--blob-1), transparent 70%),
+    radial-gradient(30% 30% at 78% 22%, var(--blob-2), transparent 70%),
+    radial-gradient(34% 30% at 60% 78%, var(--blob-3), transparent 70%),
+    radial-gradient(26% 24% at 18% 82%, var(--blob-2), transparent 70%);
+  will-change: transform;
+  animation: dv-mesh-drift 32s ease-in-out infinite alternate;
+}
+@keyframes dv-mesh-drift {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  50% { transform: translate3d(6%, -5%, 0) rotate(8deg) scale(1.08); }
+  100% { transform: translate3d(-5%, 6%, 0) rotate(-6deg) scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is([data-theme="firoozeh"], [data-theme="violet"], [data-theme="emerald"]) body::before {
+    animation: none;
+  }
+}
+
+:is([data-theme="firoozeh"], [data-theme="violet"], [data-theme="emerald"]) :is(.bg-card, .vote-tile:not([aria-pressed="true"])) {
+  background-color: var(--glass-bg);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--glass-shadow);
+}
+:is([data-theme="firoozeh"], [data-theme="violet"], [data-theme="emerald"]) > body header.sticky {
+  background-color: var(--glass-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  box-shadow: inset 0 -1px 0 var(--glass-edge), 0 8px 24px -16px rgb(0 0 0 / 0.5);
+}
+/* No blur stacked on blur: nested surfaces get a solid backing instead. */
+:is([data-theme="firoozeh"], [data-theme="violet"], [data-theme="emerald"]) :is(header, .bg-card) :is(.bg-card, .vote-tile) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background-color: var(--glass-solid);
+  box-shadow: inset 0 1px 0 var(--glass-edge);
 }
