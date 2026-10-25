@@ -1,0 +1,161 @@
+/* Theme tokens. Every theme sets the same variables; components only use tokens.
+   To add a theme: add a block here + an entry in src/lib/theme/themes.ts.
+   Glass rule: tile/card surfaces stay (near) opaque; the only blur layer is the sticky header. */
+
+/* Shared defaults (overridden per theme) */
+:root {
+  --radius-tile: 0.75rem;
+  --tile-border-width: 1px;
+  --hover: rgb(0 0 0 / 0.05);
+  --glow: transparent;
+  --glow-2: transparent;
+}
+
+/* Default: the original fork-main look, unchanged (colours, Google Vazirmatn, glow). */
+:root,
+[data-theme="kahroba"] {
+  --paper: #f3efe6;
+  --ink: #1c1915;
+  --card: #fffdf8;
+  --muted: #5e574e;
+  --line: #e3dacd;
+  --accent: #085041;
+  --accent-strong: #063d32;
+  --accent-soft: #e4f3ec;
+  --on-accent: #ffffff;
+  --gold: #6d4d12;
+  --gold-soft: #f8efd8;
+  --danger: #8d2f2a;
+  --danger-soft: #f8e7e4;
+  --chip: #efe8dc;
+  --hover: rgb(0 0 0 / 0.05);
+  --glow: rgb(8 80 65 / 0.07);
+  --glow-2: transparent;
+  --selection: #cfe8dc;
+  --radius-tile: 0.75rem;
+  --shadow-lift: 0 16px 30px -20px rgb(28 25 21 / 0.55);
+  --tile-border-width: 1px;
+  --font-body: var(--font-vazirmatn);
+  --bg-attach: scroll;
+  color-scheme: light;
+}
+
+[data-theme="firoozeh"] {
+  --font-body: var(--font-noto-arabic);
+  --bg-attach: fixed;
+  --paper: #eaf6f7;
+  --ink: #0f2a33;
+  --card: rgb(255 255 255 / 0.94); /* near-opaque: glass feel without hurting text */
+  --muted: #4b6670;
+  --line: #c9e3e7;
+  --accent: #0b7285;
+  --accent-strong: #095c6b;
+  --accent-soft: #d3eff3;
+  --on-accent: #ffffff;
+  --gold: #c2410c;
+  --gold-soft: #fde8dc;
+  --danger: #b42318;
+  --danger-soft: #fde7e5;
+  --chip: #dbeef1;
+  --hover: rgb(11 114 133 / 0.07);
+  --glow: rgb(11 114 133 / 0.16);
+  --glow-2: rgb(194 65 12 / 0.08);
+  --selection: #b7e4ec;
+  --radius-tile: 1.1rem;
+  --shadow-lift: 0 20px 40px -22px rgb(11 114 133 / 0.6);
+  color-scheme: light;
+}
+
+
+/* Ported from name-swipe v2 "A" (style.css): violet glass on #0b0c14 */
+[data-theme="violet"] {
+  --font-body: var(--font-vazir-local);
+  --bg-attach: fixed;
+  --paper: #0b0c14;
+  --ink: #f4f2ff;
+  --card: #161728;
+  --muted: #b3b0d1;
+  --line: rgb(255 255 255 / 0.14);
+  --accent: #9b8cff;
+  --accent-strong: #b8adff;
+  --accent-soft: rgb(123 97 255 / 0.28);
+  --on-accent: #0b0c14;
+  --gold: #ffd36e;
+  --gold-soft: rgb(255 211 110 / 0.14);
+  --danger: #ff7a8a;
+  --danger-soft: rgb(255 122 138 / 0.14);
+  --chip: #20213a;
+  --hover: rgb(255 255 255 / 0.07);
+  --glow: rgb(91 61 245 / 0.35);
+  --glow-2: rgb(224 69 123 / 0.22);
+  --selection: rgb(155 140 255 / 0.4);
+  --radius-tile: 18px;
+  --shadow-lift: 0 30px 60px -24px rgb(0 0 0 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  color-scheme: dark;
+}
+[data-theme="violet"] .vote-tile[aria-pressed="true"] {
+  background: linear-gradient(135deg, #3a3170, #2c2463);
+  border-color: #c9bfff;
+}
+
+/* Ported from name-swipe v2 "B" (b/style.css): emerald & gold on #07110f */
+[data-theme="emerald"] {
+  --font-body: var(--font-vazir-local);
+  --bg-attach: fixed;
+  --paper: #07110f;
+  --ink: #f5efe2;
+  --card: #10201c;
+  --muted: #b9b19e;
+  --line: rgb(255 236 200 / 0.16);
+  --accent: #e8c27a;
+  --accent-strong: #f2d59d;
+  --accent-soft: rgb(232 194 122 / 0.16);
+  --on-accent: #1a1203;
+  --gold: #7fe3b6;
+  --gold-soft: rgb(127 227 182 / 0.14);
+  --danger: #f08a7e;
+  --danger-soft: rgb(240 138 126 / 0.14);
+  --chip: #172b26;
+  --hover: rgb(255 248 230 / 0.06);
+  --glow: rgb(15 90 74 / 0.6);
+  --glow-2: rgb(90 58 18 / 0.45);
+  --selection: rgb(232 194 122 / 0.35);
+  --radius-tile: 22px;
+  --shadow-lift: 0 40px 90px -30px rgb(0 0 0 / 0.75), inset 0 1px 0 rgb(255 240 210 / 0.14);
+  color-scheme: dark;
+}
+[data-theme="emerald"] .vote-tile[aria-pressed="true"] {
+  background: linear-gradient(135deg, #2b2a15, #1d2a1c);
+  border-color: #e8c27a;
+}
+
+[data-theme="jowhar"] {
+  --font-body: var(--font-readex);
+  --bg-attach: fixed;
+  --paper: #ffffff;
+  --ink: #111111;
+  --card: #ffffff;
+  --muted: #555555;
+  --line: #111111;
+  --accent: #111111;
+  --accent-strong: #ff4d00;
+  --accent-soft: #fff1e8;
+  --on-accent: #ffffff;
+  --gold: #ff4d00;
+  --gold-soft: #fff1e8;
+  --danger: #d00000;
+  --danger-soft: #ffe5e5;
+  --chip: #f2f2f2;
+  --hover: rgb(0 0 0 / 0.06);
+  --glow: transparent;
+  --glow-2: transparent;
+  --selection: #ffd6c2;
+  --radius-tile: 0.25rem;
+  --shadow-lift: 5px 5px 0 0 #111111;
+  --tile-border-width: 2px;
+  color-scheme: light;
+}
+
+[data-theme="jowhar"] .vote-tile[aria-pressed="true"] {
+  box-shadow: 4px 4px 0 0 var(--gold);
+}

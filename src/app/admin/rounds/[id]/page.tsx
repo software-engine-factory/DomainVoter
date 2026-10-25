@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { notFound } from "next/navigation";
 import { Alert, Badge, ProgressBar, buttonClass } from "@/components/ui";
 import { closeRoundAction } from "@/lib/actions/rounds";
@@ -17,13 +18,14 @@ import {
   type ResultsQuery,
 } from "@/lib/rounds";
 import { DeriveForm } from "./derive-form";
+import { t } from "@/lib/copy/fa";
 
 const PAGE_SIZE = 50;
 const TABS = [
-  { id: "results", label: "نتایج" },
-  { id: "ballots", label: "برگه‌های رأی" },
-  { id: "unviewed", label: "دیده‌نشده" },
-  { id: "next", label: "دور بعد" },
+  { id: "results", label: t.round.tabResults },
+  { id: "ballots", label: t.round.tabBallots },
+  { id: "unviewed", label: t.round.tabUnviewed },
+  { id: "next", label: t.round.tabNext },
 ] as const;
 
 type Tab = (typeof TABS)[number]["id"];
@@ -37,7 +39,7 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const round = getRound(Number(id));
-  return { title: round?.title ?? "دور" };
+  return { title: round?.title ?? t.common.round };
 }
 
 function pageNumber(value: string | undefined) {
@@ -71,38 +73,38 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
     try {
       lineage = describeFilters(JSON.parse(round.filterJson) as RoundFilters, parent.title);
     } catch {
-      lineage = `برگرفته از ${parent.title}`;
+      lineage = t.common.derivedFrom(parent.title);
     }
   } else if (parent) {
-    lineage = `برگرفته از ${parent.title}`;
+    lineage = t.common.derivedFrom(parent.title);
   }
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
       <p className="text-sm text-muted">
         <Link href="/admin" className="underline decoration-line underline-offset-4 hover:text-ink">
-          دورها
+          {t.nav.rounds}
         </Link>
       </p>
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-display text-4xl">{round.title}</h1>
-            <Badge tone={round.status === "open" ? "accent" : "muted"}>{round.status === "open" ? "باز" : "بسته"}</Badge>
+            <Badge tone={round.status === "open" ? "accent" : "muted"}>{round.status === "open" ? t.common.open : t.common.closed}</Badge>
           </div>
           <p className="mt-2 text-sm text-muted">
-            {coverage.total} دامنه{fromPool ? " از استخر فروشی" : ""} · باز شده {formatWhen(round.createdAt)}
-            {round.closedAt ? ` · بسته شده ${formatWhen(round.closedAt)}` : ""}
+            {coverage.total} {t.common.domains}{fromPool ? t.round.fromPool : ""} · {t.common.openedAt} {formatWhen(round.createdAt)}
+            {round.closedAt ? t.round.closedAt(formatWhen(round.closedAt)) : ""}
           </p>
           {lineage ? <p className="mt-1 text-sm text-muted">{lineage}</p> : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <a href={`${base}/export`} className={buttonClass("secondary")}>
-            خروجی CSV
+            {t.round.exportCsv}
           </a>
           {round.status === "open" && !confirmClose ? (
             <Link href={withParams(base, { confirmClose: 1, tab })} className={buttonClass("secondary")}>
-              بستن دور
+              {t.round.close}
             </Link>
           ) : null}
         </div>
@@ -111,24 +113,24 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
       <div className="mt-6 grid gap-3">
         {imported ? (
           <Alert tone="success">
-            این دور با {imported} دامنه باز شد.
+            {t.round.openedWith(imported)}
             {Number(one(query.skippedEmpty) ?? 0) || Number(one(query.skippedDuplicate) ?? 0)
-              ? ` ${one(query.skippedEmpty) ?? 0} ردیف خالی و ${one(query.skippedDuplicate) ?? 0} تکراری رد شد.`
+              ? t.round.skipped(one(query.skippedEmpty) ?? "0", one(query.skippedDuplicate) ?? "0")
               : ""}
           </Alert>
         ) : null}
         {one(query.derived) === "1" ? (
-          <Alert tone="success">این دور از دور قبلی ساخته شد. رأی‌ها و بازدیدها از صفر شروع می‌شوند.</Alert>
+          <Alert tone="success">{t.round.derivedNotice}</Alert>
         ) : null}
-        {one(query.closed) === "1" ? <Alert>این دور بسته است. رأی‌ها و بازدیدها ثابت مانده‌اند.</Alert> : null}
+        {one(query.closed) === "1" ? <Alert>{t.round.closedNotice}</Alert> : null}
         {confirmClose && round.status === "open" ? (
           <form action={closeRoundAction} className="rounded-xl border border-line bg-card p-4">
             <input type="hidden" name="roundId" value={round.id} />
-            <p className="text-sm">رأی‌دهندگان دیگر نمی‌توانند در این دور رأی بدهند یا بازدید تازه ثبت کنند.</p>
+            <p className="text-sm">{t.round.confirmClose}</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button className={buttonClass()}>همین حالا ببند</button>
+              <button className={buttonClass()}>{t.round.closeNow}</button>
               <Link href={withParams(base, { tab })} className={buttonClass("secondary")}>
-                انصراف
+                {t.common.cancel}
               </Link>
             </div>
           </form>
@@ -136,13 +138,13 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
       </div>
 
       <section className="mt-8 rounded-xl border border-line bg-card p-5">
-        <ProgressBar value={percent} label="دامنه‌هایی که دست‌کم یک رأی‌دهنده دیده است" />
+        <ProgressBar value={percent} label={t.round.coverageLabel} />
         <p className="mt-2 text-sm text-muted">
-          {viewed} از {coverage.total} دامنه باز شده است. هر دامنه یک بار شمرده می‌شود، هرچند چند رأی‌دهنده آن را باز کنند.
+          {t.round.coverageText(viewed, coverage.total)}
         </p>
       </section>
 
-      <div className="mt-8 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label="بخش‌های دور">
+      <div className="mt-8 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label={t.round.sections}>
         {TABS.map((item) => {
           const active = tab === item.id;
           return (
@@ -172,7 +174,8 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
               page: pageNumber(one(query.page)),
               pageSize: PAGE_SIZE,
               provider: one(query.provider) || undefined,
-              pickedOnly: one(query.picked) === "1",
+              pickedOnly: ["1", "on", "true"].includes(one(query.picked) ?? ""),
+              minVotes: ["1", "on", "true"].includes(one(query.voted) ?? "") ? 1 : null,
               search: one(query.q)?.trim() || undefined,
             }}
             domainId={Number(one(query.domain))}
@@ -183,14 +186,14 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
         {tab === "unviewed" ? <Unviewed base={base} roundId={round.id} fromPool={fromPool} page={pageNumber(one(query.page))} /> : null}
         {tab === "next" ? (
           <div>
-            <h2 className="font-display text-2xl">ساخت دور بعد</h2>
+            <h2 className="font-display text-2xl">{t.round.nextTitle}</h2>
             <p className="mt-2 max-w-xl text-sm text-muted">
-              دامنه‌هایی که با این قاعده‌ها جور باشند نگه داشته می‌شوند. نسخهٔ تازه نام، قیمت و وضعیت پریمیوم را برمی‌دارد و رأی‌گیری را از نو شروع می‌کند.
+              {t.round.nextLead}
             </p>
             <div className="mt-6">
               <DeriveForm
                 roundId={round.id}
-                defaultTitle={`بعدی: ${round.title}`.slice(0, 80)}
+                defaultTitle={t.round.nextDefault(round.title).slice(0, 80)}
                 serverError={one(query.error)}
               />
             </div>
@@ -223,6 +226,7 @@ function Results({
     dir,
     provider: query.provider,
     picked: query.pickedOnly ? 1 : undefined,
+    voted: query.minVotes ? 1 : undefined,
     q: query.search,
   };
   const focused = rows.find((domain) => domain.id === domainId);
@@ -243,22 +247,22 @@ function Results({
 
   return (
     <div className="grid gap-6">
-      <form className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4 text-sm" action={base}>
+      <AutoSubmitForm className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4 text-sm" action={base}>
         <input type="hidden" name="tab" value="results" />
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="dir" value={dir} />
         <label className="grid gap-1">
-          <span className="text-muted">جست‌وجوی نام</span>
+          <span className="text-muted">{t.round.searchName}</span>
           <input name="q" defaultValue={query.search} dir="ltr" className="h-9 rounded-lg border border-line bg-paper px-3 font-mono" />
         </label>
         {fromPool ? (
           <label className="grid gap-1">
-            <span className="text-muted">پارکینگ</span>
+            <span className="text-muted">{t.common.provider}</span>
             <select name="provider" defaultValue={query.provider ?? ""} className="h-9 rounded-lg border border-line bg-paper px-2">
-              <option value="">همه</option>
+              <option value="">{t.common.all}</option>
               {providers.map((p) => (
                 <option key={p.provider ?? "__none__"} value={p.provider ?? "__none__"}>
-                  {p.provider ?? "بدون پارکینگ"} ({p.count.toLocaleString("fa-IR")} · {p.votes.toLocaleString("fa-IR")} رأی)
+                  {p.provider ?? t.round.noProvider} ({p.count.toLocaleString("fa-IR")} · {p.votes.toLocaleString("fa-IR")} {t.round.providerVotes})
                 </option>
               ))}
             </select>
@@ -266,34 +270,45 @@ function Results({
         ) : null}
         <label className="flex h-9 items-center gap-2">
           <input type="checkbox" name="picked" value="1" defaultChecked={query.pickedOnly} />
-          فقط منتخب‌ها
+          {t.round.onlyPicked}
         </label>
-        <button className={buttonClass("secondary")}>اعمال</button>
-        <span className="ms-auto text-muted tabular-nums">{total.toLocaleString("fa-IR")} ردیف</span>
-      </form>
+        <label className="flex h-9 items-center gap-2">
+          <input type="checkbox" name="voted" value="1" defaultChecked={!!query.minVotes} />
+          {t.roundUx.votedOnly}
+        </label>
+        <button className={buttonClass("secondary")}>{t.common.apply}</button>
+        <span className="ms-auto text-muted tabular-nums">{total.toLocaleString("fa-IR")} {t.round.rows}</span>
+      </AutoSubmitForm>
       <div className="overflow-x-auto rounded-xl border border-line">
         <table className="w-full min-w-[960px] border-collapse text-sm">
-          <caption className="sr-only">آرا و بازدیدهای هر دامنه</caption>
+          <caption className="sr-only">{t.round.tableCaption}</caption>
           <thead className="bg-card text-muted">
             <tr>
               {header("#", "position")}
-              {header("دامنه", "name")}
-              {header("قیمت", "price", "end")}
+              {header(t.common.domain, "name")}
+              {header(t.common.price, "price", "end")}
               {fromPool ? (
                 <>
-                  <th className="px-3 py-3 text-start font-medium">بازار</th>
-                  <th className="px-3 py-3 text-start font-medium">پارکینگ / NS</th>
-                  <th className="px-3 py-3 text-start font-medium">شاهد</th>
+                  <th className="px-3 py-3 text-start font-medium">{t.common.marketplace}</th>
+                  <th className="px-3 py-3 text-start font-medium">{t.common.providerNs}</th>
+                  <th className="px-3 py-3 text-start font-medium">{t.common.evidence}</th>
                 </>
               ) : (
-                <th className="px-3 py-3 text-start font-medium">پریمیوم</th>
+                <th className="px-3 py-3 text-start font-medium">{t.common.premium}</th>
               )}
-              {header("آرا", "votes", "end")}
-              {header("بازدیدکنندگان", "viewers", "end")}
-              <th className="px-3 py-3 text-center font-medium">منتخب</th>
+              {header(t.common.votes, "votes", "end")}
+              {header(t.common.viewers, "viewers", "end")}
+              <th className="px-3 py-3 text-center font-medium">{t.common.picked}</th>
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={fromPool ? 9 : 7} className="px-3 py-10 text-center text-muted">
+                  {query.pickedOnly ? t.roundUx.noPicks : t.roundUx.noRows}
+                </td>
+              </tr>
+            ) : null}
             {rows.map((domain) => (
               <tr key={domain.id} className="border-t border-line">
                 <td className="px-3 py-2.5 tabular-nums text-muted">{domain.position}</td>
@@ -314,7 +329,7 @@ function Results({
                     <td className="px-3 py-2.5">
                       {domain.url ? (
                         <a href={domain.url} target="_blank" rel="noreferrer noopener" className="underline decoration-line underline-offset-4 hover:decoration-ink">
-                          {domain.marketplace ?? domain.bestSource ?? "صفحهٔ فروش"} ↗
+                          {domain.marketplace ?? domain.bestSource ?? t.common.salePage} ↗
                         </a>
                       ) : (
                         <span className="text-muted">{domain.marketplace ?? domain.bestSource ?? "—"}</span>
@@ -326,9 +341,9 @@ function Results({
                     </td>
                     <td className="px-3 py-2.5">
                       {domain.evidence === "sale_page" ? (
-                        <Badge tone="accent">صفحهٔ فروش</Badge>
+                        <Badge tone="accent">{t.common.salePage}</Badge>
                       ) : domain.evidence === "nameserver" ? (
-                        <Badge tone="muted">نیم‌سرور</Badge>
+                        <Badge tone="muted">{t.common.nameserver}</Badge>
                       ) : (
                         <span className="text-muted">—</span>
                       )}
@@ -336,7 +351,7 @@ function Results({
                   </>
                 ) : (
                   <td className="px-3 py-2.5">
-                    {domain.isPremium ? <Badge tone="gold">پریمیوم</Badge> : <span className="text-muted">معمولی</span>}
+                    {domain.isPremium ? <Badge tone="gold">{t.common.premium}</Badge> : <span className="text-muted">{t.common.standard}</span>}
                   </td>
                 )}
                 <td className="px-3 py-2.5 text-end font-semibold tabular-nums">{domain.votes}</td>
@@ -346,7 +361,7 @@ function Results({
                     <input type="hidden" name="name" value={domain.name} />
                     <input type="hidden" name="back" value={here} />
                     <button
-                      aria-label={domain.picked ? "حذف از منتخب‌ها" : "افزودن به منتخب‌ها"}
+                      aria-label={domain.picked ? t.picks.remove : t.picks.add}
                       className={`text-lg leading-none ${domain.picked ? "text-gold" : "text-line hover:text-gold"}`}
                     >
                       ★
@@ -362,10 +377,10 @@ function Results({
       {focused ? (
         <section className="rounded-xl border border-line bg-card p-5">
           <h2 className="font-display text-2xl">
-            آرا برای <span dir="ltr" className="font-mono text-xl">{focused.name}</span>
+            {t.round.votesFor} <span dir="ltr" className="font-mono text-xl">{focused.name}</span>
           </h2>
           {voters.length === 0 ? (
-            <p className="mt-2 text-sm text-muted">هنوز رأیی نیست.</p>
+            <p className="mt-2 text-sm text-muted">{t.round.noVotesYet}</p>
           ) : (
             <ul className="mt-3 divide-y divide-line">
               {voters.map((voter) => (
@@ -395,8 +410,8 @@ function Ballots({ base, roundId, voterId }: { base: string; roundId: number; vo
   if (ballots.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
-        <h2 className="font-display text-2xl">هنوز رأیی نیست</h2>
-        <p className="mt-2 text-sm text-muted">برگه‌ها بعد از کلیک رأی‌دهنده روی یک دامنه اینجا دیده می‌شوند.</p>
+        <h2 className="font-display text-2xl">{t.round.noBallotsTitle}</h2>
+        <p className="mt-2 text-sm text-muted">{t.round.noBallotsBody}</p>
       </div>
     );
   }
@@ -424,7 +439,7 @@ function Ballots({ base, roundId, voterId }: { base: string; roundId: number; vo
         {selected ? (
           <>
             <h2 dir="ltr" className="font-display text-2xl">{selected.username}</h2>
-            <p className="mt-1 text-sm text-muted">{selected.votes} رأی</p>
+            <p className="mt-1 text-sm text-muted">{selected.votes} {t.round.providerVotes}</p>
             <ul className="mt-4 divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
               {votes.map((domain) => (
                 <li key={domain.position} className="grid gap-1 px-4 py-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
@@ -432,14 +447,14 @@ function Ballots({ base, roundId, voterId }: { base: string; roundId: number; vo
                   <span dir="ltr" className="break-all font-mono text-sm">{domain.name}</span>
                   <span dir="ltr" className="text-sm text-muted">
                     {formatMoney(domain.price, domain.currency, domain.poolName != null)}
-                    {domain.isPremium ? " · پریمیوم" : ""}
+                    {domain.isPremium ? t.round.premiumSuffix : ""}
                   </span>
                 </li>
               ))}
             </ul>
           </>
         ) : (
-          <p className="text-sm text-muted">یک رأی‌دهنده را انتخاب کنید تا همهٔ دامنه‌هایی که به آن‌ها رأی داده ببینید.</p>
+          <p className="text-sm text-muted">{t.round.pickVoter}</p>
         )}
       </section>
     </div>
@@ -458,23 +473,23 @@ function Unviewed({ base, roundId, fromPool, page }: { base: string; roundId: nu
   if (unseen === 0) {
     return (
       <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
-        <h2 className="font-display text-2xl">همهٔ دامنه‌ها باز شده‌اند</h2>
-        <p className="mt-2 text-sm text-muted">دست‌کم یک رأی‌دهنده هر دامنهٔ این دور را دیده است.</p>
+        <h2 className="font-display text-2xl">{t.round.allSeenTitle}</h2>
+        <p className="mt-2 text-sm text-muted">{t.round.allSeenBody}</p>
       </div>
     );
   }
 
   return (
     <div className="grid gap-6">
-      <p className="text-sm text-muted">{unseen.toLocaleString("fa-IR")} دامنه را هیچ رأی‌دهنده‌ای باز نکرده است.</p>
+      <p className="text-sm text-muted">{unseen.toLocaleString("fa-IR")} {t.round.unseenCount}</p>
       <div className="overflow-x-auto rounded-xl border border-line">
         <table className="w-full min-w-[32rem] border-collapse text-sm">
-          <caption className="sr-only">دامنه‌هایی که کسی باز نکرده است</caption>
+          <caption className="sr-only">{t.round.unseenCaption}</caption>
           <thead className="bg-card text-start text-muted">
             <tr>
               <th className="px-4 py-3 font-medium">#</th>
-              <th className="px-4 py-3 font-medium">دامنه</th>
-              <th className="px-4 py-3 text-end font-medium">قیمت</th>
+              <th className="px-4 py-3 font-medium">{t.common.domain}</th>
+              <th className="px-4 py-3 text-end font-medium">{t.common.price}</th>
             </tr>
           </thead>
           <tbody>
@@ -509,23 +524,23 @@ function Pager({
     <div className="flex items-center justify-between gap-3">
       {page > 1 ? (
         <Link href={withParams(base, { ...params, page: page - 1 })} className={buttonClass("secondary")}>
-          قبلی
+          {t.common.prev}
         </Link>
       ) : (
         <button type="button" className={buttonClass("secondary")} disabled>
-          قبلی
+          {t.common.prev}
         </button>
       )}
       <p className="text-sm tabular-nums text-muted">
-        صفحه {page} از {pages}
+        {t.common.pageOf(page, pages)}
       </p>
       {page < pages ? (
         <Link href={withParams(base, { ...params, page: page + 1 })} className={buttonClass("secondary")}>
-          بعدی
+          {t.common.next}
         </Link>
       ) : (
         <button type="button" className={buttonClass("secondary")} disabled>
-          بعدی
+          {t.common.next}
         </button>
       )}
     </div>

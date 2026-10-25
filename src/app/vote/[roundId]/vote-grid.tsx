@@ -1,7 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { toggleVote } from "@/lib/actions/votes";
+import { useRef, useState } from "react";
+import { useToggleVote } from "@/lib/query/hooks";
+import { t } from "@/lib/copy/fa";
+
+// Mobile packs the 20-card page into one-screen chunks of 8 (CSS-driven, so SSR is correct too).
+const MOBILE_CHUNK = 8;
 
 type Card = {
   id: number;
@@ -15,65 +19,57 @@ function splitDomain(name: string) {
 }
 
 export function VoteGrid({
+  roundId,
+  start,
+  end,
   cards,
   votedIds,
-  initialCount,
+  count,
+  onPrev,
+  onNext,
+  startAtEnd = false,
 }: {
+  roundId: number;
+  start: number;
+  end: number;
   cards: Card[];
   votedIds: number[];
-  initialCount: number;
+  count: number;
+  onPrev?: () => void;
+  onNext?: () => void;
+  startAtEnd?: boolean;
 }) {
-  const [voted, setVoted] = useState(() => new Set(votedIds));
-  const [count, setCount] = useState(initialCount);
-  const [error, setError] = useState("");
-  const [pending, startTransition] = useTransition();
-  const busy = useRef(false);
+  const voted = new Set(votedIds);
+  const mutation = useToggleVote(roundId, start, end);
+  const pending = mutation.isPending;
+  const error = mutation.error?.message ?? "";
+  const chunkCount = Math.max(1, Math.ceil(cards.length / MOBILE_CHUNK));
+  const [chunk, setChunk] = useState(() => (startAtEnd ? chunkCount - 1 : 0));
+  const [direction, setDirection] = useState<"next" | "prev">("next");
+  const touchX = useRef<number | null>(null);
+  const [moved, setMoved] = useState(false);
+  const activeChunk = Math.min(chunk, chunkCount - 1);
+
+  function goChunk(next: number) {
+    // Past either end of this page: move to the neighbouring page (client-side, cached).
+    if (next < 0) return void onPrev?.();
+    if (next >= chunkCount) return void onNext?.();
+    if (next === activeChunk) return;
+    setDirection(next > activeChunk ? "next" : "prev");
+    setChunk(next);
+    setMoved(true);
+  }
 
   function onToggle(id: number) {
-    if (busy.current || pending) return;
-    busy.current = true;
-    const hadVote = voted.has(id);
-    setError("");
-    setVoted((current) => {
-      const next = new Set(current);
-      if (hadVote) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    setCount((current) => current + (hadVote ? -1 : 1));
-
-    startTransition(async () => {
-      try {
-        const result = await toggleVote(id);
-        if ("error" in result) {
-          setVoted((current) => {
-            const next = new Set(current);
-            if (hadVote) next.add(id);
-            else next.delete(id);
-            return next;
-          });
-          setCount((current) => current + (hadVote ? 1 : -1));
-          setError(result.error);
-          return;
-        }
-        setVoted((current) => {
-          const next = new Set(current);
-          if (result.voted) next.add(id);
-          else next.delete(id);
-          return next;
-        });
-        setCount(result.count);
-      } finally {
-        busy.current = false;
-      }
-    });
+    if (pending) return;
+    mutation.mutate(id);
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-2 flex shrink-0 items-baseline justify-between gap-3 text-sm">
-        <p className="text-muted">
-          به <span className="font-semibold tabular-nums text-ink">{count}</span> دامنه در این دور رأی داده‌اید.
+      <div className="mb-2 flex shrink-0 items-baseline justify-between gap-3 text-sm empty:hidden">
+        <p className="hidden text-muted sm:block">
+          {t.vote.votedPrefix} <span className="font-semibold tabular-nums text-ink">{count}</span> {t.vote.votedSuffix}
         </p>
         {error ? (
           <p role="alert" className="text-danger">
@@ -81,15 +77,29 @@ export function VoteGrid({
           </p>
         ) : null}
       </div>
-      <ul className="grid min-h-0 flex-1 grid-cols-2 gap-2 p-1 sm:grid-cols-4 sm:grid-rows-5">
+      <ul
+        key={`c${activeChunk}`}
+        onTouchStart={(event) => (touchX.current = event.touches[0].clientX)}
+        onTouchEnd={(event) => {
+          if (touchX.current == null) return;
+          const dx = event.changedTouches[0].clientX - touchX.current;
+          touchX.current = null;
+          // RTL: swiping right moves forward
+          if (Math.abs(dx) > 50) goChunk(activeChunk + (dx > 0 ? 1 : -1));
+        }}
+        className={`grid min-h-0 flex-1 grid-cols-2 grid-rows-4 gap-2 p-1 sm:grid-cols-4 sm:grid-rows-5 ${
+          moved ? (direction === "next" ? "slide-next" : "slide-prev") : ""
+        }`}
+      >
         {cards.map((card, index) => {
+          const inChunk = Math.floor(index / MOBILE_CHUNK) === activeChunk;
           const selected = voted.has(card.id);
           const domain = splitDomain(card.name);
           return (
             <li
               key={card.id}
-              className="vote-enter min-h-[8.75rem] sm:min-h-0"
-              style={{ animationDelay: `${index * 16}ms` }}
+              className={`vote-enter min-h-0 ${inChunk ? "" : "max-sm:hidden"}`}
+              style={{ animationDelay: `${(index % MOBILE_CHUNK) * 28}ms` }}
             >
               <button
                 type="button"
@@ -127,7 +137,7 @@ export function VoteGrid({
                         strokeLinejoin="round"
                       />
                     </svg>
-                    {selected ? "رأی داده شد" : "رأی"}
+                    {selected ? t.vote.voted : t.vote.vote}
                   </span>
                 </span>
               </button>
@@ -135,6 +145,41 @@ export function VoteGrid({
           );
         })}
       </ul>
+      {chunkCount > 1 || onPrev || onNext ? (
+        <div className="flex shrink-0 items-center justify-center gap-3 pt-2 sm:hidden" dir="ltr">
+          <button
+            type="button"
+            aria-label={t.vote.prevGroup}
+            onClick={() => goChunk(activeChunk - 1)}
+            disabled={activeChunk === 0 && !onPrev}
+            className="press grid size-9 place-items-center rounded-full border border-line bg-card text-ink disabled:opacity-30"
+          >
+            ‹
+          </button>
+          <div className="flex items-center gap-1.5" role="tablist">
+            {Array.from({ length: chunkCount }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                role="tab"
+                aria-selected={i === activeChunk}
+                aria-label={String(i + 1)}
+                onClick={() => goChunk(i)}
+                className={`h-2 min-h-0! shrink-0 rounded-full transition-all duration-300 ${i === activeChunk ? "w-5 bg-accent" : "w-2 bg-muted/40"}`}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            aria-label={t.vote.nextGroup}
+            onClick={() => goChunk(activeChunk + 1)}
+            disabled={activeChunk === chunkCount - 1 && !onNext}
+            className="press grid size-9 place-items-center rounded-full border border-line bg-card text-ink disabled:opacity-30"
+          >
+            ›
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

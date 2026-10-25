@@ -1,3 +1,4 @@
+import { t } from "@/lib/copy/fa";
 export type PremiumFilter = "any" | "premium" | "standard";
 export type SortMode = "original" | "votes";
 
@@ -54,25 +55,25 @@ export function normalizeFilters(input: Partial<Record<keyof RoundFilters, unkno
   };
 
   if ((minVotes != null && minVotes < 0) || (maxVotes != null && maxVotes < 0)) {
-    return { filters, error: "فیلتر رأی نمی‌تواند منفی باشد." };
+    return { filters, error: t.filters.negative };
   }
   if (minVotes != null && maxVotes != null && minVotes > maxVotes) {
-    return { filters, error: "حداقل رأی نمی‌تواند از حداکثر بیشتر باشد." };
+    return { filters, error: t.filters.voteRange };
   }
   if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
-    return { filters, error: "حداقل قیمت نمی‌تواند از حداکثر بیشتر باشد." };
+    return { filters, error: t.pool.err.priceRange };
   }
   if (input.minVotes != null && String(input.minVotes).trim() && minVotes == null) {
-    return { filters, error: "حداقل رأی باید عدد باشد." };
+    return { filters, error: t.filters.minVotesNum };
   }
   if (input.maxVotes != null && String(input.maxVotes).trim() && maxVotes == null) {
-    return { filters, error: "حداکثر رأی باید عدد باشد." };
+    return { filters, error: t.filters.maxVotesNum };
   }
   if (input.minPrice != null && String(input.minPrice).trim() && minPrice == null) {
-    return { filters, error: "حداقل قیمت باید عدد باشد." };
+    return { filters, error: t.filters.minPriceNum };
   }
   if (input.maxPrice != null && String(input.maxPrice).trim() && maxPrice == null) {
-    return { filters, error: "حداکثر قیمت باید عدد باشد." };
+    return { filters, error: t.filters.maxPriceNum };
   }
 
   return { filters };
@@ -99,13 +100,13 @@ export function applyFilters<T extends FilterableDomain>(domains: T[], filters: 
 }
 
 export function describeFilters(filters: RoundFilters, parentTitle: string) {
-  const parts = [`برگرفته از ${parentTitle}`];
-  if (filters.minVotes != null) parts.push(`دست‌کم ${filters.minVotes} رأی`);
-  if (filters.maxVotes != null) parts.push(`حداکثر ${filters.maxVotes} رأی`);
-  if (filters.premium === "premium") parts.push("فقط پریمیوم");
-  if (filters.premium === "standard") parts.push("فقط معمولی");
-  if (filters.minPrice != null) parts.push(`قیمت از ${filters.minPrice}`);
-  if (filters.maxPrice != null) parts.push(`قیمت تا ${filters.maxPrice}`);
-  parts.push(filters.sort === "votes" ? "مرتب‌شده بر اساس بیشترین رأی" : "با ترتیب اصلی");
+  const parts = [t.common.derivedFrom(parentTitle)];
+  if (filters.minVotes != null) parts.push(t.filters.atLeastVotes(filters.minVotes));
+  if (filters.maxVotes != null) parts.push(t.filters.atMostVotes(filters.maxVotes));
+  if (filters.premium === "premium") parts.push(t.derive.onlyPremium);
+  if (filters.premium === "standard") parts.push(t.derive.onlyStandard);
+  if (filters.minPrice != null) parts.push(t.filters.priceFrom(filters.minPrice));
+  if (filters.maxPrice != null) parts.push(t.filters.priceTo(filters.maxPrice));
+  parts.push(filters.sort === "votes" ? t.derive.orderVotes : t.filters.sortOriginal);
   return parts.join(" · ");
 }

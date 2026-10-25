@@ -5,6 +5,7 @@ import { guessColumn, mapRows, readCsv } from "@/lib/csv";
 import { formatPrice } from "@/lib/format";
 import { Alert, Badge, Field, buttonClass, fieldClass } from "@/components/ui";
 import { createRoundAction } from "@/lib/actions/rounds";
+import { t } from "@/lib/copy/fa";
 
 export function UploadForm({ error }: { error?: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,12 +69,12 @@ export function UploadForm({ error }: { error?: string }) {
   return (
     <form action={createRoundAction} className="mt-8 grid gap-6">
       {error ? <Alert tone="danger">{error}</Alert> : null}
-      <Field label="عنوان دور" hint="رأی‌دهندگان این نام را در فهرست دورها می‌بینند.">
-        <input name="title" required maxLength={80} className={fieldClass} placeholder="فهرست اسفند" />
+      <Field label={t.newRound.roundTitle} hint={t.newRound.roundTitleHint}>
+        <input name="title" required maxLength={80} className={fieldClass} placeholder={t.newRound.csvPlaceholder} />
       </Field>
 
       <div className="grid gap-2">
-        <span className="text-sm font-medium">فایل CSV</span>
+        <span className="text-sm font-medium">{t.newRound.csvFile}</span>
         <label
           onDragOver={(event) => {
             event.preventDefault();
@@ -85,8 +86,8 @@ export function UploadForm({ error }: { error?: string }) {
             dragging ? "border-accent bg-accent-soft" : "border-line bg-card hover:border-ink/30"
           }`}
         >
-          <span className="font-semibold">{fileName || "فایل CSV را اینجا رها کنید، یا انتخاب کنید"}</span>
-          <span className="text-sm text-muted">ردیف اول باید نام ستون‌ها باشد. حداکثر ۲۰ مگابایت.</span>
+          <span className="font-semibold">{fileName || t.newRound.drop}</span>
+          <span className="text-sm text-muted">{t.newRound.dropHint}</span>
           <input
             ref={inputRef}
             name="file"
@@ -106,7 +107,7 @@ export function UploadForm({ error }: { error?: string }) {
       {headers.length > 0 ? (
         <>
           <div className="grid gap-5 sm:grid-cols-3">
-            <Field label="ستون دامنه">
+            <Field label={t.newRound.colDomain}>
               <select
                 name="domainColumn"
                 required
@@ -114,7 +115,7 @@ export function UploadForm({ error }: { error?: string }) {
                 onChange={(event) => setDomainColumn(event.target.value)}
                 className={fieldClass}
               >
-                <option value="">یک ستون انتخاب کنید…</option>
+                <option value="">{t.newRound.pickColumn}</option>
                 {headers.map((header) => (
                   <option key={header} value={header}>
                     {header}
@@ -122,14 +123,14 @@ export function UploadForm({ error }: { error?: string }) {
                 ))}
               </select>
             </Field>
-            <Field label="ستون قیمت" hint="اختیاری.">
+            <Field label={t.newRound.colPrice} hint={t.newRound.optional}>
               <select
                 name="priceColumn"
                 value={priceColumn}
                 onChange={(event) => setPriceColumn(event.target.value)}
                 className={fieldClass}
               >
-                <option value="">نگاشت نشده</option>
+                <option value="">{t.common.unmapped}</option>
                 {headers.map((header) => (
                   <option key={header} value={header}>
                     {header}
@@ -137,14 +138,14 @@ export function UploadForm({ error }: { error?: string }) {
                 ))}
               </select>
             </Field>
-            <Field label="ستون پریمیوم" hint="بله، true، 1، y یا premium.">
+            <Field label={t.newRound.colPremium} hint={t.newRound.premiumHint}>
               <select
                 name="premiumColumn"
                 value={premiumColumn}
                 onChange={(event) => setPremiumColumn(event.target.value)}
                 className={fieldClass}
               >
-                <option value="">نگاشت نشده</option>
+                <option value="">{t.common.unmapped}</option>
                 {headers.map((header) => (
                   <option key={header} value={header}>
                     {header}
@@ -155,7 +156,7 @@ export function UploadForm({ error }: { error?: string }) {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="ردیف شروع" hint="اختیاری. ردیف ۱ اولین ردیف داده، زیر سرستون است.">
+            <Field label={t.newRound.startRow} hint={t.newRound.startRowHint}>
               <input
                 name="from"
                 type="number"
@@ -165,7 +166,7 @@ export function UploadForm({ error }: { error?: string }) {
                 className={fieldClass}
               />
             </Field>
-            <Field label="ردیف پایان" hint={`اختیاری. این فایل ${records.length} ردیف داده دارد.`}>
+            <Field label={t.newRound.endRow} hint={t.newRound.endRowHint(records.length)}>
               <input
                 name="to"
                 type="number"
@@ -180,9 +181,9 @@ export function UploadForm({ error }: { error?: string }) {
           {mapped?.error ? <Alert tone="danger">{mapped.error}</Alert> : null}
           {mapped && !mapped.error ? (
             <Alert tone="success">
-              {mapped.rows.length} دامنه وارد می‌شود.
+              {t.newRound.willImport(mapped.rows.length)}
               {mapped.skippedEmpty || mapped.skippedDuplicate
-                ? ` ${mapped.skippedEmpty} ردیف خالی و ${mapped.skippedDuplicate} تکراری رد می‌شود.`
+                ? t.newRound.willSkip(mapped.skippedEmpty, mapped.skippedDuplicate)
                 : ""}
             </Alert>
           ) : null}
@@ -191,13 +192,13 @@ export function UploadForm({ error }: { error?: string }) {
             <div className="overflow-x-auto rounded-xl border border-line">
               <table className="w-full min-w-[32rem] border-collapse text-start text-sm">
                 <caption className="border-b border-line px-4 py-3 text-start text-muted">
-                  {preview.length} دامنهٔ اول پس از نگاشت
+                  {t.newRound.preview(preview.length)}
                 </caption>
                 <thead className="bg-card text-muted">
                   <tr>
-                    <th className="px-4 py-3 font-medium">دامنه</th>
-                    <th className="px-4 py-3 font-medium">قیمت</th>
-                    <th className="px-4 py-3 font-medium">پریمیوم</th>
+                    <th className="px-4 py-3 font-medium">{t.common.domain}</th>
+                    <th className="px-4 py-3 font-medium">{t.common.price}</th>
+                    <th className="px-4 py-3 font-medium">{t.common.premium}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,7 +207,7 @@ export function UploadForm({ error }: { error?: string }) {
                       <td dir="ltr" className="px-4 py-3 font-mono">{row.name}</td>
                       <td dir="ltr" className="px-4 py-3 tabular-nums">{formatPrice(row.price)}</td>
                       <td className="px-4 py-3">
-                        {row.isPremium ? <Badge tone="gold">پریمیوم</Badge> : <span className="text-muted">معمولی</span>}
+                        {row.isPremium ? <Badge tone="gold">{t.common.premium}</Badge> : <span className="text-muted">{t.common.standard}</span>}
                       </td>
                     </tr>
                   ))}
@@ -219,7 +220,7 @@ export function UploadForm({ error }: { error?: string }) {
 
       <div>
         <button className={buttonClass()} disabled={Boolean(readError || mapped?.error)}>
-          باز کردن دور رأی‌گیری
+          {t.newRound.openVoting}
         </button>
       </div>
     </form>

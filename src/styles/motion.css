@@ -1,0 +1,98 @@
+/* Shared motion primitives. Easing/durations are tokens so themes stay coherent. */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur: 220ms;
+  --dur-slow: 420ms;
+}
+
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vote-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  100% { box-shadow: 0 0 0 14px transparent; }
+}
+@keyframes mark-pop {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+@keyframes shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+@keyframes slide-in-start {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-in-end {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: none; }
+}
+
+.page-enter { animation: page-in var(--dur-slow) var(--ease-out) both; }
+.pop-in { animation: pop-in var(--dur) var(--ease-out) both; transform-origin: top; }
+.stagger-in { animation: tile-in var(--dur-slow) var(--ease-out) both; }
+.vote-enter { animation: tile-in var(--dur-slow) var(--ease-out) both; }
+.slide-next { animation: slide-in-end var(--dur) var(--ease-out) both; }
+.slide-prev { animation: slide-in-start var(--dur) var(--ease-out) both; }
+
+.press { transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur) ease, border-color var(--dur) ease, color var(--dur) ease, box-shadow var(--dur) ease; }
+.press:active { transform: scale(0.96); transition-duration: 80ms; }
+
+/* Generic lift for interactive cards/links inside main */
+main a, main button, main summary, main input, main select, main textarea {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: var(--dur);
+  transition-timing-function: var(--ease-out);
+}
+main button:not(:disabled):active, main a:active { transform: scale(0.98); }
+
+.vote-tile {
+  border-width: var(--tile-border-width, 1px);
+  border-radius: var(--radius-tile);
+  transition: transform 180ms var(--ease-out), border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+.vote-tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
+.vote-tile:active { transform: translateY(0) scale(0.97); transition-duration: 80ms; }
+.vote-tile[aria-pressed="true"] { animation: vote-pulse 520ms var(--ease-out); }
+.vote-mark { opacity: 0; transform: scale(0.7); transition: opacity 160ms ease, transform 160ms var(--ease-out); }
+.vote-tile[aria-pressed="true"] .vote-mark { opacity: 1; transform: scale(1); animation: mark-pop 360ms var(--ease-spring); }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--chip) 25%, color-mix(in srgb, var(--card) 70%, var(--chip)) 50%, var(--chip) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+
+/* Smooth cross-fade when switching themes */
+.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after {
+  transition: background-color 380ms ease, color 380ms ease, border-color 380ms ease, fill 380ms ease !important;
+}
+
+/* Table rows & details get gentle feedback */
+main tbody tr { transition: background-color var(--dur) ease; }
+main tbody tr:hover { background-color: var(--hover); }
+main details > summary { cursor: pointer; }
+main details[open] > :not(summary) { animation: pop-in var(--dur) var(--ease-out) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  .vote-tile:hover, .vote-tile:active, .press:active, main button:active, main a:active { transform: none; }
+}
