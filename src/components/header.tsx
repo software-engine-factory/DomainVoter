@@ -26,6 +26,8 @@ export function Header({ session }: { session: SessionUser | null }) {
                   دورها
                 </NavLink>
                 <NavLink href="/admin/rounds/new">دور جدید</NavLink>
+                <NavLink href="/admin/pool">استخر فروشی</NavLink>
+                <NavLink href="/admin/picks">منتخب‌ها</NavLink>
               </>
             ) : session ? (
               <NavLink href="/vote" exact>

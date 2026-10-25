@@ -4,14 +4,17 @@ import { notFound } from "next/navigation";
 import { Alert, Badge, ProgressBar, buttonClass } from "@/components/ui";
 import { closeRoundAction } from "@/lib/actions/rounds";
 import { describeFilters, type RoundFilters } from "@/lib/filters";
-import { formatPercent, formatPrice, formatWhen, one, withParams } from "@/lib/format";
+import { togglePickAction } from "@/lib/actions/picks";
+import { formatMoney, formatPercent, formatWhen, one, withParams } from "@/lib/format";
 import {
   getBallots,
-  getDomainStats,
   getDomainVoters,
   getRound,
   getUserBallot,
-  type DomainStat,
+  queryResults,
+  roundCoverage,
+  roundProviderCounts,
+  type ResultsQuery,
 } from "@/lib/rounds";
 import { DeriveForm } from "./derive-form";
 
@@ -24,7 +27,7 @@ const TABS = [
 ] as const;
 
 type Tab = (typeof TABS)[number]["id"];
-type SortKey = "position" | "name" | "price" | "votes" | "viewers";
+type SortKey = ResultsQuery["sort"];
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -43,33 +46,17 @@ function pageNumber(value: string | undefined) {
   return Math.floor(number);
 }
 
-function sortStats(stats: DomainStat[], sort: SortKey, dir: "asc" | "desc") {
-  const factor = dir === "asc" ? 1 : -1;
-  return [...stats].sort((a, b) => {
-    if (sort === "name") {
-      const delta = a.name.localeCompare(b.name) * factor;
-      return delta || a.position - b.position;
-    }
-    if (sort === "price") {
-      if (a.price == null && b.price == null) return a.position - b.position;
-      if (a.price == null) return 1;
-      if (b.price == null) return -1;
-      return (a.price - b.price) * factor || a.position - b.position;
-    }
-    return (a[sort] - b[sort]) * factor || a.position - b.position;
-  });
-}
-
 export default async function AdminRoundPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const query = await searchParams;
   const round = getRound(Number(id));
   if (!round) notFound();
 
-  const stats = getDomainStats(round.id);
+  const coverage = roundCoverage(round.id);
+  const fromPool = round.source === "pool";
   const parent = round.parentRoundId ? getRound(round.parentRoundId) : undefined;
-  const viewed = stats.filter((domain) => domain.viewers > 0).length;
-  const percent = formatPercent(viewed, stats.length);
+  const viewed = coverage.viewed;
+  const percent = formatPercent(viewed, coverage.total);
   const tab: Tab = TABS.some((item) => item.id === one(query.tab)) ? (one(query.tab) as Tab) : "results";
   const sort = (["position", "name", "price", "votes", "viewers"] as const).includes(one(query.sort) as SortKey)
     ? (one(query.sort) as SortKey)
@@ -104,7 +91,7 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
             <Badge tone={round.status === "open" ? "accent" : "muted"}>{round.status === "open" ? "باز" : "بسته"}</Badge>
           </div>
           <p className="mt-2 text-sm text-muted">
-            {stats.length} دامنه · باز شده {formatWhen(round.createdAt)}
+            {coverage.total} دامنه{fromPool ? " از استخر فروشی" : ""} · باز شده {formatWhen(round.createdAt)}
             {round.closedAt ? ` · بسته شده ${formatWhen(round.closedAt)}` : ""}
           </p>
           {lineage ? <p className="mt-1 text-sm text-muted">{lineage}</p> : null}
@@ -151,7 +138,7 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
       <section className="mt-8 rounded-xl border border-line bg-card p-5">
         <ProgressBar value={percent} label="دامنه‌هایی که دست‌کم یک رأی‌دهنده دیده است" />
         <p className="mt-2 text-sm text-muted">
-          {viewed} از {stats.length} دامنه باز شده است. هر دامنه یک بار شمرده می‌شود، هرچند چند رأی‌دهنده آن را باز کنند.
+          {viewed} از {coverage.total} دامنه باز شده است. هر دامنه یک بار شمرده می‌شود، هرچند چند رأی‌دهنده آن را باز کنند.
         </p>
       </section>
 
@@ -178,16 +165,22 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
         {tab === "results" ? (
           <Results
             base={base}
-            stats={stats}
-            sort={sort}
-            dir={dir}
-            page={pageNumber(one(query.page))}
+            fromPool={fromPool}
+            query={{
+              sort,
+              dir,
+              page: pageNumber(one(query.page)),
+              pageSize: PAGE_SIZE,
+              provider: one(query.provider) || undefined,
+              pickedOnly: one(query.picked) === "1",
+              search: one(query.q)?.trim() || undefined,
+            }}
             domainId={Number(one(query.domain))}
             roundId={round.id}
           />
         ) : null}
         {tab === "ballots" ? <Ballots base={base} roundId={round.id} voterId={Number(one(query.voter))} /> : null}
-        {tab === "unviewed" ? <Unviewed base={base} stats={stats} page={pageNumber(one(query.page))} /> : null}
+        {tab === "unviewed" ? <Unviewed base={base} roundId={round.id} fromPool={fromPool} page={pageNumber(one(query.page))} /> : null}
         {tab === "next" ? (
           <div>
             <h2 className="font-display text-2xl">ساخت دور بعد</h2>
@@ -210,37 +203,38 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
 
 function Results({
   base,
-  stats,
-  sort,
-  dir,
-  page,
+  fromPool,
+  query,
   domainId,
   roundId,
 }: {
   base: string;
-  stats: DomainStat[];
-  sort: SortKey;
-  dir: "asc" | "desc";
-  page: number;
+  fromPool: boolean;
+  query: ResultsQuery;
   domainId: number;
   roundId: number;
 }) {
-  const sorted = sortStats(stats, sort, dir);
-  const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const current = Math.min(page, pages);
-  const rows = sorted.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
-  const focused = stats.find((domain) => domain.id === domainId);
+  const { sort, dir } = query;
+  const { rows, total, page: current, pages } = queryResults(roundId, query);
+  const providers = fromPool ? roundProviderCounts(roundId) : [];
+  const keep = {
+    tab: "results",
+    sort,
+    dir,
+    provider: query.provider,
+    picked: query.pickedOnly ? 1 : undefined,
+    q: query.search,
+  };
+  const focused = rows.find((domain) => domain.id === domainId);
   const voters = focused ? getDomainVoters(roundId, focused.id) : [];
+  const here = withParams(base, { ...keep, page: current });
 
-  function header(label: string, column: SortKey, align: "start" | "end" = "start") {
+  function header(label: string, column: ResultsQuery["sort"], align: "start" | "end" = "start") {
     const nextDir = sort === column && dir === "asc" ? "desc" : "asc";
     const mark = sort === column ? (dir === "asc" ? "↑" : "↓") : "";
     return (
-      <th className={`px-4 py-3 font-medium ${align === "end" ? "text-end" : "text-start"}`}>
-        <Link
-          href={withParams(base, { tab: "results", sort: column, dir: nextDir, page: 1 })}
-          className="underline-offset-4 hover:underline"
-        >
+      <th className={`px-3 py-3 font-medium ${align === "end" ? "text-end" : "text-start"}`}>
+        <Link href={withParams(base, { ...keep, sort: column, dir: nextDir, page: 1 })} className="underline-offset-4 hover:underline">
           {label} {mark}
         </Link>
       </th>
@@ -249,44 +243,122 @@ function Results({
 
   return (
     <div className="grid gap-6">
+      <form className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4 text-sm" action={base}>
+        <input type="hidden" name="tab" value="results" />
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="dir" value={dir} />
+        <label className="grid gap-1">
+          <span className="text-muted">جست‌وجوی نام</span>
+          <input name="q" defaultValue={query.search} dir="ltr" className="h-9 rounded-lg border border-line bg-paper px-3 font-mono" />
+        </label>
+        {fromPool ? (
+          <label className="grid gap-1">
+            <span className="text-muted">پارکینگ</span>
+            <select name="provider" defaultValue={query.provider ?? ""} className="h-9 rounded-lg border border-line bg-paper px-2">
+              <option value="">همه</option>
+              {providers.map((p) => (
+                <option key={p.provider ?? "__none__"} value={p.provider ?? "__none__"}>
+                  {p.provider ?? "بدون پارکینگ"} ({p.count.toLocaleString("fa-IR")} · {p.votes.toLocaleString("fa-IR")} رأی)
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <label className="flex h-9 items-center gap-2">
+          <input type="checkbox" name="picked" value="1" defaultChecked={query.pickedOnly} />
+          فقط منتخب‌ها
+        </label>
+        <button className={buttonClass("secondary")}>اعمال</button>
+        <span className="ms-auto text-muted tabular-nums">{total.toLocaleString("fa-IR")} ردیف</span>
+      </form>
       <div className="overflow-x-auto rounded-xl border border-line">
-        <table className="w-full min-w-[760px] border-collapse text-sm">
+        <table className="w-full min-w-[960px] border-collapse text-sm">
           <caption className="sr-only">آرا و بازدیدهای هر دامنه</caption>
           <thead className="bg-card text-muted">
             <tr>
               {header("#", "position")}
               {header("دامنه", "name")}
               {header("قیمت", "price", "end")}
-              <th className="px-4 py-3 text-start font-medium">پریمیوم</th>
+              {fromPool ? (
+                <>
+                  <th className="px-3 py-3 text-start font-medium">بازار</th>
+                  <th className="px-3 py-3 text-start font-medium">پارکینگ / NS</th>
+                  <th className="px-3 py-3 text-start font-medium">شاهد</th>
+                </>
+              ) : (
+                <th className="px-3 py-3 text-start font-medium">پریمیوم</th>
+              )}
               {header("آرا", "votes", "end")}
               {header("بازدیدکنندگان", "viewers", "end")}
+              <th className="px-3 py-3 text-center font-medium">منتخب</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((domain) => (
               <tr key={domain.id} className="border-t border-line">
-                <td className="px-4 py-3 tabular-nums text-muted">{domain.position}</td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5 tabular-nums text-muted">{domain.position}</td>
+                <td className="px-3 py-2.5">
                   <Link
-                    href={withParams(base, { tab: "results", sort, dir, page: current, domain: domain.id })}
+                    href={withParams(base, { ...keep, page: current, domain: domain.id })}
                     dir="ltr"
                     className="break-all font-mono font-medium underline decoration-line underline-offset-4 hover:decoration-ink"
                   >
                     {domain.name}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-end tabular-nums">{formatPrice(domain.price)}</td>
-                <td className="px-4 py-3">
-                  {domain.isPremium ? <Badge tone="gold">پریمیوم</Badge> : <span className="text-muted">معمولی</span>}
+                <td dir="ltr" className="px-3 py-2.5 text-end tabular-nums">
+                  {formatMoney(domain.price, domain.currency, fromPool)}
                 </td>
-                <td className="px-4 py-3 text-end font-semibold tabular-nums">{domain.votes}</td>
-                <td className="px-4 py-3 text-end tabular-nums">{domain.viewers}</td>
+                {fromPool ? (
+                  <>
+                    <td className="px-3 py-2.5">
+                      {domain.url ? (
+                        <a href={domain.url} target="_blank" rel="noreferrer noopener" className="underline decoration-line underline-offset-4 hover:decoration-ink">
+                          {domain.marketplace ?? domain.bestSource ?? "صفحهٔ فروش"} ↗
+                        </a>
+                      ) : (
+                        <span className="text-muted">{domain.marketplace ?? domain.bestSource ?? "—"}</span>
+                      )}
+                    </td>
+                    <td dir="ltr" className="px-3 py-2.5 text-start text-xs text-muted">
+                      {domain.provider ?? "—"}
+                      {domain.nsClass ? ` · ${domain.nsClass}` : ""}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {domain.evidence === "sale_page" ? (
+                        <Badge tone="accent">صفحهٔ فروش</Badge>
+                      ) : domain.evidence === "nameserver" ? (
+                        <Badge tone="muted">نیم‌سرور</Badge>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                  </>
+                ) : (
+                  <td className="px-3 py-2.5">
+                    {domain.isPremium ? <Badge tone="gold">پریمیوم</Badge> : <span className="text-muted">معمولی</span>}
+                  </td>
+                )}
+                <td className="px-3 py-2.5 text-end font-semibold tabular-nums">{domain.votes}</td>
+                <td className="px-3 py-2.5 text-end tabular-nums">{domain.viewers}</td>
+                <td className="px-3 py-2.5 text-center">
+                  <form action={togglePickAction}>
+                    <input type="hidden" name="name" value={domain.name} />
+                    <input type="hidden" name="back" value={here} />
+                    <button
+                      aria-label={domain.picked ? "حذف از منتخب‌ها" : "افزودن به منتخب‌ها"}
+                      className={`text-lg leading-none ${domain.picked ? "text-gold" : "text-line hover:text-gold"}`}
+                    >
+                      ★
+                    </button>
+                  </form>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <Pager base={base} page={current} pages={pages} params={{ tab: "results", sort, dir }} />
+      <Pager base={base} page={current} pages={pages} params={keep} />
       {focused ? (
         <section className="rounded-xl border border-line bg-card p-5">
           <h2 className="font-display text-2xl">
@@ -359,7 +431,7 @@ function Ballots({ base, roundId, voterId }: { base: string; roundId: number; vo
                   <span className="text-sm tabular-nums text-muted">#{domain.position}</span>
                   <span dir="ltr" className="break-all font-mono text-sm">{domain.name}</span>
                   <span dir="ltr" className="text-sm text-muted">
-                    {formatPrice(domain.price)}
+                    {formatMoney(domain.price, domain.currency, domain.poolName != null)}
                     {domain.isPremium ? " · پریمیوم" : ""}
                   </span>
                 </li>
@@ -374,13 +446,16 @@ function Ballots({ base, roundId, voterId }: { base: string; roundId: number; vo
   );
 }
 
-function Unviewed({ base, stats, page }: { base: string; stats: DomainStat[]; page: number }) {
-  const unseen = stats.filter((domain) => domain.viewers === 0);
-  const pages = Math.max(1, Math.ceil(unseen.length / PAGE_SIZE));
-  const current = Math.min(page, pages);
-  const rows = unseen.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+function Unviewed({ base, roundId, fromPool, page }: { base: string; roundId: number; fromPool: boolean; page: number }) {
+  const { rows, total: unseen, page: current, pages } = queryResults(roundId, {
+    sort: "position",
+    dir: "asc",
+    page,
+    pageSize: PAGE_SIZE,
+    unviewedOnly: true,
+  });
 
-  if (unseen.length === 0) {
+  if (unseen === 0) {
     return (
       <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
         <h2 className="font-display text-2xl">همهٔ دامنه‌ها باز شده‌اند</h2>
@@ -391,7 +466,7 @@ function Unviewed({ base, stats, page }: { base: string; stats: DomainStat[]; pa
 
   return (
     <div className="grid gap-6">
-      <p className="text-sm text-muted">{unseen.length} دامنه را هیچ رأی‌دهنده‌ای باز نکرده است.</p>
+      <p className="text-sm text-muted">{unseen.toLocaleString("fa-IR")} دامنه را هیچ رأی‌دهنده‌ای باز نکرده است.</p>
       <div className="overflow-x-auto rounded-xl border border-line">
         <table className="w-full min-w-[32rem] border-collapse text-sm">
           <caption className="sr-only">دامنه‌هایی که کسی باز نکرده است</caption>
@@ -407,7 +482,7 @@ function Unviewed({ base, stats, page }: { base: string; stats: DomainStat[]; pa
               <tr key={domain.id} className="border-t border-line">
                 <td className="px-4 py-3 tabular-nums text-muted">{domain.position}</td>
                 <td dir="ltr" className="px-4 py-3 break-all font-mono">{domain.name}</td>
-                <td className="px-4 py-3 text-end tabular-nums">{formatPrice(domain.price)}</td>
+                <td dir="ltr" className="px-4 py-3 text-end tabular-nums">{formatMoney(domain.price, domain.currency, fromPool)}</td>
               </tr>
             ))}
           </tbody>
