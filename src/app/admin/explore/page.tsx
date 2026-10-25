@@ -23,8 +23,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <InfoTip>{mode === "names" ? t.browse.tip : t.explore.lead}</InfoTip>
         </h1>
         <nav className="inline-flex rounded-lg bg-paper p-1 ring-1 ring-line">
-          <Link href="/admin/explore" className={tab(mode === "names")} aria-current={mode === "names" ? "page" : undefined}>{t.browse.tabNames}</Link>
-          <Link href="/admin/explore?mode=activity" className={tab(mode === "activity")} aria-current={mode === "activity" ? "page" : undefined}>{t.browse.tabActivity}</Link>
+          <Link scroll={false} href="/admin/explore" className={tab(mode === "names")} aria-current={mode === "names" ? "page" : undefined}>{t.browse.tabNames}</Link>
+          <Link scroll={false} href="/admin/explore?mode=activity" className={tab(mode === "activity")} aria-current={mode === "activity" ? "page" : undefined}>{t.browse.tabActivity}</Link>
         </nav>
       </div>
       {mode === "names" ? <NamesView query={query} /> : <ActivityView query={query} />}

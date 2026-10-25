@@ -184,6 +184,7 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
             <Link
               key={item.id}
               href={withParams(base, { tab: item.id })}
+              scroll={false}
               role="tab"
               aria-selected={active}
               className={`-mb-px border-b-2 px-4 py-3 text-sm font-semibold whitespace-nowrap ${
@@ -417,6 +418,7 @@ function Results({
                 <li key={voter.id} className="py-2 text-sm">
                   <Link
                     href={withParams(base, { tab: "ballots", voter: voter.id })}
+                    scroll={false}
                     dir="ltr"
                     className="font-medium underline decoration-line underline-offset-4"
                   >
@@ -455,6 +457,7 @@ function Ballots({ base, roundId, voterId }: { base: string; roundId: number; vo
             <li key={ballot.id} className="border-b border-line last:border-b-0">
               <Link
                 href={withParams(base, { tab: "ballots", voter: ballot.id })}
+                scroll={false}
                 className={`flex items-center justify-between gap-3 px-4 py-3 text-sm ${active ? "bg-accent-soft" : "hover:bg-paper"}`}
                 aria-current={active ? "true" : undefined}
               >
