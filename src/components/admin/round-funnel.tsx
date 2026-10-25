@@ -28,8 +28,9 @@ export function RoundFunnel({ steps, current }: { steps: FunnelStep[]; current: 
           return (
             <li key={step.id} className="flex items-center gap-1">
               {i > 0 ? (
-                <span aria-hidden className="text-xs text-muted">
-                  ←
+                <span className="flex flex-col items-center px-0.5 text-[11px] leading-tight text-muted" data-testid="funnel-rule">
+                  <span aria-hidden>←</span>
+                  {step.rule ? <span className="whitespace-nowrap">{t.w4.funnelRule(step.rule.mode, step.rule.n)}</span> : null}
                 </span>
               ) : null}
               <Link
@@ -42,6 +43,7 @@ export function RoundFunnel({ steps, current }: { steps: FunnelStep[]; current: 
                 <span className="flex items-center gap-1.5 text-xs text-muted">
                   <span className={`size-1.5 rounded-full ${step.status === "open" ? "bg-accent" : "bg-muted/50"}`} aria-hidden />
                   {(i + 1).toLocaleString("fa-IR")}
+                  {step.children > 1 ? <span className="ms-auto">{t.w4.funnelBranches(step.children)}</span> : null}
                 </span>
                 <span className="mt-0.5 block truncate text-sm font-semibold">{step.title}</span>
                 <span className="mt-1 block font-display text-lg sm:text-xl tabular-nums">{step.count.toLocaleString("fa-IR")}</span>

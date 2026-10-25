@@ -763,6 +763,8 @@ export const t = {
     save: "ذخیره",
     cancel: "انصراف",
     funnel: "قیف دورها",
+    funnelRule: (mode: "min" | "top", n: number) => (mode === "top" ? `${n.toLocaleString("fa-IR")} برتر` : `دست‌کم ${n.toLocaleString("fa-IR")} رأی`),
+    funnelBranches: (n: number) => `${n.toLocaleString("fa-IR")} شاخه`,
     toRound: "ساخت دور از این نتایج",
     fromExplore: "همهٔ نام‌های این نتیجهٔ کاوش، به همان ترتیب.",
     editFilters: "تغییر فیلترها",
