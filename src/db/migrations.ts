@@ -1,10 +1,11 @@
 import type Database from "better-sqlite3";
+import { normalizeSetIds } from "../lib/sets";
 
 /**
  * Forward-only migrations tracked with PRAGMA user_version.
  * Version 0 is the original schema created in index.ts; nothing here drops or rewrites existing rows.
  */
-const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
+const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sqlite: Database.Database) => void }> = [
   {
     version: 1,
     name: "for-sale pool",
@@ -185,7 +186,48 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
       ALTER TABLE rounds ADD COLUMN next_rule TEXT;
     `,
   },
+  {
+    version: 8,
+    name: "retire pool set 2: saved round/batch filters that name set 2 now name set 3",
+    sql: "",
+    run: (sqlite) => {
+      for (const table of ["rounds", "round_batches"]) {
+        const exists = sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table);
+        if (!exists) continue;
+        const rows = sqlite.prepare(`SELECT id, filter_json AS json FROM ${table} WHERE filter_json LIKE '%sets%'`).all() as Array<{ id: number; json: string }>;
+        const update = sqlite.prepare(`UPDATE ${table} SET filter_json = ? WHERE id = ?`);
+        for (const row of rows) {
+          const next = remapSetsInFilterJson(row.json);
+          if (next !== null) update.run(next, row.id);
+        }
+      }
+    },
+  },
 ];
+
+/** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */
+export function remapSetsInFilterJson(json: string): string | null {
+  let obj: Record<string, unknown>;
+  try {
+    obj = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  if (!obj || typeof obj !== "object") return null;
+  let changed = false;
+  const fix = (holder: Record<string, unknown>) => {
+    const v = holder.sets;
+    const list = Array.isArray(v) ? v : typeof v === "string" ? v.split(",").filter(Boolean) : typeof v === "number" ? [v] : null;
+    if (!list || !list.some((x) => Number(x) === 2)) return;
+    const mapped = normalizeSetIds(list);
+    holder.legacySets = v; // keep what was stored, for the record
+    holder.sets = Array.isArray(v) ? mapped : mapped.join(",");
+    changed = true;
+  };
+  fix(obj);
+  if (obj.explore && typeof obj.explore === "object") fix(obj.explore as Record<string, unknown>);
+  return changed ? JSON.stringify(obj) : null;
+}
 
 /**
  * Applies every migration not yet recorded in schema_migrations, so parallel branches can land
@@ -204,7 +246,8 @@ export function runMigrations(sqlite: Database.Database) {
   for (const migration of MIGRATIONS) {
     if (applied.has(migration.version)) continue;
     sqlite.transaction(() => {
-      sqlite.exec(migration.sql);
+      if (migration.sql) sqlite.exec(migration.sql);
+      migration.run?.(sqlite);
       sqlite.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(migration.version, Date.now());
       const top = sqlite.pragma("user_version", { simple: true }) as number;
       if (migration.version > top) sqlite.pragma(`user_version = ${migration.version}`);

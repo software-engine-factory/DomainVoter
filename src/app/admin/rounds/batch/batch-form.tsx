@@ -1,6 +1,7 @@
 "use client";
 
 import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
+import { ACTIVE_SETS } from "@/lib/sets";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { buttonClass, fieldBase } from "@/components/ui";
 import { countBlockAction, createBatchAction } from "@/lib/actions/batches";
@@ -59,7 +60,7 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users }: {
           <legend className="px-1 font-semibold">{t.batch.blockLegend}</legend>
           <div className="mt-3 font-medium">{t.batch.sets}</div>
           <div className="mt-1 flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
+            {ACTIVE_SETS.map((n) => (
               <label key={n} className={chip}><input type="checkbox" name="sets" value={n} /><span>{setLabels[n]}</span></label>
             ))}
             <select name="setMode" defaultValue="any" className={`${fieldBase} h-9 w-28`} aria-label={t.batch.setMode}>

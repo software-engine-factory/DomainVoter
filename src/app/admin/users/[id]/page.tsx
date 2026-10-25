@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
+import { ACTIVE_SETS } from "@/lib/sets";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookmarkButton } from "@/components/admin/bookmark-button";
@@ -66,7 +67,7 @@ export default async function UserPage({
         <div className="rounded-xl border border-line p-3 text-sm">
           <h2 className="font-semibold">{t.user.setsSeen}</h2>
           <ul className="mt-2 space-y-1">
-            {[1, 2, 3, 4, 5].map((n) => (
+            {ACTIVE_SETS.map((n) => (
               <li key={n} className="flex justify-between gap-2">
                 <span>{SET_LABELS[n]}</span>
                 <span className="tabular-nums">{sets[`s${n}`] ?? 0}</span>

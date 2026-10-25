@@ -1,5 +1,6 @@
 import { getSqlite } from "@/db";
 import { normalizePattern, normalizeQuery, patternActive, PATTERN_MAX } from "@/lib/vote-view";
+import { ACTIVE_SETS, normalizeSetIds } from "@/lib/sets";
 
 /**
  * Admin pool explorer: the 13 exploration filters over the whole for-sale pool.
@@ -71,7 +72,7 @@ export function parseBrowse(params: Params): BrowseQuery {
     cur: pick(first(params.cur), ["usd", "other", "none"] as const, "" as never) || "",
     min,
     max,
-    sets: [...new Set(many(params.sets).map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 5))].sort(),
+    sets: normalizeSetIds(many(params.sets).flatMap((v) => String(v).split(","))),
     sm: first(params.sm) === "all" ? "all" : "any",
     ev: pick(first(params.ev), ["sale_page", "nameserver"] as const, "" as never) || "",
     cls: first(params.cls).slice(0, 60),
@@ -248,7 +249,7 @@ export type BrowseRow = {
 
 const ROW_SELECT = `p.name, coalesce(p.lp_price, p.best_price) AS price, CASE WHEN p.lp_price IS NOT NULL THEN p.lp_currency ELSE coalesce(p.lp_currency, CASE WHEN p.price_usd IS NOT NULL THEN 'USD' END) END AS currency,
   p.price_usd AS priceUsd, p.price_source AS source, p.evidence, p.dns_parking_provider AS provider, p.dns_ns_class AS nsClass, p.lp_url AS url,
-  rtrim((CASE WHEN p.set_1 = 1 THEN '1,' ELSE '' END) || (CASE WHEN p.set_2 = 1 THEN '2,' ELSE '' END) || (CASE WHEN p.set_3 = 1 THEN '3,' ELSE '' END) || (CASE WHEN p.set_4 = 1 THEN '4,' ELSE '' END) || (CASE WHEN p.set_5 = 1 THEN '5,' ELSE '' END), ',') AS sets,
+  rtrim((CASE WHEN p.set_1 = 1 THEN '1,' ELSE '' END) || (CASE WHEN p.set_3 = 1 THEN '3,' ELSE '' END) || (CASE WHEN p.set_4 = 1 THEN '4,' ELSE '' END) || (CASE WHEN p.set_5 = 1 THEN '5,' ELSE '' END), ',') AS sets,
   (SELECT COUNT(DISTINCT d.round_id) FROM domains d WHERE d.name = p.name) AS rounds,
   (SELECT COUNT(*) FROM domains d JOIN views v ON v.domain_id = d.id WHERE d.name = p.name) AS views,
   ${votesOf} AS votes,
@@ -318,7 +319,7 @@ export function browseFacets() {
   return { sources: facet("price_source"), providers: facet("dns_parking_provider"), classes: facet("dns_ns_class") };
 }
 
-export type OverviewRow = { key: string; total: number; priced: number; usd: number; median: number | null; perSet: number[] };
+export type OverviewRow = { key: string; total: number; priced: number; usd: number; median: number | null; perSet: number[]; only?: number };
 
 function median(where: string, params: Array<string | number>, usd: number) {
   if (!usd) return null;
@@ -331,38 +332,42 @@ function median(where: string, params: Array<string | number>, usd: number) {
 /** Pool page matrices: per set, and per price source (with its split across sets). */
 export function poolOverview() {
   const sqlite = getSqlite();
-  const bySet: OverviewRow[] = [1, 2, 3, 4, 5].map((n) => {
+  const bySet: OverviewRow[] = ACTIVE_SETS.map((n) => {
     const r = sqlite
       .prepare(`SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd FROM pool WHERE set_${n} = 1`)
       .get() as { total: number; priced: number; usd: number };
-    return { key: String(n), ...r, median: median(`set_${n} = 1`, [], r.usd), perSet: [] };
+    // Sets overlap (1∩3 is large), so also count names found in no other shown set.
+    const others = ACTIVE_SETS.filter((m) => m !== n).map((m) => `set_${m} = 0`).join(" AND ");
+    const only = (sqlite.prepare(`SELECT COUNT(*) AS n FROM pool WHERE set_${n} = 1 AND ${others}`).get() as { n: number }).n;
+    return { key: String(n), ...r, only, median: median(`set_${n} = 1`, [], r.usd), perSet: [] };
   });
   const sources = sqlite
     .prepare(
       `SELECT price_source AS key, COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd,
-              SUM(set_1) AS s1, SUM(set_2) AS s2, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5
+              SUM(set_1) AS s1, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5
        FROM pool GROUP BY price_source ORDER BY price_source IS NULL, total DESC`,
     )
-    .all() as Array<{ key: string | null; total: number; priced: number; usd: number; s1: number; s2: number; s3: number; s4: number; s5: number }>;
+    .all() as Array<{ key: string | null; total: number; priced: number; usd: number; s1: number; s3: number; s4: number; s5: number }>;
   const bySource: OverviewRow[] = sources.map((r) => ({
     key: r.key ?? NONE,
     total: r.total,
     priced: r.priced,
     usd: r.usd,
     median: r.key == null ? null : median("price_source = ?", [r.key], r.usd),
-    perSet: [r.s1, r.s2, r.s3, r.s4, r.s5].map((x) => x ?? 0),
+    perSet: [r.s1, r.s3, r.s4, r.s5].map((x) => x ?? 0),
   }));
   const totals = sqlite
     .prepare("SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd, MAX(imported_at) AS lastImport FROM pool")
     .get() as { total: number; priced: number; usd: number; lastImport: number | null };
-  return { bySet, bySource, totals };
+  const overlap13 = (sqlite.prepare("SELECT COUNT(*) AS n FROM pool WHERE set_1 = 1 AND set_3 = 1").get() as { n: number }).n;
+  return { bySet, bySource, totals, overlap13 };
 }
 
 /** A few example names per set for the set tooltips. */
 export function setSamples(limit = 4): Record<number, string[]> {
   const sqlite = getSqlite();
   const out: Record<number, string[]> = {};
-  for (const n of [1, 2, 3, 4, 5]) {
+  for (const n of ACTIVE_SETS) {
     out[n] = (sqlite.prepare(`SELECT name FROM pool WHERE set_${n} = 1 AND name_len <= 8 LIMIT ?`).all(limit) as Array<{ name: string }>).map((r) => r.name);
   }
   return out;

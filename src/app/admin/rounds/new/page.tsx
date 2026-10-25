@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
+import { ACTIVE_SETS } from "@/lib/sets";
 import Link from "next/link";
 import { one } from "@/lib/format";
 import { poolFacets, SET_LABELS } from "@/lib/pool";
@@ -59,7 +60,7 @@ export default async function NewRoundPage({
           classes={facets.classes}
           providers={facets.providers}
           total={facets.totals.total}
-          setCounts={[1, 2, 3, 4, 5].map((n) => ({ n, label: SET_LABELS[n], count: Number(facets.totals[`s${n}` as "s1"] ?? 0) }))}
+          setCounts={ACTIVE_SETS.map((n) => ({ n, label: SET_LABELS[n], count: Number(facets.totals[`s${n}` as "s1"] ?? 0) }))}
           error={error}
         />
       ) : (
