@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { El_Messiri, JetBrains_Mono, Vazirmatn } from "next/font/google";
+import { El_Messiri, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Header } from "@/components/header";
 import { cookies } from "next/headers";
 import { ThemeScript } from "@/components/theme-script";
@@ -7,8 +8,12 @@ import { getSession } from "@/lib/auth";
 import { DEFAULT_THEME, THEME_COOKIE, isTheme } from "@/lib/theme/themes";
 import "./globals.css";
 
-const vazirmatn = Vazirmatn({
-  subsets: ["arabic", "latin"],
+// Self-hosted Vazirmatn (from name-swipe shared/fonts), used by every theme.
+const vazirmatn = localFont({
+  src: [
+    { path: "./fonts/Vazirmatn-Medium.woff2", weight: "400 600", style: "normal" },
+    { path: "./fonts/Vazirmatn-Bold.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-vazirmatn",
   display: "swap",
 });

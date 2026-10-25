@@ -68,7 +68,7 @@ export function ThemePicker({ initial }: { initial: ThemeId }) {
         <ul
           role="listbox"
           aria-label="پوسته"
-          className="pop-in absolute end-0 top-11 z-40 grid w-44 gap-1 rounded-2xl border border-line bg-card p-1.5 shadow-xl shadow-ink/10"
+          className="pop-in absolute end-0 top-11 z-40 grid w-44 gap-1 rounded-2xl border border-line bg-paper p-1.5 shadow-xl shadow-ink/10"
         >
           {THEMES.map((item, index) => (
             <li key={item.id} style={{ animationDelay: `${index * 30}ms` }} className="stagger-in">
