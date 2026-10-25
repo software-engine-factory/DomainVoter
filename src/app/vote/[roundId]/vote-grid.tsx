@@ -2,6 +2,10 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toggleVote } from "@/lib/actions/votes";
+import { useMediaQuery } from "@/lib/theme/use-media";
+
+// Mobile packs the server page into smaller one-screen chunks.
+const MOBILE_CHUNK = 8;
 
 type Card = {
   id: number;
@@ -28,6 +32,19 @@ export function VoteGrid({
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const busy = useRef(false);
+  const isMobile = useMediaQuery("(max-width: 639px)");
+  const [chunk, setChunk] = useState(0);
+  const [direction, setDirection] = useState<"next" | "prev">("next");
+  const touchX = useRef<number | null>(null);
+  const chunkCount = isMobile ? Math.max(1, Math.ceil(cards.length / MOBILE_CHUNK)) : 1;
+  const activeChunk = Math.min(chunk, chunkCount - 1);
+  const visible = isMobile ? cards.slice(activeChunk * MOBILE_CHUNK, (activeChunk + 1) * MOBILE_CHUNK) : cards;
+
+  function goChunk(next: number) {
+    if (next < 0 || next >= chunkCount || next === activeChunk) return;
+    setDirection(next > activeChunk ? "next" : "prev");
+    setChunk(next);
+  }
 
   function onToggle(id: number) {
     if (busy.current || pending) return;
@@ -81,15 +98,28 @@ export function VoteGrid({
           </p>
         ) : null}
       </div>
-      <ul className="grid min-h-0 flex-1 grid-cols-2 gap-2 p-1 sm:grid-cols-4 sm:grid-rows-5">
-        {cards.map((card, index) => {
+      <ul
+        key={isMobile ? `m${activeChunk}` : "d"}
+        onTouchStart={(event) => (touchX.current = event.touches[0].clientX)}
+        onTouchEnd={(event) => {
+          if (touchX.current == null) return;
+          const dx = event.changedTouches[0].clientX - touchX.current;
+          touchX.current = null;
+          // RTL: swiping right moves forward
+          if (Math.abs(dx) > 50) goChunk(activeChunk + (dx > 0 ? 1 : -1));
+        }}
+        className={`grid min-h-0 flex-1 grid-cols-2 grid-rows-4 gap-2 p-1 sm:grid-cols-4 sm:grid-rows-5 ${
+          isMobile ? (direction === "next" ? "slide-next" : "slide-prev") : ""
+        }`}
+      >
+        {visible.map((card, index) => {
           const selected = voted.has(card.id);
           const domain = splitDomain(card.name);
           return (
             <li
               key={card.id}
-              className="vote-enter min-h-[8.75rem] sm:min-h-0"
-              style={{ animationDelay: `${index * 16}ms` }}
+              className="vote-enter min-h-0"
+              style={{ animationDelay: `${index * (isMobile ? 28 : 16)}ms` }}
             >
               <button
                 type="button"
@@ -135,6 +165,41 @@ export function VoteGrid({
           );
         })}
       </ul>
+      {chunkCount > 1 ? (
+        <div className="flex shrink-0 items-center justify-center gap-3 pt-2" dir="ltr">
+          <button
+            type="button"
+            aria-label="‹"
+            onClick={() => goChunk(activeChunk - 1)}
+            disabled={activeChunk === 0}
+            className="press grid size-9 place-items-center rounded-full border border-line bg-card text-ink disabled:opacity-30"
+          >
+            ‹
+          </button>
+          <div className="flex items-center gap-1.5" role="tablist">
+            {Array.from({ length: chunkCount }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                role="tab"
+                aria-selected={i === activeChunk}
+                aria-label={String(i + 1)}
+                onClick={() => goChunk(i)}
+                className={`h-2 rounded-full transition-all duration-300 ${i === activeChunk ? "w-6 bg-accent" : "w-2 bg-line"}`}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            aria-label="›"
+            onClick={() => goChunk(activeChunk + 1)}
+            disabled={activeChunk === chunkCount - 1}
+            className="press grid size-9 place-items-center rounded-full border border-line bg-card text-ink disabled:opacity-30"
+          >
+            ›
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

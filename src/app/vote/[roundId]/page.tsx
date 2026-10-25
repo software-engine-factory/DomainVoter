@@ -45,7 +45,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
     <main
       className={
         board
-          ? "mx-auto flex w-full max-w-7xl flex-col px-4 py-3 sm:h-[calc(100dvh-3.5rem-1px)] sm:overflow-hidden sm:px-6"
+          ? "mx-auto flex h-[calc(100dvh-5.75rem)] w-full max-w-7xl flex-col overflow-hidden px-4 py-3 sm:h-[calc(100dvh-3.5rem-1px)] sm:px-6"
           : "mx-auto w-full max-w-3xl px-4 py-10 sm:px-6"
       }
     >
@@ -56,10 +56,10 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
               دورهای باز
             </Link>
           </p>
-          <h1 className="truncate font-display text-3xl leading-none">{round.title}</h1>
+          <h1 className="truncate font-display text-2xl leading-none sm:text-3xl">{round.title}</h1>
         </div>
         {board ? (
-          <form action={`/vote/${round.id}`} className="flex flex-wrap items-end gap-2">
+          <form action={`/vote/${round.id}`} className="hidden flex-wrap items-end gap-2 sm:flex">
             <label className="grid gap-1 text-xs font-medium">
               از
               <input
@@ -101,7 +101,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
         </div>
       ) : (
         <>
-          <p className="mt-2 shrink-0 text-xs text-muted">
+          <p className="mt-2 line-clamp-1 shrink-0 text-xs text-muted sm:line-clamp-none">
             نمایش{" "}
             <span className="font-semibold tabular-nums text-ink">
               {window.start}–{window.end}
