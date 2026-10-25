@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { getRound, queryVoteCards } from "@/lib/rounds";
+import { getVotePageSize } from "@/lib/settings";
 import { parseView } from "@/lib/vote-view";
 
 /**
@@ -14,6 +15,6 @@ export async function GET(request: Request, ctx: RouteContext<"/api/rounds/[id]/
   const roundId = Number(id);
   if (!Number.isInteger(roundId) || !getRound(roundId)) return Response.json({ error: "bad round" }, { status: 400 });
   const url = new URL(request.url);
-  const view = parseView((key) => url.searchParams.get(key));
+  const view = parseView((key) => url.searchParams.get(key), getVotePageSize());
   return Response.json(queryVoteCards(roundId, view), { headers: { "Cache-Control": "private, max-age=43200" } });
 }

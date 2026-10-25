@@ -4,7 +4,8 @@
  */
 export const PAGE_SIZES = [20, 50, 100] as const;
 export type PageSize = (typeof PAGE_SIZES)[number];
-export const DEFAULT_PAGE_SIZE: PageSize = 20;
+/** Used until an admin picks a value in تنظیمات نمایش. */
+export const DEFAULT_PAGE_SIZE: PageSize = 50;
 /** Max characters in the per-position pattern (domain labels longer than this are still matched by prefix). */
 export const PATTERN_MAX = 16;
 export const QUERY_MAX = 40;
@@ -72,9 +73,8 @@ function int(value: string | null | undefined): number | null {
 
 type ParamGetter = (key: string) => string | null | undefined;
 
-export function parseView(get: ParamGetter): VoteView {
-  const sizeIn = int(get("size"));
-  const size = (PAGE_SIZES as readonly number[]).includes(sizeIn ?? 0) ? (sizeIn as PageSize) : DEFAULT_PAGE_SIZE;
+/** `size` is never taken from the URL: it is the admin setting, passed in by the server. */
+export function parseView(get: ParamGetter, size: PageSize): VoteView {
   const exact = get("exact") === "1";
   const pat = normalizePattern(get("pat") ?? "", exact);
   return {
@@ -93,7 +93,9 @@ export function viewParams(view: VoteView): URLSearchParams {
   const p = new URLSearchParams();
   if (view.from != null) p.set("from", String(view.from));
   if (view.to != null) p.set("to", String(view.to));
-  if (view.size !== DEFAULT_PAGE_SIZE) p.set("size", String(view.size));
+  // Size is part of the cache key (so a changed admin setting never reuses old pages) but the server
+  // ignores it and always uses the current setting.
+  p.set("size", String(view.size));
   p.set("page", String(view.page));
   if (view.q) p.set("q", view.q);
   if (patternActive(view.pat, view.exact)) {

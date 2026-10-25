@@ -5,7 +5,8 @@ import { Alert, buttonClass, fieldClass } from "@/components/ui";
 import { requireVoter } from "@/lib/auth";
 import { one } from "@/lib/format";
 import { countDomains, getRound, getUserVoteCount, getUserVotedIds, queryVoteCards } from "@/lib/rounds";
-import { DEFAULT_PAGE_SIZE, parseView } from "@/lib/vote-view";
+import { getVotePageSize } from "@/lib/settings";
+import { parseView } from "@/lib/vote-view";
 import { VoteBoard } from "./vote-board";
 import { t } from "@/lib/copy/fa";
 
@@ -28,7 +29,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
   if (!round) notFound();
 
   const total = countDomains(round.id);
-  const view = parseView((key) => one(query[key]));
+  const view = parseView((key) => one(query[key]), getVotePageSize());
   const initialPage = queryVoteCards(round.id, view, total);
   const votedIds = getUserVotedIds(
     round.id,
@@ -84,7 +85,6 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
                 className={`${fieldClass} h-9! w-20 text-sm!`}
               />
             </label>
-            {view.size !== DEFAULT_PAGE_SIZE ? <input type="hidden" name="size" value={view.size} /> : null}
             {view.q ? <input type="hidden" name="q" value={view.q} /> : null}
             {view.pat ? <input type="hidden" name="pat" value={view.pat} /> : null}
             {view.exact ? <input type="hidden" name="exact" value="1" /> : null}

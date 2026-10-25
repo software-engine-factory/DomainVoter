@@ -5,18 +5,7 @@ import { clampPage } from "@/lib/vote-view";
 import { t } from "@/lib/copy/fa";
 
 /** Prev / "page [n] of N · go" / next. The typed page is clamped into range; bad input is ignored. */
-export function Pager({
-  page,
-  pages,
-  onGo,
-  mobileArrows = true,
-}: {
-  page: number;
-  pages: number;
-  onGo: (page: number) => void;
-  /** Off when the grid's own swipe/chunk arrows already page on mobile. */
-  mobileArrows?: boolean;
-}) {
+export function Pager({ page, pages, onGo }: { page: number; pages: number; onGo: (page: number) => void }) {
   // Draft text for the box; null = show the live page number.
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? String(page);
@@ -27,7 +16,7 @@ export function Pager({
     if (next !== page) onGo(next);
   }
 
-  const arrow = `${mobileArrows ? "" : "max-sm:invisible "}press grid size-9 shrink-0 place-items-center rounded-full border border-line bg-card text-lg leading-none text-ink disabled:opacity-30`;
+  const arrow = `press grid size-9 shrink-0 place-items-center rounded-full border border-line bg-card text-lg leading-none text-ink disabled:opacity-30`;
 
   return (
     <nav aria-label={t.vote.goToLabel} className="mt-2 flex shrink-0 items-center justify-between gap-2">

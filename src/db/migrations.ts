@@ -123,6 +123,18 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
       CREATE INDEX IF NOT EXISTS domains_name_idx ON domains(name);
     `,
   },
+  {
+    version: 4,
+    name: "app settings (admin UI settings, e.g. names per page)",
+    sql: `
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        updated_by INTEGER
+      ) WITHOUT ROWID;
+    `,
+  },
 ];
 
 export function runMigrations(sqlite: Database.Database) {

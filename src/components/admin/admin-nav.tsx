@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/admin/explore", label: t.adminNav.explore, tour: "explore" },
   { href: "/admin/bookmarks", label: t.adminNav.bookmarks, tour: "bookmarks" },
   { href: "/admin/rounds/batch", label: t.adminNav.batch, tour: "batch" },
+  { href: "/admin/settings", label: t.adminNav.uiSettings, tour: "settings" },
 ];
 
 /** Admin-only sub navigation. Lives under the main header so the shared header stays untouched. */

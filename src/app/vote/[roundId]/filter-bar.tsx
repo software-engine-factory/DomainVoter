@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   normalizePattern,
   normalizeQuery,
-  PAGE_SIZES,
   PATTERN_MAX,
   patternActive,
   toDomainChar,
@@ -21,7 +20,7 @@ function slotsFrom(pat: string, exact: boolean) {
   return Array.from({ length: Math.max(length, MIN_SLOTS) }, (_, i) => chars[i] ?? "");
 }
 
-/** Search box, per-position letter slots and page size. Filters apply as you type (debounced). */
+/** Search box and per-position letter slots. Filters apply as you type (debounced). */
 export function FilterBar({ view, onChange }: { view: VoteView; onChange: (patch: Partial<VoteView>) => void }) {
   const [text, setText] = useState(view.q);
   const [open, setOpen] = useState(() => patternActive(view.pat, view.exact));
@@ -101,21 +100,6 @@ export function FilterBar({ view, onChange }: { view: VoteView; onChange: (patch
           <span className="max-sm:sr-only">{t.vote.positionToggle}</span>
           {active ? <span className="absolute -top-1 -end-1 size-2.5 rounded-full bg-accent" aria-hidden /> : null}
         </button>
-        <div role="group" aria-label={t.vote.perPage} className="flex h-10 shrink-0 rounded-lg border border-line bg-card p-0.5">
-          {PAGE_SIZES.map((size) => (
-            <button
-              key={size}
-              type="button"
-              aria-pressed={view.size === size}
-              onClick={() => view.size !== size && onChange({ size })}
-              className={`min-w-9 rounded-md px-2 text-sm font-semibold tabular-nums transition-colors ${
-                view.size === size ? "bg-accent text-on-accent shadow-sm" : "text-muted hover:text-ink"
-              }`}
-            >
-              {size}
-            </button>
-          ))}
-        </div>
       </div>
 
       {open ? (

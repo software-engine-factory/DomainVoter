@@ -32,7 +32,6 @@ export function VoteBoard({
   const client = useQueryClient();
   const restoring = useIsRestoring();
   const [view, setView] = useState(initialView);
-  const [enteredFromEnd, setEnteredFromEnd] = useState(false);
   // Bumped when filters are cleared from outside the bar, so the bar drops its local drafts too.
   const [filterReset, setFilterReset] = useState(0);
   const key = viewKey(view);
@@ -49,19 +48,19 @@ export function VoteBoard({
   const page = exact ? data.page : view.page;
   const pages = data.pages;
 
-  function update(patch: Partial<VoteView>, fromEnd = false) {
-    setEnteredFromEnd(fromEnd);
+  function update(patch: Partial<VoteView>) {
     // Any filter or size change starts over at page 1; only explicit paging keeps a page number.
     setView((current) => ({ ...current, page: 1, ...patch }));
   }
-  function goPage(next: number, fromEnd = false) {
-    update({ page: Math.min(Math.max(next, 1), pages) }, fromEnd);
+  function goPage(next: number) {
+    update({ page: Math.min(Math.max(next, 1), pages) });
   }
 
   // Keep the URL shareable without a server navigation (canonical params; clamped page).
   useEffect(() => {
     const url = new URL(window.location.href);
     const params = viewParams({ ...view, page, from: data.from, to: data.to });
+    params.delete("size"); // admin setting, not user state
     url.search = params.toString();
     window.history.replaceState(null, "", url.toString());
   }, [view, page, data.from, data.to]);
@@ -129,14 +128,11 @@ export function VoteBoard({
             votedIds={votes.votedIds}
             count={votes.count}
             ready={exact}
-            onPrev={page > 1 ? () => goPage(page - 1, true) : undefined}
-            onNext={page < pages ? () => goPage(page + 1) : undefined}
-            startAtEnd={enteredFromEnd}
           />
         )}
       </div>
 
-      <Pager page={page} pages={pages} onGo={(p) => goPage(p)} mobileArrows={view.size > 20} />
+      <Pager page={page} pages={pages} onGo={(p) => goPage(p)} />
     </>
   );
 }
