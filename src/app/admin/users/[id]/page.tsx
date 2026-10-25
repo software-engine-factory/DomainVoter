@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookmarkButton } from "@/components/admin/bookmark-button";
@@ -22,6 +23,7 @@ export default async function UserPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const { id } = await params;
   const query = await searchParams;
   const user = getUser(Number(id));

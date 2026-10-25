@@ -54,6 +54,14 @@ function readToken(token: string): SessionPayload | null {
   }
 }
 
+/** For the proxy, which reads cookies from the request instead of next/headers. */
+export function sessionFromToken(token: string | undefined): SessionUser | null {
+  const payload = token ? readToken(token) : null;
+  return payload ? { userId: payload.userId, username: payload.username, role: payload.role } : null;
+}
+
+export const SESSION_COOKIE = COOKIE;
+
 export async function getSession(): Promise<SessionUser | null> {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;

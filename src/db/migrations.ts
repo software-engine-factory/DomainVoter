@@ -135,6 +135,24 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
       ) WITHOUT ROWID;
     `,
   },
+  {
+    version: 5,
+    name: "optional round assignees (who may see a round; none = everyone)",
+    sql: `
+      CREATE TABLE IF NOT EXISTS round_assignees (
+        round_id INTEGER NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        PRIMARY KEY (round_id, user_id)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS round_assignees_user_idx ON round_assignees(user_id);
+      -- Batch-level default so rounds opened later from the same batch get the same people.
+      CREATE TABLE IF NOT EXISTS round_batch_assignees (
+        batch_id INTEGER NOT NULL REFERENCES round_batches(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        PRIMARY KEY (batch_id, user_id)
+      ) WITHOUT ROWID;
+    `,
+  },
 ];
 
 export function runMigrations(sqlite: Database.Database) {

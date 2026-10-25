@@ -2,13 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Badge } from "@/components/ui";
 import { formatWhen } from "@/lib/format";
+import { requireVoter } from "@/lib/auth";
 import { listOpenRounds } from "@/lib/rounds";
 import { t } from "@/lib/copy/fa";
 
 export const metadata: Metadata = { title: t.vote.listTitle };
 
-export default function VoteHomePage() {
-  const rounds = listOpenRounds();
+export const dynamic = "force-dynamic";
+
+export default async function VoteHomePage() {
+  const session = await requireVoter();
+  const rounds = listOpenRounds(session.userId);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">

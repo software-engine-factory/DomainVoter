@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
+import { AssigneeChips } from "@/components/admin/assignee-picker";
+import { assigneesByRound } from "@/lib/assignees";
 import { Badge, ProgressBar, buttonClass } from "@/components/ui";
 import { formatPercent, formatWhen } from "@/lib/format";
 import { listRounds } from "@/lib/rounds";
@@ -7,8 +10,10 @@ import { t } from "@/lib/copy/fa";
 
 export const metadata: Metadata = { title: t.common.rounds };
 
-export default function AdminHomePage() {
+export default async function AdminHomePage() {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const rounds = listRounds();
+  const assigned = assigneesByRound();
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
@@ -49,6 +54,10 @@ export default function AdminHomePage() {
                       {round.domainCount} {t.common.domains} · {formatWhen(round.createdAt)}
                     </p>
                     {round.parentTitle ? <p className="mt-1 text-sm text-muted">{t.common.fromParent(round.parentTitle)}</p> : null}
+                    <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted" data-testid="round-assignees">
+                      <span>{t.assignees.column}:</span>
+                      <AssigneeChips names={(assigned.get(round.id) ?? []).map((u) => u.username)} />
+                    </p>
                   </div>
                   <div className="flex flex-col justify-center">
                     <ProgressBar value={percent} label={t.admin.seenLabel} />

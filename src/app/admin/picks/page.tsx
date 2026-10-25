@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import { buttonClass } from "@/components/ui";
 import { togglePickAction, updatePickNoteAction } from "@/lib/actions/picks";
 import { formatMoney } from "@/lib/format";
@@ -17,6 +18,7 @@ function NameLink({ name, url }: { name: string; url: string | null }) {
 }
 
 export default async function PicksPage() {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const picks = listPicks();
   const top = topVotedNames(50);
 

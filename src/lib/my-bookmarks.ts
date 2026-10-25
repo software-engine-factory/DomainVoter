@@ -1,4 +1,5 @@
 import { getSqlite } from "@/db";
+import { roundVisibleSql } from "@/lib/assignees";
 
 export type MyBookmark = {
   domainId: number;
@@ -18,9 +19,9 @@ export function listMyBookmarks(userId: number): MyBookmark[] {
          FROM votes v
          JOIN domains d ON d.id = v.domain_id
          JOIN rounds r ON r.id = v.round_id
-        WHERE v.user_id = ?
+        WHERE v.user_id = ? AND ${roundVisibleSql("r")}
         ORDER BY v.created_at DESC`,
     )
-    .all(userId) as Array<Omit<MyBookmark, "roundOpen"> & { status: string }>;
+    .all(userId, userId) as Array<Omit<MyBookmark, "roundOpen"> & { status: string }>;
   return rows.map(({ status, ...row }) => ({ ...row, roundOpen: status === "open" }));
 }

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { one } from "@/lib/format";
 import { poolFacets, SET_LABELS } from "@/lib/pool";
+import { listAssignableUsers } from "@/lib/assignees";
 import { PoolRoundForm } from "./pool-form";
 import { UploadForm } from "./upload-form";
 import { t } from "@/lib/copy/fa";
@@ -19,6 +21,7 @@ export default async function NewRoundPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const query = await searchParams;
   const code = one(query.error);
   const error = code === "parse" ? one(query.message) || t.newRound.err.unreadable : errors[code ?? ""];
@@ -44,6 +47,7 @@ export default async function NewRoundPage({
       </div>
       {facets ? (
         <PoolRoundForm
+          users={listAssignableUsers()}
           classes={facets.classes}
           providers={facets.providers}
           total={facets.totals.total}

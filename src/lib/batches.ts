@@ -1,3 +1,4 @@
+import { copyBatchAssignees, setBatchAssignees } from "@/lib/assignees";
 import { getSqlite } from "@/db";
 import { poolWhere, type PoolFilters } from "@/lib/pool";
 
@@ -63,6 +64,7 @@ export type BatchInput = {
   plan: Omit<BatchPlan, "total">;
   createNow: number; // how many rounds to open immediately (0 = all)
   adminId: number;
+  assignees?: number[];
 };
 
 /** Freezes the ordered block, then opens the first `createNow` rounds from it. */
@@ -107,6 +109,7 @@ export function createBatch(input: BatchInput) {
       return { batchId: 0, total: 0, created: [] as number[] };
     }
     sqlite.prepare("UPDATE round_batches SET block_total = ? WHERE id = ?").run(total, batchId);
+    setBatchAssignees(batchId, input.assignees ?? []);
     const plan = planBatch({ ...input.plan, total });
     const howMany = input.createNow > 0 ? Math.min(input.createNow, plan.sizes.length) : plan.sizes.length;
     const created: number[] = [];
@@ -144,6 +147,7 @@ export function openBatchRound(batchId: number) {
          ORDER BY i.position`,
       )
       .run(roundId, start, batchId, start, start + size);
+    copyBatchAssignees(batchId, roundId);
     return { roundId, count: inserted.changes };
   })();
 }

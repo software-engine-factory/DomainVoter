@@ -5,6 +5,8 @@ import { Alert, buttonClass, fieldClass } from "@/components/ui";
 import { requireVoter } from "@/lib/auth";
 import { one } from "@/lib/format";
 import { countDomains, getRound, getUserVoteCount, getUserVotedIds, queryVoteCards } from "@/lib/rounds";
+import { canSeeRound } from "@/lib/assignees";
+import { getSession } from "@/lib/auth";
 import { getVotePageSize } from "@/lib/settings";
 import { parseView } from "@/lib/vote-view";
 import { VoteBoard } from "./vote-board";
@@ -17,7 +19,8 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { roundId } = await params;
-  const round = getRound(Number(roundId));
+  const session = await getSession();
+  const round = session && canSeeRound(Number(roundId), session.userId) ? getRound(Number(roundId)) : undefined;
   return { title: round?.title ?? t.common.round };
 }
 
@@ -25,7 +28,8 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
   const session = await requireVoter();
   const { roundId } = await params;
   const query = await searchParams;
-  const round = getRound(Number(roundId));
+  // Hidden (assigned to others) rounds are a plain 404, same as a missing one.
+  const round = canSeeRound(Number(roundId), session.userId) ? getRound(Number(roundId)) : undefined;
   if (!round) notFound();
 
   const total = countDomains(round.id);

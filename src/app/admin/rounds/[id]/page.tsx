@@ -1,3 +1,7 @@
+import { AssigneeChips, AssigneePicker } from "@/components/admin/assignee-picker";
+import { getSession, requireAdmin } from "@/lib/auth";
+import { listAssignableUsers, listAssignees } from "@/lib/assignees";
+import { setRoundAssigneesAction } from "@/lib/actions/rounds";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
@@ -38,7 +42,8 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const round = getRound(Number(id));
+  const session = await getSession();
+  const round = session?.role === "admin" ? getRound(Number(id)) : undefined;
   return { title: round?.title ?? t.common.round };
 }
 
@@ -49,6 +54,7 @@ function pageNumber(value: string | undefined) {
 }
 
 export default async function AdminRoundPage({ params, searchParams }: PageProps) {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const { id } = await params;
   const query = await searchParams;
   const round = getRound(Number(id));
@@ -67,6 +73,7 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
   const imported = one(query.imported);
   const confirmClose = one(query.confirmClose) === "1";
   const base = `/admin/rounds/${round.id}`;
+  const assignees = listAssignees(round.id);
 
   let lineage = "";
   if (round.filterJson && parent) {
@@ -110,7 +117,23 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
         </div>
       </div>
 
+      <details className="group mt-4 rounded-xl border border-line bg-card" data-testid="round-access">
+        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 px-4 py-3 text-sm">
+          <span className="font-semibold">{t.assignees.column}:</span>
+          <AssigneeChips names={assignees.map((u) => u.username)} />
+          <span aria-hidden className="ms-auto text-muted transition group-open:rotate-180">▾</span>
+        </summary>
+        <form action={setRoundAssigneesAction} className="grid gap-3 border-t border-line p-3 sm:p-4">
+          <input type="hidden" name="roundId" value={round.id} />
+          <AssigneePicker users={listAssignableUsers()} initial={assignees.map((u) => u.id)} />
+          <div>
+            <button className={buttonClass("primary", "sm")}>{t.assignees.save}</button>
+          </div>
+        </form>
+      </details>
+
       <div className="mt-6 grid gap-3">
+        {one(query.assigned) ? <Alert tone="success">{t.assignees.saved}</Alert> : null}
         {imported ? (
           <Alert tone="success">
             {t.round.openedWith(imported)}

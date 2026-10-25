@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Alert, Badge, buttonClass, fieldBase } from "@/components/ui";
@@ -12,6 +13,7 @@ export const metadata: Metadata = { title: t.batch.detailTitle };
 const ORDER_LABELS: Record<string, string> = t.batch.orders;
 
 export default async function BatchDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const batch = getBatch(Number((await params).id));
   if (!batch) notFound();
   const created = one((await searchParams).created);

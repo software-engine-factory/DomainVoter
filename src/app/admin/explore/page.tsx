@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { BookmarkButton } from "@/components/admin/bookmark-button";
@@ -14,6 +15,7 @@ import { t } from "@/lib/copy/fa";
 export const metadata: Metadata = { title: t.explore.title };
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const q = parseExplore(await searchParams);
   const params = exploreToParams(q);
   const result = queryActivity(q);

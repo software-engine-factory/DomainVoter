@@ -5,6 +5,7 @@ import path from "path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
+import { parseAssigneeIds, setRoundAssignees } from "@/lib/assignees";
 import { countPool, normalizePoolFilters } from "@/lib/pool";
 import { importFile } from "@/lib/pool-import";
 import { dataDir, resolveImportPath } from "@/lib/paths";
@@ -72,6 +73,7 @@ export async function createPoolRoundAction(formData: FormData) {
   if (error) redirect(`${back}&error=parse&message=${encodeURIComponent(error)}`);
   const result = createRoundFromPool(title, filters);
   if (result.count === 0) redirect(`${back}&error=parse&message=${encodeURIComponent(t.pool.err.noMatch)}`);
+  setRoundAssignees(result.id, parseAssigneeIds(formData));
   revalidatePath("/admin");
   redirect(`/admin/rounds/${result.id}?imported=${result.count}`);
 }
