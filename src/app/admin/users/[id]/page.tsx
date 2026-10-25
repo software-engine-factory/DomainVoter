@@ -83,6 +83,7 @@ export default async function UserPage({
           <Link
             key={key}
             href={withParams(path, { tab: key, round: roundId ?? undefined })}
+            scroll={false}
             className={`-mb-px border-b-2 px-3 py-2 ${tab === key ? "border-ink font-semibold" : "border-transparent text-muted"}`}
           >
             {TABS[key]}
@@ -102,7 +103,7 @@ export default async function UserPage({
                 {t.user.roundLine(r.views, r.size, rate(r.views, r.size), r.minPos, r.maxPos, r.votes)}
               </div>
               <div className="text-xs text-muted">{formatWhen(r.firstSeen)} {t.user.until} {formatWhen(r.lastSeen)}</div>
-              <Link className="text-xs underline" href={withParams(path, { tab: "viewed", round: r.id })}>{t.user.seenInRound}</Link>
+              <Link scroll={false} className="text-xs underline" href={withParams(path, { tab: "viewed", round: r.id })}>{t.user.seenInRound}</Link>
             </li>
           ))}
           {rounds.length === 0 ? <li className="py-6 text-center text-muted">{t.user.noRounds}</li> : null}
@@ -111,9 +112,9 @@ export default async function UserPage({
         <>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             {roundId ? (
-              <Link className="rounded-full border border-line px-2 py-1" href={withParams(path, { tab })}>{t.user.roundChip(roundId)}</Link>
+              <Link scroll={false} className="rounded-full border border-line px-2 py-1" href={withParams(path, { tab })}>{t.user.roundChip(roundId)}</Link>
             ) : null}
-            <Link className={`rounded-full border px-2 py-1 ${bookmarkedOnly ? "border-ink" : "border-line"}`} href={withParams(path, { tab, round: roundId ?? undefined, bookmarked: bookmarkedOnly ? undefined : 1 })}>
+            <Link scroll={false} className={`rounded-full border px-2 py-1 ${bookmarkedOnly ? "border-ink" : "border-line"}`} href={withParams(path, { tab, round: roundId ?? undefined, bookmarked: bookmarkedOnly ? undefined : 1 })}>
               {t.user.onlyBookmarked} {bookmarkedOnly ? "✕" : ""}
             </Link>
             <span className="text-muted">{t.user.rows(activity.total)}</span>

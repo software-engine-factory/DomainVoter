@@ -636,7 +636,8 @@ export function createNextRound(parentId: number, title: string, rule: NextRule)
   })();
 }
 
-export type FunnelStep = { id: number; title: string; status: "open" | "closed"; count: number; voted: number };
+/** rule: how this step was carried over from the previous one (null for the root). children: rounds made from this one. */
+export type FunnelStep = { id: number; title: string; status: "open" | "closed"; count: number; voted: number; rule: { mode: "min" | "top"; n: number } | null; children: number };
 
 /** The chain this round sits in: root → … → this round → its first child → … (each step clickable). */
 export function roundFunnel(roundId: number): FunnelStep[] {
@@ -644,11 +645,13 @@ export function roundFunnel(roundId: number): FunnelStep[] {
   const step = sqlite.prepare(
     `SELECT r.id, r.title, r.status, r.parent_round_id AS parentId,
             (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id) AS count,
-            (SELECT COUNT(DISTINCT domain_id) FROM votes v WHERE v.round_id = r.id) AS voted
+            (SELECT COUNT(DISTINCT domain_id) FROM votes v WHERE v.round_id = r.id) AS voted,
+            (SELECT COUNT(*) FROM rounds c WHERE c.parent_round_id = r.id) AS children,
+            r.next_rule AS nextRule, r.filter_json AS filterJson
      FROM rounds r WHERE r.id = ?`,
   );
   const child = sqlite.prepare("SELECT id FROM rounds WHERE parent_round_id = ? ORDER BY id DESC LIMIT 1");
-  type Row = FunnelStep & { parentId: number | null };
+  type Row = Omit<FunnelStep, "rule"> & { parentId: number | null; nextRule: string | null; filterJson: string | null };
   const chain: Row[] = [];
   const seen = new Set<number>();
   let cur = step.get(roundId) as Row | undefined;
@@ -664,5 +667,16 @@ export function roundFunnel(roundId: number): FunnelStep[] {
     seen.add(row.id);
     next = child.get(row.id) as { id: number } | undefined;
   }
-  return chain.map(({ parentId: _p, ...rest }) => { void _p; return rest; });
+  return chain.map(({ parentId, nextRule, filterJson, ...rest }) => ({ ...rest, rule: parentId ? stepRule(nextRule, filterJson) : null }));
+}
+
+/** The carry-over rule of a child round: next_rule when stored, else the older filter's minVotes. */
+function stepRule(nextRule: string | null, filterJson: string | null): FunnelStep["rule"] {
+  try {
+    const r = nextRule ? JSON.parse(nextRule) : null;
+    if (r && (r.mode === "min" || r.mode === "top") && Number(r.n) > 0) return { mode: r.mode, n: Number(r.n) };
+    const f = filterJson ? JSON.parse(filterJson) : null;
+    if (f && Number(f.minVotes) > 0) return { mode: "min", n: Number(f.minVotes) };
+  } catch {}
+  return null;
 }
