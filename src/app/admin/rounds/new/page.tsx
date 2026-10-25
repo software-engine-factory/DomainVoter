@@ -39,6 +39,7 @@ export default async function NewRoundPage({
       <div className="mt-6 flex gap-1 border-b border-line">
         {tab("pool", "از استخر فروشی")}
         {tab("csv", "بارگذاری CSV (قدیمی)")}
+        <Link href="/admin/rounds/batch" className="px-4 py-2 text-sm text-muted hover:text-ink">چند دور با هم ←</Link>
       </div>
       {facets ? (
         <PoolRoundForm
