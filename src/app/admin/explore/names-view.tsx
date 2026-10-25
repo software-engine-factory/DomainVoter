@@ -27,7 +27,7 @@ export function NamesView({ query }: { query: Record<string, string | string[] |
   const active = activeFilterCount(q);
   const back = withParams("/admin/explore", { ...params, page: result.page });
   const moreCount = [q.cur, q.ev, q.cls, q.prov, q.link, q.lmin, q.lmax, q.used, q.inr, q.eng].filter((v) => v != null && v !== "").length;
-  const sourceLabel = (v: string | null) => (v == null || v === NONE ? t.browse.noPrice : v);
+  const sourceLabel = (v: string | null) => (v == null || v === NONE ? t.browse.noPrice : v === "unknown" ? t.browse.unknownSource : v);
 
   return (
     <>
@@ -163,7 +163,7 @@ export function NamesView({ query }: { query: Record<string, string | string[] |
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted sm:mt-0">
                 <span dir="ltr" className="hidden tabular-nums text-ink sm:inline">{row.price != null ? formatMoney(row.price, row.currency, true) : "—"}</span>
-                <span dir={row.source ? "ltr" : undefined} className="rounded bg-paper px-1.5 py-0.5 ring-1 ring-line">{sourceLabel(row.source)}</span>
+                <span dir={row.source && row.source !== "unknown" ? "ltr" : undefined} className="rounded bg-paper px-1.5 py-0.5 ring-1 ring-line">{sourceLabel(row.source)}</span>
               </div>
               <div className="mt-1 truncate text-xs text-muted sm:mt-0" title={row.sets ? row.sets.split(",").map((n) => SET_LABELS[Number(n)]).join("، ") : undefined}>
                 {row.sets ? row.sets.split(",").map((n) => SET_LABELS[Number(n)]).join(" · ") : "—"}

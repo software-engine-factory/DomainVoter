@@ -560,6 +560,7 @@ export const t = {
     no: "ندارد",
     source: "منبع قیمت",
     noPrice: "بی‌قیمت",
+    unknownSource: "منبع نامشخص",
     currency: "ارز",
     curUsd: "دلار",
     curOther: "ارز دیگر",

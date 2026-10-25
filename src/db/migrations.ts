@@ -164,7 +164,8 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
         CASE
           WHEN lp_price IS NULL AND best_price IS NULL THEN NULL
           WHEN lp_price IS NOT NULL AND nullif(trim(lp_marketplace), '') IS NOT NULL THEN lower(trim(lp_marketplace))
-          ELSE coalesce(lower(nullif(trim(replace(replace(best_source, 'lp:', ''), 'LP:', '')), '')), lower(nullif(trim(lp_marketplace), '')), 'unknown')
+          -- live data (2026-10-25): best_source is only ever NULL or the bare tag 'lp', so 'lp' itself is not a source
+          ELSE coalesce(nullif(nullif(lower(trim(replace(replace(best_source, 'lp:', ''), 'LP:', ''))), ''), 'lp'), lower(nullif(trim(lp_marketplace), '')), 'unknown')
         END
       ) VIRTUAL;
       ALTER TABLE pool ADD COLUMN has_price INTEGER GENERATED ALWAYS AS (lp_price IS NOT NULL OR best_price IS NOT NULL) VIRTUAL;

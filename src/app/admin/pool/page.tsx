@@ -30,7 +30,7 @@ export default async function PoolPage({
   const imports = recentImports();
   const error = one(query.error);
   const imported = one(query.imported);
-  const srcLabel = (key: string) => (key === NONE ? t.overview.noPrice : key);
+  const srcLabel = (key: string) => (key === NONE ? t.overview.noPrice : key === "unknown" ? t.browse.unknownSource : key);
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
