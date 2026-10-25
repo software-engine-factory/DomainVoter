@@ -71,6 +71,58 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
       );
     `,
   },
+  {
+    version: 3,
+    name: "admin insights: bookmark provenance, round batches, activity indexes",
+    sql: `
+      ALTER TABLE picks ADD COLUMN status TEXT NOT NULL DEFAULT 'shortlist';
+      ALTER TABLE picks ADD COLUMN source_user_id INTEGER;
+      ALTER TABLE picks ADD COLUMN bonus_user_id INTEGER;
+      ALTER TABLE picks ADD COLUMN updated_at INTEGER;
+
+      -- Who had chosen a name when the admin bookmarked it. Kept even if the voter later removes the vote.
+      CREATE TABLE IF NOT EXISTS pick_provenance (
+        name TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
+        round_id INTEGER NOT NULL,
+        domain_id INTEGER NOT NULL,
+        voted_at INTEGER NOT NULL,
+        captured_at INTEGER NOT NULL,
+        PRIMARY KEY (name, user_id, round_id)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS pick_provenance_user_idx ON pick_provenance(user_id);
+
+      CREATE TABLE IF NOT EXISTS round_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        filter_json TEXT NOT NULL,
+        order_mode TEXT NOT NULL,
+        seed TEXT,
+        block_total INTEGER NOT NULL,
+        per_round INTEGER NOT NULL,
+        rounds_planned INTEGER NOT NULL,
+        remainder_mode TEXT NOT NULL DEFAULT 'extra',
+        created_at INTEGER NOT NULL,
+        created_by INTEGER
+      );
+      -- Frozen, ordered block so later rounds of a batch are cut from exactly the same list.
+      CREATE TABLE IF NOT EXISTS round_batch_items (
+        batch_id INTEGER NOT NULL,
+        position INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        PRIMARY KEY (batch_id, position)
+      ) WITHOUT ROWID;
+      ALTER TABLE rounds ADD COLUMN batch_id INTEGER;
+      ALTER TABLE rounds ADD COLUMN batch_index INTEGER;
+      CREATE INDEX IF NOT EXISTS rounds_batch_idx ON rounds(batch_id, batch_index);
+
+      CREATE INDEX IF NOT EXISTS views_user_time_idx ON views(user_id, viewed_at);
+      CREATE INDEX IF NOT EXISTS views_time_idx ON views(viewed_at);
+      CREATE INDEX IF NOT EXISTS votes_user_time_idx ON votes(user_id, created_at);
+      CREATE INDEX IF NOT EXISTS votes_time_idx ON votes(created_at);
+      CREATE INDEX IF NOT EXISTS domains_name_idx ON domains(name);
+    `,
+  },
 ];
 
 export function runMigrations(sqlite: Database.Database) {
