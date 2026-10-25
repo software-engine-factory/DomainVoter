@@ -95,7 +95,7 @@ export const t = {
     nextGroup: "گروه بعدی",
     votedPrefix: "تا حالا به",
     votedSuffix: "دامنه در این دور رأی داده‌ای.",
-    voted: "رأی دادی ✓",
+    voted: "رأی دادی",
     vote: "رأی بده",
     err: {
       login: "برای رأی دادن، اول با حساب رأی‌دهنده وارد شو.",
@@ -406,6 +406,9 @@ export const t = {
   stats: {
     title: "آمار",
     range: "بازه",
+    seriesViews: "دیده‌شده",
+    seriesVotes: "رأی",
+    seriesRate: "نرخ رأی به دیدن ٪",
     days: (d: number) => `${d} روز`,
     tzNote: "روزها به وقت تفلیس (UTC+4) حساب می‌شوند. «دیده‌شده» یعنی اولین باری که کاربر نام را دیده.",
     seenTotal: "دیده‌شده (کل)",

@@ -1,5 +1,6 @@
 "use client";
 
+import { t } from "@/lib/copy/fa";
 import {
   Bar,
   BarChart,
@@ -30,9 +31,9 @@ export function ViewsVotesChart({ data }: { data: Array<{ day: string; views: nu
           <YAxis yAxisId="r" orientation="right" fontSize={11} unit="%" width={40} />
           <Tooltip />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Bar yAxisId="n" dataKey="views" name="views" fill={PALETTE[0]} radius={[3, 3, 0, 0]} />
-          <Bar yAxisId="n" dataKey="votes" name="votes" fill={PALETTE[1]} radius={[3, 3, 0, 0]} />
-          <Line yAxisId="r" type="monotone" dataKey="rate" name="votes / views %" stroke={PALETTE[2]} dot={false} strokeWidth={2} />
+          <Bar yAxisId="n" dataKey="views" name={t.stats.seriesViews} fill={PALETTE[0]} radius={[3, 3, 0, 0]} />
+          <Bar yAxisId="n" dataKey="votes" name={t.stats.seriesVotes} fill={PALETTE[1]} radius={[3, 3, 0, 0]} />
+          <Line yAxisId="r" type="monotone" dataKey="rate" name={t.stats.seriesRate} stroke={PALETTE[2]} dot={false} strokeWidth={2} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -68,7 +69,7 @@ export function HourChart({ data }: { data: Array<{ hour: number; views: number 
           <XAxis dataKey="hour" fontSize={11} interval={2} />
           <YAxis fontSize={11} allowDecimals={false} />
           <Tooltip />
-          <Bar dataKey="views" fill={PALETTE[0]} radius={[3, 3, 0, 0]} />
+          <Bar dataKey="views" name={t.stats.seriesViews} fill={PALETTE[0]} radius={[3, 3, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
