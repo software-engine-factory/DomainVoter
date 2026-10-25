@@ -1,3 +1,4 @@
+import { hasFilters, patternActive, type VoteView } from "@/lib/vote-view";
 import { eq } from "drizzle-orm";
 import { getDb, getSqlite } from "@/db";
 import { rounds } from "@/db/schema";
@@ -486,4 +487,72 @@ export function topVotedNames(limit = 50) {
     currency: string | null;
     picked: number;
   }>;
+}
+
+export type VoteCard = { id: number; name: string; price: number | null; currency: string | null };
+export type VoteCardsPage = {
+  cards: VoteCard[];
+  /** Names matching the view (inside the position range), across the whole round. */
+  matched: number;
+  page: number;
+  pages: number;
+  from: number;
+  to: number;
+  /** 1-based index of the first card within the matched list. */
+  offset: number;
+};
+
+function likeEscape(value: string) {
+  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * One page of the voter grid, filtered server-side across the whole round. Pattern "_" = any char,
+ * matched against the label (the part before the first dot). Prices come from the pool (the live
+ * sale price), falling back to the round row; marketplace and parking provider stay admin-only.
+ */
+export function queryVoteCards(roundId: number, view: VoteView, total = countDomains(roundId)): VoteCardsPage {
+  const from = Math.min(Math.max(view.from ?? 1, 1), Math.max(total, 1));
+  const to = Math.max(Math.min(view.to ?? total, total), from);
+  const where = ["d.round_id = ?", "d.position >= ?", "d.position <= ?"];
+  const params: Array<string | number> = [roundId, from, to];
+  if (view.q) {
+    where.push("d.name LIKE ? ESCAPE '\\'");
+    params.push(`%${likeEscape(view.q)}%`);
+  }
+  if (patternActive(view.pat, view.exact)) {
+    // "_" is LIKE's single-char wildcard already; the pattern only holds [a-z0-9-_].
+    const labelLen = "(instr(d.name || '.', '.') - 1)";
+    if (view.exact) {
+      where.push(`${labelLen} = ?`, "d.name LIKE ?");
+      params.push(view.pat.length, `${view.pat}%`);
+    } else {
+      // The label must reach the last fixed position, so "_" never matches the dot or the TLD.
+      where.push(`${labelLen} >= ?`, "d.name LIKE ?");
+      params.push(view.pat.length, `${view.pat}%`);
+    }
+  }
+  const sqlite = getSqlite();
+  const clause = where.join(" AND ");
+  const filtered = hasFilters(view);
+  const matched = filtered
+    ? (sqlite.prepare(`SELECT COUNT(*) AS n FROM domains d WHERE ${clause}`).get(...params) as { n: number }).n
+    : total === 0 ? 0 : to - from + 1;
+  const pages = Math.max(1, Math.ceil(matched / view.size));
+  const page = Math.min(Math.max(view.page, 1), pages);
+  const offsetRows = (page - 1) * view.size;
+  const cards =
+    matched === 0
+      ? []
+      : (sqlite
+          .prepare(
+            `SELECT d.id, d.name, COALESCE(p.lp_price, p.best_price, d.price) AS price,
+                    COALESCE(p.lp_currency, d.currency) AS currency
+             FROM domains d LEFT JOIN pool p ON p.name = d.pool_name
+             WHERE ${clause}
+             ORDER BY d.position ASC
+             LIMIT ? OFFSET ?`,
+          )
+          .all(...params, view.size, offsetRows) as VoteCard[]);
+  return { cards, matched, page, pages, from, to, offset: offsetRows + 1 };
 }

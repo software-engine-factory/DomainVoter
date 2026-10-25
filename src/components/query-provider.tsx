@@ -67,7 +67,7 @@ export function QueryProvider({ datasetVersion, children }: { datasetVersion: st
         persister,
         maxAge: TWELVE_HOURS,
         // A different buster discards the whole persisted cache on load: this is the clean purge on dataset change.
-        buster: datasetVersion,
+        buster: `${datasetVersion}:cards-v2`,
         dehydrateOptions: {
           // Only dataset data is persisted; user votes always come from the server.
           shouldDehydrateQuery: (q) => q.state.status === "success" && q.queryKey[0] === "dataset",

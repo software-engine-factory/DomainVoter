@@ -6,11 +6,31 @@ import { t } from "@/lib/copy/fa";
 
 // Mobile packs the 20-card page into one-screen chunks of 8 (CSS-driven, so SSR is correct too).
 const MOBILE_CHUNK = 8;
+const MOBILE_PAGED_MAX = 20;
 
 type Card = {
   id: number;
   name: string;
+  price: number | null;
+  currency: string | null;
 };
+
+/** Compact price for a tile: "$1,200" / "€80" / "1.5K USD"-style; null when the pool has none. */
+function tilePrice(price: number | null, currency: string | null) {
+  if (price == null || !Number.isFinite(price) || price <= 0) return null;
+  const code = (currency || "USD").toUpperCase();
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      notation: price >= 100_000 ? "compact" : "standard",
+      maximumFractionDigits: price >= 100 ? 0 : 2,
+    }).format(price);
+  } catch {
+    // Unknown currency code: plain number plus the code.
+    return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(price)} ${code}`;
+  }
+}
 
 function splitDomain(name: string) {
   const dot = name.indexOf(".");
@@ -20,8 +40,9 @@ function splitDomain(name: string) {
 
 export function VoteGrid({
   roundId,
-  start,
-  end,
+  viewKey,
+  size,
+  ready,
   cards,
   votedIds,
   count,
@@ -30,8 +51,10 @@ export function VoteGrid({
   startAtEnd = false,
 }: {
   roundId: number;
-  start: number;
-  end: number;
+  viewKey: string;
+  size: number;
+  /** False while a placeholder (previous view) is shown: tiles can't be toggled yet. */
+  ready: boolean;
   cards: Card[];
   votedIds: number[];
   count: number;
@@ -40,10 +63,16 @@ export function VoteGrid({
   startAtEnd?: boolean;
 }) {
   const voted = new Set(votedIds);
-  const mutation = useToggleVote(roundId, start, end);
-  const pending = mutation.isPending;
+  const mutation = useToggleVote(
+    roundId,
+    viewKey,
+    cards.map((card) => card.id),
+  );
+  const pending = mutation.isPending || !ready;
+  // 20 per page packs into one-screen swipe chunks on mobile; bigger pages are a plain scroll list.
+  const chunked = size <= MOBILE_PAGED_MAX;
   const error = mutation.error?.message ?? "";
-  const chunkCount = Math.max(1, Math.ceil(cards.length / MOBILE_CHUNK));
+  const chunkCount = chunked ? Math.max(1, Math.ceil(cards.length / MOBILE_CHUNK)) : 1;
   const [chunk, setChunk] = useState(() => (startAtEnd ? chunkCount - 1 : 0));
   const [direction, setDirection] = useState<"next" | "prev">("next");
   const touchX = useRef<number | null>(null);
@@ -81,7 +110,7 @@ export function VoteGrid({
       </div>
       <ul
         key={`c${activeChunk}`}
-        onTouchStart={(event) => (touchX.current = event.touches[0].clientX)}
+        onTouchStart={(event) => (touchX.current = chunked ? event.touches[0].clientX : null)}
         onTouchEnd={(event) => {
           if (touchX.current == null) return;
           const dx = event.changedTouches[0].clientX - touchX.current;
@@ -89,19 +118,22 @@ export function VoteGrid({
           // RTL: swiping right moves forward
           if (Math.abs(dx) > 50) goChunk(activeChunk + (dx > 0 ? 1 : -1));
         }}
-        className={`grid min-h-0 flex-1 grid-cols-2 grid-rows-4 gap-2 p-1 sm:grid-cols-4 sm:grid-rows-5 ${
-          moved ? (direction === "next" ? "slide-next" : "slide-prev") : ""
-        }`}
+        className={`grid min-h-0 flex-1 gap-2 p-1 ${
+          chunked
+            ? "grid-cols-2 grid-rows-4 sm:grid-cols-4 sm:grid-rows-5"
+            : "auto-rows-[5.75rem] grid-cols-2 content-start overflow-y-auto overscroll-contain sm:auto-rows-[6.5rem] sm:grid-cols-4 lg:grid-cols-5"
+        } ${moved ? (direction === "next" ? "slide-next" : "slide-prev") : ""}`}
       >
         {cards.map((card, index) => {
           const inChunk = Math.floor(index / MOBILE_CHUNK) === activeChunk;
           const selected = voted.has(card.id);
           const domain = splitDomain(card.name);
+          const price = tilePrice(card.price, card.currency);
           return (
             <li
               key={card.id}
-              className={`vote-enter min-h-0 ${inChunk ? "" : "max-sm:hidden"}`}
-              style={{ animationDelay: `${(index % MOBILE_CHUNK) * 28}ms` }}
+              className={`vote-enter min-h-0 ${inChunk || !chunked ? "" : "max-sm:hidden"}`}
+              style={{ animationDelay: `${Math.min(chunked ? index % MOBILE_CHUNK : index, 12) * 28}ms` }}
             >
               <button
                 type="button"
@@ -134,7 +166,18 @@ export function VoteGrid({
                     ) : null}
                   </span>
                 </span>
-                <span className="mt-auto flex min-h-6 items-end justify-end gap-2 pt-2">
+                <span className="mt-auto flex min-h-6 items-end justify-between gap-2 pt-2">
+                  {price ? (
+                    <span
+                      dir="ltr"
+                      className="truncate rounded-md bg-chip px-1.5 py-0.5 font-mono text-xs leading-4 font-semibold tabular-nums text-ink/80"
+                    >
+                      <span className="sr-only">{t.vote.priceLabel}: </span>
+                      {price}
+                    </span>
+                  ) : (
+                    <span aria-hidden />
+                  )}
                   {selected ? (
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent">
                       <svg
@@ -160,7 +203,7 @@ export function VoteGrid({
           );
         })}
       </ul>
-      {chunkCount > 1 || onPrev || onNext ? (
+      {chunked && (chunkCount > 1 || onPrev || onNext) ? (
         <div
           className="flex shrink-0 items-center justify-center gap-3 pt-2 sm:hidden"
           dir="ltr"
