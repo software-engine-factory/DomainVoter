@@ -45,7 +45,6 @@ export async function toggleVote(domainId: number): Promise<{ voted: boolean; co
     .prepare("SELECT COUNT(*) AS count FROM votes WHERE round_id = ? AND user_id = ?")
     .get(domain.roundId, session.userId) as { count: number };
 
-  revalidatePath(`/vote/${domain.roundId}`);
   revalidatePath(`/admin/rounds/${domain.roundId}`);
   revalidatePath("/admin");
   return { voted: !existing, count: countRow.count };

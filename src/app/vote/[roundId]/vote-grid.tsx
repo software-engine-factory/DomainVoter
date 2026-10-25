@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { toggleVote } from "@/lib/actions/votes";
+import { useToggleVote } from "@/lib/query/hooks";
 
 type Card = {
   id: number;
@@ -15,58 +14,28 @@ function splitDomain(name: string) {
 }
 
 export function VoteGrid({
+  roundId,
+  start,
+  end,
   cards,
   votedIds,
-  initialCount,
+  count,
 }: {
+  roundId: number;
+  start: number;
+  end: number;
   cards: Card[];
   votedIds: number[];
-  initialCount: number;
+  count: number;
 }) {
-  const [voted, setVoted] = useState(() => new Set(votedIds));
-  const [count, setCount] = useState(initialCount);
-  const [error, setError] = useState("");
-  const [pending, startTransition] = useTransition();
-  const busy = useRef(false);
+  const voted = new Set(votedIds);
+  const mutation = useToggleVote(roundId, start, end);
+  const pending = mutation.isPending;
+  const error = mutation.error?.message ?? "";
 
   function onToggle(id: number) {
-    if (busy.current || pending) return;
-    busy.current = true;
-    const hadVote = voted.has(id);
-    setError("");
-    setVoted((current) => {
-      const next = new Set(current);
-      if (hadVote) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    setCount((current) => current + (hadVote ? -1 : 1));
-
-    startTransition(async () => {
-      try {
-        const result = await toggleVote(id);
-        if ("error" in result) {
-          setVoted((current) => {
-            const next = new Set(current);
-            if (hadVote) next.add(id);
-            else next.delete(id);
-            return next;
-          });
-          setCount((current) => current + (hadVote ? 1 : -1));
-          setError(result.error);
-          return;
-        }
-        setVoted((current) => {
-          const next = new Set(current);
-          if (result.voted) next.add(id);
-          else next.delete(id);
-          return next;
-        });
-        setCount(result.count);
-      } finally {
-        busy.current = false;
-      }
-    });
+    if (pending) return;
+    mutation.mutate(id);
   }
 
   return (

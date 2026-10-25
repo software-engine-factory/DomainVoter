@@ -3,11 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
 import { requireVoter } from "@/lib/auth";
-import { one, withParams } from "@/lib/format";
+import { one } from "@/lib/format";
 import { countDomains, getRound, getUserVoteCount, getUserVotedIds, getVoteCards } from "@/lib/rounds";
 import { resolveWindow } from "@/lib/window";
-import { RecordViews } from "./record-views";
-import { VoteGrid } from "./vote-grid";
+import { VoteBoard } from "./vote-board";
 
 type PageProps = {
   params: Promise<{ roundId: string }>;
@@ -36,8 +35,6 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
     cards.map((card) => card.id),
   );
   const voteCount = getUserVoteCount(round.id, session.userId);
-  const href = (page: number) =>
-    withParams(`/vote/${round.id}`, { from: window.from, to: window.to, page });
 
   const board = round.status === "open" && total > 0;
 
@@ -100,44 +97,15 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
           <Alert>این دور دامنه‌ای ندارد.</Alert>
         </div>
       ) : (
-        <>
-          <p className="mt-2 shrink-0 text-xs text-muted">
-            نمایش{" "}
-            <span className="font-semibold tabular-nums text-ink">
-              {window.start}–{window.end}
-            </span>{" "}
-            از بازه {window.from}–{window.to} · صفحه {window.page} از {window.pages} · {total} دامنه. برای رأی کلیک کنید، برای برداشتن دوباره کلیک کنید.
-          </p>
-
-          <div className="mt-2 min-h-0 flex-1">
-            <RecordViews roundId={round.id} domainIds={cards.map((card) => card.id)} />
-            <VoteGrid cards={cards} votedIds={votedIds} initialCount={voteCount} />
-          </div>
-
-          <div className="mt-2 flex shrink-0 items-center justify-between gap-3">
-            {window.page > 1 ? (
-              <Link href={href(window.page - 1)} prefetch={false} className={buttonClass("secondary", "sm")}>
-                ۲۰ تای قبلی
-              </Link>
-            ) : (
-              <button type="button" className={buttonClass("secondary", "sm")} disabled>
-                ۲۰ تای قبلی
-              </button>
-            )}
-            <p className="text-sm tabular-nums text-muted">
-              صفحه {window.page} از {window.pages}
-            </p>
-            {window.page < window.pages ? (
-              <Link href={href(window.page + 1)} prefetch={false} className={buttonClass("primary", "sm")}>
-                ۲۰ تای بعدی
-              </Link>
-            ) : (
-              <button type="button" className={buttonClass("primary", "sm")} disabled>
-                ۲۰ تای بعدی
-              </button>
-            )}
-          </div>
-        </>
+        <VoteBoard
+          roundId={round.id}
+          total={total}
+          from={window.from}
+          to={window.to}
+          initialPage={window.page}
+          initialCards={cards}
+          initialVotes={{ votedIds, count: voteCount }}
+        />
       )}
     </main>
   );
