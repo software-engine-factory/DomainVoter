@@ -107,3 +107,13 @@ main details[open] > :not(summary) { animation: pop-in var(--dur) var(--ease-out
 @media (prefers-reduced-motion: reduce) {
   .tour-spot { transition: none; }
 }
+
+/* W2 grid: hidden scrollbar for the inline letter slots; a tiny pop when a slot gets a letter. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.slot-pop { transition: transform 140ms var(--ease-out), background-color 140ms, border-color 140ms; }
+.slot-pop:focus { transform: translateY(-1px); }
+.sale-link { opacity: .55; transition: opacity 150ms, transform 150ms var(--ease-out), background-color 150ms; }
+.sale-link:hover, .sale-link:focus-visible { opacity: 1; transform: scale(1.08); }
+@media (hover: none) { .sale-link { opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { .slot-pop, .sale-link { transition: none; } .slot-pop:focus, .sale-link:hover { transform: none; } }

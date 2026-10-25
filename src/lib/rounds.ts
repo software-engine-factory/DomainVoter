@@ -493,7 +493,7 @@ export function topVotedNames(limit = 50) {
   }>;
 }
 
-export type VoteCard = { id: number; name: string; price: number | null; currency: string | null };
+export type VoteCard = { id: number; name: string; price: number | null; currency: string | null; url: string | null };
 export type VoteCardsPage = {
   cards: VoteCard[];
   /** Names matching the view (inside the position range), across the whole round. */
@@ -551,7 +551,7 @@ export function queryVoteCards(roundId: number, view: VoteView, total = countDom
       : (sqlite
           .prepare(
             `SELECT d.id, d.name, COALESCE(p.lp_price, p.best_price, d.price) AS price,
-                    COALESCE(p.lp_currency, d.currency) AS currency
+                    COALESCE(p.lp_currency, d.currency) AS currency, p.lp_url AS url
              FROM domains d LEFT JOIN pool p ON p.name = d.pool_name
              WHERE ${clause}
              ORDER BY d.position ASC

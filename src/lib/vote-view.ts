@@ -115,3 +115,17 @@ export function clampPage(raw: string, current: number, pages: number): number {
 export function normalizeDigits(raw: string) {
   return raw.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).trim();
 }
+
+/** Persian digits with thousands grouping, e.g. 5000 → "۵٬۰۰۰". */
+export function groupDigits(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "";
+  return new Intl.NumberFormat("fa-IR", { useGrouping: true, maximumFractionDigits: 0 }).format(n);
+}
+
+/** Inverse of groupDigits: accepts Persian/Arabic/ASCII digits with any separators; null when empty/invalid. */
+export function parseGrouped(raw: string): number | null {
+  const digits = normalizeDigits(raw).replace(/[^0-9]/g, "");
+  if (!digits) return null;
+  const n = Number(digits);
+  return Number.isSafeInteger(n) ? n : null;
+}

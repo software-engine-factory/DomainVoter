@@ -10,6 +10,7 @@ type Card = {
   name: string;
   price: number | null;
   currency: string | null;
+  url: string | null;
 };
 
 /** Compact price for a tile: "$1,200" / "€80" / "1.5K USD"-style; null when the pool has none. */
@@ -29,6 +30,11 @@ function tilePrice(price: number | null, currency: string | null) {
   }
 }
 
+/** The name's sale/landing page when the pool has one, else the domain itself (for-sale NS parking). */
+function saleHref(card: Card) {
+  return card.url ?? `https://${card.name}`;
+}
+
 function splitDomain(name: string) {
   const dot = name.indexOf(".");
   if (dot <= 0) return { label: name, suffix: "" };
@@ -42,7 +48,6 @@ export function VoteGrid({
   ready,
   cards,
   votedIds,
-  count,
 }: {
   roundId: number;
   viewKey: string;
@@ -51,7 +56,6 @@ export function VoteGrid({
   ready: boolean;
   cards: Card[];
   votedIds: number[];
-  count: number;
 }) {
   const voted = new Set(votedIds);
   const mutation = useToggleVote(
@@ -71,18 +75,11 @@ export function VoteGrid({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-2 flex shrink-0 items-baseline justify-between gap-3 text-sm empty:hidden">
-        <p className="hidden text-muted sm:block">
-          {t.vote.votedPrefix}{" "}
-          <span className="font-semibold tabular-nums text-ink">{count}</span>{" "}
-          {t.vote.votedSuffix}
+      {error ? (
+        <p role="alert" className="mb-1 shrink-0 text-sm text-danger">
+          {error}
         </p>
-        {error ? (
-          <p role="alert" className="text-danger">
-            {error}
-          </p>
-        ) : null}
-      </div>
+      ) : null}
       <ul
         className={`grid min-h-0 flex-1 gap-2 p-1 ${
           fitsOneScreen
@@ -97,7 +94,7 @@ export function VoteGrid({
           return (
             <li
               key={card.id}
-              className="vote-enter min-h-0"
+              className="vote-enter relative min-h-0"
               style={{ animationDelay: `${Math.min(index, 12) * 28}ms` }}
             >
               <button
@@ -164,6 +161,19 @@ export function VoteGrid({
                   ) : null}
                 </span>
               </button>
+              <a
+                href={saleHref(card)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t.vote.openSale(card.name)}
+                title={t.vote.openSale(card.name)}
+                onClick={(event) => event.stopPropagation()}
+                className="sale-link absolute top-1 start-1 z-10 grid size-7 place-items-center rounded-md text-muted hover:bg-chip hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden>
+                  <path d="M9 3h4v4M13 3 7.5 8.5M11.5 9.5V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1h2.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
             </li>
           );
         })}
