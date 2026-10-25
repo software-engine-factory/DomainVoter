@@ -3,7 +3,7 @@ import Link from "next/link";
 import { HourChart, PerUserChart, ViewsVotesChart } from "@/components/admin/charts";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { StatCard, rate } from "@/components/admin/stat-card";
-import { fieldClass } from "@/components/ui";
+import { fieldBase } from "@/components/ui";
 import { one } from "@/lib/format";
 import { dailyByUser, dailyTotals, hourlyProfile, listUserStats, overallTotals } from "@/lib/insights";
 import { t } from "@/lib/copy/fa";
@@ -27,7 +27,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
         <h1 className="font-display text-3xl sm:text-4xl">{t.stats.title}</h1>
         <AutoSubmitForm action="/admin/stats" className="flex items-center gap-2 text-sm">
           <label htmlFor="days" className="text-muted">{t.stats.range}</label>
-          <select id="days" name="days" defaultValue={String(days)} className={`${fieldClass} h-9 w-28`}>
+          <select id="days" name="days" defaultValue={String(days)} className={`${fieldBase} h-9 w-28`}>
             {[7, 14, 30, 90].map((d) => (
               <option key={d} value={d}>{t.stats.days(d)}</option>
             ))}

@@ -38,3 +38,27 @@ body {
 ::selection {
   background: var(--selection);
 }
+
+/* Selects, app-wide and in every theme: own caret, fixed gap from the edge, text never under it.
+   Unlayered on purpose so it wins over px-* utilities. The caret sits on the inline-end side
+   (left in RTL, right in LTR) 12px from the edge. */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-inline-start: 0.75rem;
+  padding-inline-end: 2.25rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+  text-overflow: ellipsis;
+}
+select:not([multiple]):not([size]):dir(rtl) {
+  background-position: 12px 50%, 17px 50%;
+}
+select option {
+  background-color: var(--card);
+  color: var(--ink);
+}

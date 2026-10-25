@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Alert, Badge, buttonClass, fieldClass } from "@/components/ui";
+import { Alert, Badge, buttonClass, fieldBase } from "@/components/ui";
 import { openNextBatchRoundAction } from "@/lib/actions/batches";
 import { batchRounds, getBatch, planBatch } from "@/lib/batches";
 import { formatPercent, formatWhen, one } from "@/lib/format";
@@ -41,7 +41,7 @@ export default async function BatchDetail({ params, searchParams }: { params: Pr
         <form action={openNextBatchRoundAction} className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <input type="hidden" name="batchId" value={batch.id} />
           <span>{t.batch.make}</span>
-          <input name="count" type="number" min={1} max={left} defaultValue={1} className={`${fieldClass} h-9 w-20`} dir="ltr" />
+          <input name="count" type="number" min={1} max={left} defaultValue={1} className={`${fieldBase} h-9 w-20`} dir="ltr" />
           <span>{t.batch.nextRound(plan.sizes[rounds.length])}</span>
           <button className={buttonClass("primary", "sm")}>{t.batch.build}</button>
         </form>

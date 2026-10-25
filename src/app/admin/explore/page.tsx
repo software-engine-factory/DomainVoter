@@ -4,7 +4,7 @@ import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { BookmarkButton } from "@/components/admin/bookmark-button";
 import { Pager } from "@/components/admin/pager";
 import { rate } from "@/components/admin/stat-card";
-import { Badge, buttonClass, fieldClass } from "@/components/ui";
+import { Badge, buttonClass, fieldBase } from "@/components/ui";
 import { exploreToParams, parseExplore } from "@/lib/explore-params";
 import { formatMoney, formatWhen, withParams } from "@/lib/format";
 import { providerOptions, queryActivity, roundOptions, voterOptions } from "@/lib/insights";
@@ -21,7 +21,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const rounds = roundOptions();
   const providers = providerOptions();
   const back = withParams("/admin/explore", { ...params, page: q.page });
-  const field = `${fieldClass} h-9`;
+  const field = `${fieldBase} h-9 w-full`;
   const active = Object.entries(params).filter(([, v]) => v !== undefined);
 
   return (

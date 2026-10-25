@@ -8,8 +8,11 @@ export function buttonClass(variant: "primary" | "secondary" | "ghost" = "primar
   return `${base} bg-accent text-on-accent shadow-sm shadow-accent/20 hover:-translate-y-px hover:bg-accent-strong hover:shadow-md hover:shadow-accent/25`;
 }
 
-export const fieldClass =
-  "h-11 w-full rounded-lg border border-line bg-card px-3 text-base text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25";
+/** Field look without a width, for inline admin controls that set their own (w-44 etc). */
+export const fieldBase =
+  "h-11 rounded-lg border border-line bg-card px-3 text-base text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25";
+
+export const fieldClass = `${fieldBase} w-full`;
 
 export function Field({
   label,
