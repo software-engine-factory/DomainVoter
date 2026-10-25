@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { El_Messiri, JetBrains_Mono, Vazirmatn } from "next/font/google";
 import { Header } from "@/components/header";
+import { QueryProvider } from "@/components/query-provider";
 import { getSession } from "@/lib/auth";
+import { getDatasetVersion } from "@/lib/dataset-version";
 import "./globals.css";
 
 const vazirmatn = Vazirmatn({
@@ -41,10 +43,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${vazirmatn.variable} ${elMessiri.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <Header session={session} />
-        <div id="content" className="flex-1">
-          {children}
-        </div>
+        <QueryProvider datasetVersion={getDatasetVersion()}>
+          <Header session={session} />
+          <div id="content" className="flex-1">
+            {children}
+          </div>
+        </QueryProvider>
       </body>
     </html>
   );
