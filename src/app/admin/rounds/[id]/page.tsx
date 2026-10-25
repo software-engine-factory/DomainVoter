@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { notFound } from "next/navigation";
 import { Alert, Badge, ProgressBar, buttonClass } from "@/components/ui";
 import { closeRoundAction } from "@/lib/actions/rounds";
@@ -172,7 +173,8 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
               page: pageNumber(one(query.page)),
               pageSize: PAGE_SIZE,
               provider: one(query.provider) || undefined,
-              pickedOnly: one(query.picked) === "1",
+              pickedOnly: ["1", "on", "true"].includes(one(query.picked) ?? ""),
+              minVotes: ["1", "on", "true"].includes(one(query.voted) ?? "") ? 1 : null,
               search: one(query.q)?.trim() || undefined,
             }}
             domainId={Number(one(query.domain))}
@@ -223,6 +225,7 @@ function Results({
     dir,
     provider: query.provider,
     picked: query.pickedOnly ? 1 : undefined,
+    voted: query.minVotes ? 1 : undefined,
     q: query.search,
   };
   const focused = rows.find((domain) => domain.id === domainId);
@@ -243,7 +246,7 @@ function Results({
 
   return (
     <div className="grid gap-6">
-      <form className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4 text-sm" action={base}>
+      <AutoSubmitForm className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4 text-sm" action={base}>
         <input type="hidden" name="tab" value="results" />
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="dir" value={dir} />
@@ -268,9 +271,13 @@ function Results({
           <input type="checkbox" name="picked" value="1" defaultChecked={query.pickedOnly} />
           فقط منتخب‌ها
         </label>
+        <label className="flex h-9 items-center gap-2">
+          <input type="checkbox" name="voted" value="1" defaultChecked={!!query.minVotes} />
+          فقط رأی‌دار
+        </label>
         <button className={buttonClass("secondary")}>اعمال</button>
         <span className="ms-auto text-muted tabular-nums">{total.toLocaleString("fa-IR")} ردیف</span>
-      </form>
+      </AutoSubmitForm>
       <div className="overflow-x-auto rounded-xl border border-line">
         <table className="w-full min-w-[960px] border-collapse text-sm">
           <caption className="sr-only">آرا و بازدیدهای هر دامنه</caption>
@@ -294,6 +301,13 @@ function Results({
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={fromPool ? 9 : 7} className="px-3 py-10 text-center text-muted">
+                  {query.pickedOnly ? "هیچ منتخبی در این دور نیست." : "ردیفی با این فیلترها نیست."}
+                </td>
+              </tr>
+            ) : null}
             {rows.map((domain) => (
               <tr key={domain.id} className="border-t border-line">
                 <td className="px-3 py-2.5 tabular-nums text-muted">{domain.position}</td>
