@@ -45,13 +45,13 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
     <main
       className={
         board
-          ? "mx-auto flex h-[calc(100dvh-5.75rem)] w-full max-w-7xl flex-col overflow-hidden px-4 py-3 sm:h-[calc(100dvh-3.5rem-1px)] sm:px-6"
+          ? "mx-auto flex h-[calc(100dvh-6rem)] w-full max-w-7xl flex-col overflow-hidden px-4 py-3 sm:h-[calc(100dvh-3.5rem-1px)] sm:px-6"
           : "mx-auto w-full max-w-3xl px-4 py-10 sm:px-6"
       }
     >
       <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs text-muted">
+          <p className="hidden text-xs text-muted sm:block">
             <Link href="/vote" className="underline decoration-line underline-offset-4 hover:text-ink">
               دورهای باز
             </Link>
@@ -101,7 +101,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
         </div>
       ) : (
         <>
-          <p className="mt-2 line-clamp-1 shrink-0 text-xs text-muted sm:line-clamp-none">
+          <p className="mt-2 hidden shrink-0 text-xs text-muted sm:block">
             نمایش{" "}
             <span className="font-semibold tabular-nums text-ink">
               {window.start}–{window.end}
@@ -111,10 +111,16 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
 
           <div className="mt-2 min-h-0 flex-1">
             <RecordViews roundId={round.id} domainIds={cards.map((card) => card.id)} />
-            <VoteGrid cards={cards} votedIds={votedIds} initialCount={voteCount} />
+            <VoteGrid
+              cards={cards}
+              votedIds={votedIds}
+              initialCount={voteCount}
+              prevHref={window.page > 1 ? href(window.page - 1) : undefined}
+              nextHref={window.page < window.pages ? href(window.page + 1) : undefined}
+            />
           </div>
 
-          <div className="mt-2 flex shrink-0 items-center justify-between gap-3">
+          <div className="mt-2 hidden shrink-0 items-center justify-between gap-3 sm:flex">
             {window.page > 1 ? (
               <Link href={href(window.page - 1)} prefetch={false} className={buttonClass("secondary", "sm")}>
                 ۲۰ تای قبلی

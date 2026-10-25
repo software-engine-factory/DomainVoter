@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { toggleVote } from "@/lib/actions/votes";
 import { useMediaQuery } from "@/lib/theme/use-media";
@@ -22,11 +23,16 @@ export function VoteGrid({
   cards,
   votedIds,
   initialCount,
+  prevHref,
+  nextHref,
 }: {
   cards: Card[];
   votedIds: number[];
   initialCount: number;
+  prevHref?: string;
+  nextHref?: string;
 }) {
+  const router = useRouter();
   const [voted, setVoted] = useState(() => new Set(votedIds));
   const [count, setCount] = useState(initialCount);
   const [error, setError] = useState("");
@@ -41,7 +47,10 @@ export function VoteGrid({
   const visible = isMobile ? cards.slice(activeChunk * MOBILE_CHUNK, (activeChunk + 1) * MOBILE_CHUNK) : cards;
 
   function goChunk(next: number) {
-    if (next < 0 || next >= chunkCount || next === activeChunk) return;
+    // Past either end of this server page: move to the neighbouring page.
+    if (next < 0) return void (prevHref && router.push(prevHref));
+    if (next >= chunkCount) return void (nextHref && router.push(nextHref));
+    if (next === activeChunk) return;
     setDirection(next > activeChunk ? "next" : "prev");
     setChunk(next);
   }
@@ -88,8 +97,8 @@ export function VoteGrid({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-2 flex shrink-0 items-baseline justify-between gap-3 text-sm">
-        <p className="text-muted">
+      <div className="mb-2 flex shrink-0 items-baseline justify-between gap-3 text-sm empty:hidden">
+        <p className="hidden text-muted sm:block">
           به <span className="font-semibold tabular-nums text-ink">{count}</span> دامنه در این دور رأی داده‌اید.
         </p>
         {error ? (
@@ -165,13 +174,13 @@ export function VoteGrid({
           );
         })}
       </ul>
-      {chunkCount > 1 ? (
+      {isMobile && (chunkCount > 1 || prevHref || nextHref) ? (
         <div className="flex shrink-0 items-center justify-center gap-3 pt-2" dir="ltr">
           <button
             type="button"
             aria-label="‹"
             onClick={() => goChunk(activeChunk - 1)}
-            disabled={activeChunk === 0}
+            disabled={activeChunk === 0 && !prevHref}
             className="press grid size-9 place-items-center rounded-full border border-line bg-card text-ink disabled:opacity-30"
           >
             ‹
@@ -185,7 +194,7 @@ export function VoteGrid({
                 aria-selected={i === activeChunk}
                 aria-label={String(i + 1)}
                 onClick={() => goChunk(i)}
-                className={`h-2 rounded-full transition-all duration-300 ${i === activeChunk ? "w-6 bg-accent" : "w-2 bg-line"}`}
+                className={`h-2 min-h-0! shrink-0 rounded-full transition-all duration-300 ${i === activeChunk ? "w-5 bg-accent" : "w-2 bg-muted/40"}`}
               />
             ))}
           </div>
@@ -193,7 +202,7 @@ export function VoteGrid({
             type="button"
             aria-label="›"
             onClick={() => goChunk(activeChunk + 1)}
-            disabled={activeChunk === chunkCount - 1}
+            disabled={activeChunk === chunkCount - 1 && !nextHref}
             className="press grid size-9 place-items-center rounded-full border border-line bg-card text-ink disabled:opacity-30"
           >
             ›

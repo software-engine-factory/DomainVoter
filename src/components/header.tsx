@@ -20,10 +20,18 @@ export function Header({ session, theme }: { session: SessionUser | null; theme:
           <span className="h-2.5 w-2.5 rounded-sm bg-accent transition-transform duration-300 group-hover:rotate-45" aria-hidden />
           رأی دامنه
         </Link>
-        <div className="sm:order-last">
+        <div className="flex shrink-0 items-center gap-1.5 sm:order-last">
           <ThemePicker initial={theme} />
+          {session ? (
+            <form action={logoutAction} className="flex items-center gap-2">
+              <span dir="ltr" className="hidden text-sm text-muted md:inline">
+                {session.username}
+              </span>
+              <button className={buttonClass("ghost", "sm")}>خروج</button>
+            </form>
+          ) : null}
         </div>
-        <div className="order-last -mx-4 flex w-[calc(100%+2rem)] items-center gap-x-3 overflow-x-auto px-4 pb-1 text-sm [scrollbar-width:none] sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0 sm:pb-0">
+        <div className="order-last -mx-4 flex w-[calc(100%+2rem)] items-center gap-x-3 overflow-x-auto px-4 pb-1 text-sm [scrollbar-width:none] sm:order-none sm:mx-0 sm:me-auto sm:w-auto sm:overflow-visible sm:px-0 sm:pb-0">
           <nav className="flex shrink-0 items-center gap-1 sm:gap-3" aria-label="اصلی">
             {session?.role === "admin" ? (
               <>
@@ -49,14 +57,6 @@ export function Header({ session, theme }: { session: SessionUser | null; theme:
               </>
             )}
           </nav>
-          {session ? (
-            <form action={logoutAction} className="ms-auto flex shrink-0 items-center gap-2">
-              <span dir="ltr" className="hidden text-muted sm:inline">
-                {session.username}
-              </span>
-              <button className={buttonClass("ghost")}>خروج</button>
-            </form>
-          ) : null}
         </div>
       </div>
     </header>

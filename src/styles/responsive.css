@@ -23,5 +23,5 @@
 
 /* Comfortable tap targets on touch */
 @media (pointer: coarse) {
-  main button, main a, main select { min-height: 2.5rem; }
+  main button:not([role="tab"]), main a, main select { min-height: 2.5rem; }
 }
