@@ -23,7 +23,7 @@ export default async function PicksPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
       <h1 className="font-display text-4xl">فهرست منتخب</h1>
       <p className="mt-2 max-w-2xl text-sm text-muted">
-        نام‌هایی که مدیر برگزیده، با لینک صفحهٔ فروش. شمار آرا روی همهٔ دورها و همهٔ رأی‌دهندگان جمع زده شده است.
+        نام‌هایی که مدیر برگزیده، با لینک صفحهٔ فروش. چه کسی و کِی انتخابشان کرده در <a className="underline" href="/admin/bookmarks">نشان‌شده‌ها</a> است. شمار آرا روی همهٔ دورها و همهٔ رأی‌دهندگان جمع زده شده است.
       </p>
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-line">
