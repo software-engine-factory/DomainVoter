@@ -21,6 +21,7 @@ export const rounds = sqliteTable("rounds", {
   source: text("source", { enum: ["csv", "pool"] }).notNull().default("csv"),
   batchId: integer("batch_id"),
   batchIndex: integer("batch_index"),
+  nextRule: text("next_rule"),
 });
 
 export const domains = sqliteTable(

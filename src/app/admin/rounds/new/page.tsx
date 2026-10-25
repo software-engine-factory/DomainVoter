@@ -38,9 +38,9 @@ export default async function NewRoundPage({
   );
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
-      <h1 className="font-display text-4xl">{t.newRound.title}</h1>
-      <div className="mt-6 flex gap-1 border-b border-line">
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+      <h1 className="font-display text-3xl sm:text-4xl">{t.newRound.title}</h1>
+      <div className="mt-6 flex gap-1 overflow-x-auto whitespace-nowrap border-b border-line">
         {tab("pool", t.newRound.tabPool)}
         {tab("csv", t.newRound.tabCsv)}
         <Link href="/admin/rounds/batch" className="px-4 py-2 text-sm text-muted hover:text-ink">{t.newRoundUx.batchLink}</Link>
@@ -56,10 +56,6 @@ export default async function NewRoundPage({
         />
       ) : (
         <>
-          <p className="mt-6 max-w-xl text-muted">
-            {t.newRound.csvLead1}
-            {t.newRound.csvLead2}
-          </p>
           <UploadForm error={error} />
         </>
       )}

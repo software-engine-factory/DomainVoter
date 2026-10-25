@@ -62,6 +62,9 @@ export function PoolRoundForm({
   const [countError, setCountError] = useState<string>();
   const [pending, start] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [step, setStep] = useState(0);
+  const [order, setOrder] = useState("random");
+  const [seed, setSeed] = useState(() => String(Date.now() % 1_000_000));
 
   function refresh() {
     clearTimeout(timer.current);
@@ -86,88 +89,165 @@ export function PoolRoundForm({
     );
   }
 
+  const steps = t.w4.steps;
+  const last = steps.length - 1;
+  const show = (i: number) => (step === i ? "grid gap-4" : "hidden");
+  const chip = "flex items-center justify-between gap-3 rounded-lg border border-line bg-card px-3 py-2.5 has-[:checked]:border-accent has-[:checked]:bg-accent-soft";
+
   return (
-    <form ref={form} action={createPoolRoundAction} onChange={refresh} className="mt-8 grid gap-5">
+    <form
+      ref={form}
+      action={createPoolRoundAction}
+      onChange={refresh}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && step < last && (e.target as HTMLElement).tagName === "INPUT") {
+          e.preventDefault();
+          setStep(step + 1);
+        }
+      }}
+      className="mt-6 grid gap-5"
+      data-testid="round-wizard"
+    >
       {error ? <Alert tone="danger">{error}</Alert> : null}
-      <label className="grid gap-1.5 text-sm font-semibold">
-        {t.newRound.roundTitle}
-        <input name="title" required maxLength={80} className={fieldClass} placeholder={t.newRound.poolPlaceholder} />
-      </label>
-      <AssigneePicker users={users} />
-      <div className="grid gap-4 md:grid-cols-2">
-        <Checks name="classes" facets={classes} label={t.pool.facetClass} />
-        <Checks name="providers" facets={providers} label={t.pool.facetProvider} />
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <fieldset className="rounded-xl border border-line p-3">
-          <legend className="px-1 text-sm font-semibold">{t.pool.sets}</legend>
-          <div className="grid gap-1 text-sm">
+
+      <ol className="grid grid-cols-3 gap-2" aria-label={t.w4.stepOf(step + 1, steps.length)}>
+        {steps.map((label, i) => (
+          <li key={label}>
+            <button
+              type="button"
+              onClick={() => setStep(i)}
+              aria-current={step === i ? "step" : undefined}
+              className={`press grid w-full gap-1 text-start text-sm ${step === i ? "font-semibold text-ink" : "text-muted"}`}
+            >
+              <span className={`h-1 rounded-full ${i <= step ? "bg-accent" : "bg-line"}`} aria-hidden />
+              <span>
+                {(i + 1).toLocaleString("fa-IR")}. {label}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      <section className={show(0)} data-step="0">
+        <fieldset className="grid gap-2">
+          <legend className="mb-2 text-sm font-semibold">{t.pool.sets}</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
             {setCounts.map((s) => (
-              <label key={s.n} className="flex items-center justify-between gap-3">
+              <label key={s.n} className={chip} title={`set_${s.n}`}>
                 <span className="flex items-center gap-2">
                   <input type="checkbox" name="sets" value={s.n} />
                   {s.label}
                 </span>
-                <span className="tabular-nums text-muted">{s.count.toLocaleString("fa-IR")}</span>
+                <span className="text-xs tabular-nums text-muted">{s.count.toLocaleString("fa-IR")}</span>
               </label>
             ))}
-            <label className="mt-2 flex items-center gap-2">
-              {t.newRound.mode}
-              <select name="setMode" className="h-8 rounded-md border border-line bg-paper px-2">
-                <option value="any">{t.newRound.modeAny}</option>
-                <option value="all">{t.common.all}</option>
-              </select>
-            </label>
           </div>
-        </fieldset>
-        <fieldset className="grid gap-3 rounded-xl border border-line p-3 text-sm">
-          <legend className="px-1 font-semibold">{t.newRound.evidencePrice}</legend>
-          <label className="flex items-center gap-2">
-            {t.newRound.evidence}
-            <select name="evidence" className="h-8 rounded-md border border-line bg-paper px-2">
-              <option value="any">{t.common.all}</option>
-              <option value="sale_page">{t.common.salePage}</option>
-              <option value="nameserver">{t.common.nameserver}</option>
+          <label className="mt-1 flex items-center gap-2 text-sm">
+            {t.newRound.mode}
+            <select name="setMode" className="h-9 rounded-md border border-line bg-paper px-2">
+              <option value="any">{t.newRound.modeAny}</option>
+              <option value="all">{t.common.all}</option>
             </select>
           </label>
-          <div className="flex flex-wrap items-center gap-2">
-            {t.newRound.usdFrom}
-            <input name="minUsd" inputMode="decimal" dir="ltr" className="h-8 w-24 rounded-md border border-line bg-paper px-2" />
-            {t.newRound.usdTo}
-            <input name="maxUsd" inputMode="decimal" dir="ltr" className="h-8 w-24 rounded-md border border-line bg-paper px-2" />
+        </fieldset>
+        <fieldset className="grid gap-3 text-sm">
+          <legend className="mb-2 font-semibold">{t.newRound.evidencePrice}</legend>
+          <select name="evidence" aria-label={t.newRound.evidence} className="h-11 rounded-lg border border-line bg-paper px-3">
+            <option value="any">{t.newRound.evidence}: {t.common.all}</option>
+            <option value="sale_page">{t.common.salePage}</option>
+            <option value="nameserver">{t.common.nameserver}</option>
+          </select>
+          <div className="flex items-center gap-2">
+            <input name="minUsd" inputMode="decimal" dir="ltr" placeholder="$ min" aria-label={t.newRound.usdFrom} className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
+            <span className="text-muted">–</span>
+            <input name="maxUsd" inputMode="decimal" dir="ltr" placeholder="$ max" aria-label={t.newRound.usdTo} className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
           </div>
           <label className="flex items-center gap-2">
             <input type="checkbox" name="includeUnpriced" value="1" defaultChecked />
             {t.newRound.includeUnpriced}
           </label>
-          <label className="flex items-center gap-2">
-            {t.newRound.order}
-            <select name="order" className="h-8 rounded-md border border-line bg-paper px-2">
-              <option value="provider">{t.newRound.orderProvider}</option>
-              <option value="name">{t.newRound.orderName}</option>
-              <option value="random">{t.newRound.orderRandom}</option>
-              <option value="price_asc">{t.newRound.orderCheap}</option>
-              <option value="price_desc">{t.newRound.orderExpensive}</option>
-            </select>
-          </label>
         </fieldset>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-card p-4">
-        <p className="text-sm" aria-live="polite">
+        <details className="group rounded-xl border border-line">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm font-semibold">
+            {t.w4.more}
+            <span aria-hidden className="text-muted transition group-open:rotate-180">▾</span>
+          </summary>
+          <div className="grid gap-3 border-t border-line p-3 md:grid-cols-2">
+            <Checks name="classes" facets={classes} label={t.pool.facetClass} />
+            <Checks name="providers" facets={providers} label={t.pool.facetProvider} />
+          </div>
+        </details>
+      </section>
+
+      <section className={show(1)} data-step="1">
+        <fieldset className="grid gap-2 sm:grid-cols-2">
+          <legend className="sr-only">{t.newRound.order}</legend>
+          {(
+            [
+              ["random", t.newRound.orderRandom],
+              ["provider", t.newRound.orderProvider],
+              ["name", t.newRound.orderName],
+              ["price_asc", t.newRound.orderCheap],
+              ["price_desc", t.newRound.orderExpensive],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} className={chip}>
+              <span className="flex items-center gap-2">
+                <input type="radio" name="order" value={value} checked={order === value} onChange={() => setOrder(value)} />
+                {label}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        {order === "random" ? (
+          <div className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2">
+              {t.w4.seed}
+              <input name="seed" value={seed} onChange={(e) => setSeed(e.target.value)} dir="ltr" className="h-10 w-32 rounded-lg border border-line bg-paper px-3 tabular-nums" />
+            </label>
+            <button type="button" onClick={() => setSeed(String(Math.floor(Math.random() * 1_000_000)))} className={buttonClass("ghost", "sm")}>
+              {t.w4.reshuffle}
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      <section className={show(2)} data-step="2">
+        <label className="grid gap-1.5 text-sm font-semibold">
+          {t.newRound.roundTitle}
+          <input name="title" required maxLength={80} className={fieldClass} placeholder={t.newRound.poolPlaceholder} />
+        </label>
+        <AssigneePicker users={users} />
+      </section>
+
+      <div className="sticky bottom-0 z-10 -mx-4 flex items-center justify-between gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:bg-card sm:p-4">
+        <p className="text-sm" aria-live="polite" title={`${count.toLocaleString("fa-IR")} / ${total.toLocaleString("fa-IR")}`}>
           {countError ? (
             <span className="text-danger">{countError}</span>
           ) : (
-            <>
-              <span className="font-display text-2xl tabular-nums">{count.toLocaleString("fa-IR")}</span> {t.newRound.countMid}{" "}
-              {total.toLocaleString("fa-IR")} {t.newRound.countEnd}{pending ? " …" : ""}
-            </>
+            <span className="font-display text-2xl tabular-nums" data-testid="wizard-count">
+              {count.toLocaleString("fa-IR")}
+              {pending ? "…" : ""}
+            </span>
           )}
         </p>
-        <button className={buttonClass()} disabled={!!countError || count === 0}>
-          {t.newRound.openVoting}
-        </button>
+        <div className="flex gap-2">
+          {step > 0 ? (
+            <button type="button" onClick={() => setStep(step - 1)} className={buttonClass("secondary")}>
+              {t.w4.back}
+            </button>
+          ) : null}
+          {step < last ? (
+            <button type="button" onClick={() => setStep(step + 1)} className={buttonClass()} disabled={!!countError || count === 0}>
+              {t.w4.forward}
+            </button>
+          ) : (
+            <button className={buttonClass()} disabled={!!countError || count === 0}>
+              {t.newRound.openVoting}
+            </button>
+          )}
+        </div>
       </div>
-      <p className="text-xs text-muted">{t.newRound.privacyNote}</p>
     </form>
   );
 }

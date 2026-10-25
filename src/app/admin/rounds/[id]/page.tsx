@@ -19,9 +19,14 @@ import {
   queryResults,
   roundCoverage,
   roundProviderCounts,
+  roundFunnel,
   type ResultsQuery,
 } from "@/lib/rounds";
 import { DeriveForm } from "./derive-form";
+import { NextRound } from "./next-round";
+import { RoundTitle } from "@/components/admin/round-title";
+import { ScrollTop } from "@/components/scroll-top";
+import { RoundFunnel } from "@/components/admin/round-funnel";
 import { t } from "@/lib/copy/fa";
 
 const PAGE_SIZE = 50;
@@ -74,6 +79,7 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
   const confirmClose = one(query.confirmClose) === "1";
   const base = `/admin/rounds/${round.id}`;
   const assignees = listAssignees(round.id);
+  const funnel = roundFunnel(round.id);
 
   let lineage = "";
   if (round.filterJson && parent) {
@@ -96,14 +102,12 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-display text-4xl">{round.title}</h1>
+            <h1 className="min-w-0"><RoundTitle id={round.id} title={round.title} className="font-display text-3xl sm:text-4xl" /></h1>
             <Badge tone={round.status === "open" ? "accent" : "muted"}>{round.status === "open" ? t.common.open : t.common.closed}</Badge>
           </div>
-          <p className="mt-2 text-sm text-muted">
-            {coverage.total} {t.common.domains}{fromPool ? t.round.fromPool : ""} · {t.common.openedAt} {formatWhen(round.createdAt)}
-            {round.closedAt ? t.round.closedAt(formatWhen(round.closedAt)) : ""}
+          <p className="mt-1 text-sm text-muted" title={lineage || undefined}>
+            {coverage.total.toLocaleString("fa-IR")} {t.common.domains} · {formatWhen(round.createdAt)}
           </p>
-          {lineage ? <p className="mt-1 text-sm text-muted">{lineage}</p> : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <a href={`${base}/export`} className={buttonClass("secondary")}>
@@ -116,6 +120,12 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
           ) : null}
         </div>
       </div>
+
+      {funnel.length > 1 ? (
+        <div className="mt-5">
+          <RoundFunnel steps={funnel} current={round.id} />
+        </div>
+      ) : null}
 
       <details className="group mt-4 rounded-xl border border-line bg-card" data-testid="round-access">
         <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 px-4 py-3 text-sm">
@@ -132,7 +142,7 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
         </form>
       </details>
 
-      <div className="mt-6 grid gap-3">
+      <div className="grid gap-3 [&:not(:empty)]:mt-6">
         {one(query.assigned) ? <Alert tone="success">{t.assignees.saved}</Alert> : null}
         {imported ? (
           <Alert tone="success">
@@ -142,10 +152,9 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
               : ""}
           </Alert>
         ) : null}
-        {one(query.derived) === "1" ? (
-          <Alert tone="success">{t.round.derivedNotice}</Alert>
-        ) : null}
+        {one(query.derived) === "1" ? <ScrollTop /> : null}
         {one(query.closed) === "1" ? <Alert>{t.round.closedNotice}</Alert> : null}
+        {one(query.error) && tab !== "next" ? <Alert tone="danger">{one(query.error)}</Alert> : null}
         {confirmClose && round.status === "open" ? (
           <form action={closeRoundAction} className="rounded-xl border border-line bg-card p-4">
             <input type="hidden" name="roundId" value={round.id} />
@@ -160,12 +169,13 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
         ) : null}
       </div>
 
-      <section className="mt-8 rounded-xl border border-line bg-card p-5">
+      <section className="mt-4 rounded-xl border border-line bg-card p-4" title={t.round.coverageText(viewed, coverage.total)}>
         <ProgressBar value={percent} label={t.round.coverageLabel} />
-        <p className="mt-2 text-sm text-muted">
-          {t.round.coverageText(viewed, coverage.total)}
-        </p>
       </section>
+
+      <div className="mt-4">
+        <NextRound roundId={round.id} title={round.title} hasAssignees={assignees.length > 0} />
+      </div>
 
       <div className="mt-8 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label={t.round.sections}>
         {TABS.map((item) => {

@@ -20,7 +20,7 @@ function seededRank(seed: string, name: string) {
   return h >>> 0;
 }
 
-function ensureFunctions() {
+export function ensureFunctions() {
   getSqlite().function("dv_seeded_rank", { deterministic: true }, (seed: unknown, name: unknown) => seededRank(String(seed), String(name)));
 }
 
