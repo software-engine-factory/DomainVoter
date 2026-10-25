@@ -2,7 +2,7 @@ import path from "path";
 
 /** Folder that holds SQLite, the session secret, and import files. Mounted at /app/data in Coolify. */
 export function dataDir() {
-  return path.resolve(process.env.DATA_DIR || path.join(process.cwd(), "data"));
+  return path.resolve(/* turbopackIgnore: true */ process.env.DATA_DIR || path.join(/* turbopackIgnore: true */ process.cwd(), "data"));
 }
 
 /**

@@ -23,17 +23,6 @@ export type StoredDomain = {
   sourceDomainId?: number | null;
 };
 
-type RawStat = {
-  id: number;
-  position: number;
-  name: string;
-  price: number | null;
-  isPremium: number;
-  sourceDomainId: number | null;
-  votes: number;
-  viewers: number;
-};
-
 export function getRound(id: number) {
   if (!Number.isInteger(id)) return undefined;
   return getDb().select().from(rounds).where(eq(rounds.id, id)).get();
