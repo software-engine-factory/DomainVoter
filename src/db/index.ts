@@ -76,8 +76,9 @@ function createSqlite() {
 
   runMigrations(sqlite);
 
-  const existing = sqlite.prepare("SELECT id FROM users WHERE username = ?").get("admin");
-  if (!existing) {
+  // Seed a default admin only on a brand-new database (no users at all).
+  const { n } = sqlite.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };
+  if (n === 0) {
     sqlite
       .prepare(
         "INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, 'admin', ?)",
