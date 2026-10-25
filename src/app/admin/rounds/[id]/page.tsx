@@ -25,6 +25,7 @@ import {
 import { DeriveForm } from "./derive-form";
 import { NextRound } from "./next-round";
 import { RoundTitle } from "@/components/admin/round-title";
+import { ScrollTop } from "@/components/scroll-top";
 import { RoundFunnel } from "@/components/admin/round-funnel";
 import { t } from "@/lib/copy/fa";
 
@@ -151,9 +152,7 @@ export default async function AdminRoundPage({ params, searchParams }: PageProps
               : ""}
           </Alert>
         ) : null}
-        {one(query.derived) === "1" ? (
-          <Alert tone="success">{t.round.derivedNotice}</Alert>
-        ) : null}
+        {one(query.derived) === "1" ? <ScrollTop /> : null}
         {one(query.closed) === "1" ? <Alert>{t.round.closedNotice}</Alert> : null}
         {one(query.error) && tab !== "next" ? <Alert tone="danger">{one(query.error)}</Alert> : null}
         {confirmClose && round.status === "open" ? (

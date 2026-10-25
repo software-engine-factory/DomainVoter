@@ -9,7 +9,7 @@ import type { ThemeId } from "@/lib/theme/themes";
 
 export function Header({ session, theme }: { session: SessionUser | null; theme: ThemeId }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-line bg-paper">
       <a
         href="#content"
         className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-3 focus:z-30 focus:rounded-lg focus:bg-card focus:px-3 focus:py-2"

@@ -2,8 +2,10 @@
 // accounts with the app's bcryptjs settings (hashSync, cost 10). Prints usernames and status only — never passwords.
 const fs = require("fs");
 const path = require("path");
-const Database = require("better-sqlite3");
-const { hashSync } = require("bcryptjs");
+// Resolve modules from the app directory (cwd, /app in the container), not from this file's /tmp location.
+const appRequire = require("module").createRequire(path.join(process.cwd(), "package.json"));
+const Database = appRequire("better-sqlite3");
+const { hashSync } = appRequire("bcryptjs");
 
 const dbFile = process.env.DV_DB || path.join(process.env.DATA_DIR || "/app/data", "voting.db");
 if (!fs.existsSync(dbFile)) {

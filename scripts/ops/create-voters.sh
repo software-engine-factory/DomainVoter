@@ -19,7 +19,7 @@ CID="$(docker ps --filter "name=${APP_UUID}" --format '{{.ID}}' | head -n1)"
 
 tmp="$(mktemp)"; trap 'shred -u "$tmp" 2>/dev/null || rm -f "$tmp"' EXIT
 for i in $(seq 1 "$COUNT"); do
-  pw="$(head -c 64 /dev/urandom | tr -dc 'A-Za-z0-9' | head -c 20)"
+  pw="$(head -c 512 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-20)"
   [ "${#pw}" -eq 20 ] || { echo "password generation failed" >&2; exit 1; }
   printf 'user%s\t%s\n' "$i" "$pw" >> "$tmp"
 done

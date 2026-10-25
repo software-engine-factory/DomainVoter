@@ -307,7 +307,6 @@ export const t = {
     close: "بستن دور",
     openedWith: (n: string) => `دور با ${n} دامنه باز شد 🎉`,
     skipped: (empty: string, dup: string) => ` ${empty} ردیف خالی و ${dup} ردیف تکراری کنار گذاشته شد.`,
-    derivedNotice: "دور تازه از دل دور قبلی ساخته شد و از صفر شروع می‌شود.",
     closedNotice: "دور بسته شد. از این به بعد رأی و بازدیدی ثبت نمی‌شود.",
     confirmClose: "مطمئنی؟ بعد از بستن، دیگر کسی نمی‌تواند در این دور رأی بدهد.",
     closeNow: "آره، ببندش",
