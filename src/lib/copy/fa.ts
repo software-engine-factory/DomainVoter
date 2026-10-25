@@ -18,6 +18,7 @@ export const t = {
     register: "ثبت‌نام",
     logout: "خروج",
     adminPanel: "پنل مدیریت",
+    myBookmarks: "نشان‌شده‌های من",
   },
   auth: {
     invalid: "نام کاربری یا رمز عبور اشتباه است.",
@@ -545,6 +546,26 @@ export const t = {
     notYet: "هنوز ساخته نشده",
     names: (n: number) => `${n} نام`,
     roundStats: (pct: number | string, votes: number) => `· دیده ${pct}٪ · ${votes} رأی`,
+  },
+  myBookmarks: {
+    title: "نشان‌شده‌های من",
+    search: "جست‌وجوی نام یا دور",
+    scope: "کدام دورها",
+    scopeAll: "همه",
+    scopeOpen: "دورهای باز",
+    count: (shown: number, total: number) => {
+      const f = (n: number) => n.toLocaleString("fa-IR");
+      return shown === total ? `${f(total)} نام` : `${f(shown)} از ${f(total)} نام`;
+    },
+    noMatch: "چیزی با این جست‌وجو پیدا نشد.",
+    closed: "دور بسته",
+    lockedHint: "این دور بسته شده؛ دیگر نمی‌شود برش داشت.",
+    removeLabel: (name: string) => `برداشتن نشان ${name}`,
+    removed: (name: string) => `${name} برداشته شد`,
+    undo: "برگردان",
+    emptyTitle: "هنوز چیزی نشان نکرده‌ای",
+    emptyBody: "در هر دور روی نام‌هایی که دوست داری بزن؛ همه‌شان این‌جا جمع می‌شوند.",
+    emptyCta: "برو سراغ دورها",
   },
   roundUx: {
     votedOnly: "فقط رأی‌دارها",
