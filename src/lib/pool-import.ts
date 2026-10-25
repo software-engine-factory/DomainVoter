@@ -198,7 +198,8 @@ export function importSqliteFile(file: string, source: string): ImportResult {
   const sqlite = getSqlite();
   const writer = makeWriter(Date.now());
   try {
-    sqlite.prepare("ATTACH DATABASE ? AS src").run(`file:${file}?mode=ro`);
+    // Plain path: better-sqlite3 is built without URI filenames, so ?mode=ro would not open. Only SELECTs run on src.
+    sqlite.prepare("ATTACH DATABASE ? AS src").run(file);
     try {
       const tables = sqlite
         .prepare("SELECT name FROM src.sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%'")
