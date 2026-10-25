@@ -2,14 +2,10 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toggleVote } from "@/lib/actions/votes";
-import { formatPrice } from "@/lib/format";
 
 type Card = {
   id: number;
-  position: number;
   name: string;
-  price: number | null;
-  isPremium: boolean;
 };
 
 function splitDomain(name: string) {
@@ -104,16 +100,6 @@ export function VoteGrid({
                   selected ? "border-accent bg-accent-soft" : "border-line bg-card hover:border-accent/40"
                 }`}
               >
-                <span className="flex items-center justify-between gap-2">
-                  <span dir="ltr" className="text-[11px] tabular-nums text-muted">
-                    #{card.position}
-                  </span>
-                  {card.isPremium ? (
-                    <span className="rounded-full bg-gold-soft px-2 py-0.5 text-[11px] font-semibold text-gold">پریمیوم</span>
-                  ) : (
-                    <span className="text-[11px] text-muted">معمولی</span>
-                  )}
-                </span>
                 <span dir="ltr" className="flex min-h-0 w-full flex-1 items-center justify-start text-left">
                   <span className="flex min-w-0 items-baseline">
                     <span
@@ -129,8 +115,7 @@ export function VoteGrid({
                     ) : null}
                   </span>
                 </span>
-                <span className="mt-auto flex items-end justify-between gap-2 pt-2">
-                  <span className="truncate text-xs tabular-nums text-muted">{formatPrice(card.price)}</span>
+                <span className="mt-auto flex items-end justify-end gap-2 pt-2">
                   <span className={`inline-flex items-center gap-1 text-xs font-semibold ${selected ? "text-accent" : "text-ink/70"}`}>
                     <svg viewBox="0 0 16 16" className="vote-mark size-3.5" aria-hidden>
                       <path

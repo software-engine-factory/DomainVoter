@@ -18,6 +18,7 @@ export const rounds = sqliteTable("rounds", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   openedAt: integer("opened_at", { mode: "timestamp_ms" }),
   closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+  source: text("source", { enum: ["csv", "pool"] }).notNull().default("csv"),
 });
 
 export const domains = sqliteTable(
@@ -30,6 +31,8 @@ export const domains = sqliteTable(
     price: real("price"),
     isPremium: integer("is_premium", { mode: "boolean" }).notNull().default(false),
     sourceDomainId: integer("source_domain_id"),
+    poolName: text("pool_name"),
+    currency: text("currency"),
   },
   (table) => [
     uniqueIndex("domains_round_position").on(table.roundId, table.position),
@@ -60,3 +63,30 @@ export const views = sqliteTable(
   },
   (table) => [uniqueIndex("views_domain_user").on(table.domainId, table.userId)],
 );
+
+export const pool = sqliteTable("pool", {
+  name: text("name").primaryKey(),
+  set1: integer("set_1").notNull(),
+  set2: integer("set_2").notNull(),
+  set3: integer("set_3").notNull(),
+  set4: integer("set_4").notNull(),
+  set5: integer("set_5").notNull(),
+  evidence: text("evidence"),
+  dnsNsClass: text("dns_ns_class"),
+  dnsParkingProvider: text("dns_parking_provider"),
+  lpMarketplace: text("lp_marketplace"),
+  lpPrice: real("lp_price"),
+  lpCurrency: text("lp_currency"),
+  lpUrl: text("lp_url"),
+  bestPrice: real("best_price"),
+  bestSource: text("best_source"),
+  priceUsd: real("price_usd"),
+  importedAt: integer("imported_at").notNull(),
+});
+
+export const picks = sqliteTable("picks", {
+  name: text("name").primaryKey(),
+  note: text("note"),
+  createdAt: integer("created_at").notNull(),
+  createdBy: integer("created_by"),
+});

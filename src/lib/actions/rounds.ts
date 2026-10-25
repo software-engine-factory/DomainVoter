@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getSession, requireAdmin } from "@/lib/auth";
 import { parseDomainCsv } from "@/lib/csv";
 import { normalizeFilters } from "@/lib/filters";
-import { closeRound, createRound, getRound, matchingDomains } from "@/lib/rounds";
+import { closeRound, createRound, getRound, countMatching, deriveRound } from "@/lib/rounds";
 
 function optionalNumberInput(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
@@ -15,11 +15,11 @@ function optionalNumberInput(value: FormDataEntryValue | null) {
 export async function createRoundAction(formData: FormData) {
   await requireAdmin();
   const title = String(formData.get("title") ?? "").trim();
-  if (!title || title.length > 80) redirect("/admin/rounds/new?error=title");
+  if (!title || title.length > 80) redirect("/admin/rounds/new?mode=csv&error=title");
 
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) redirect("/admin/rounds/new?error=file");
-  if (file.size > 20 * 1024 * 1024) redirect("/admin/rounds/new?error=size");
+  if (!(file instanceof File) || file.size === 0) redirect("/admin/rounds/new?mode=csv&error=file");
+  if (file.size > 20 * 1024 * 1024) redirect("/admin/rounds/new?mode=csv&error=size");
 
   const fromText = String(formData.get("from") ?? "").trim();
   const toText = String(formData.get("to") ?? "").trim();
@@ -37,7 +37,7 @@ export async function createRoundAction(formData: FormData) {
   );
 
   if (parsed.error || parsed.rows.length === 0) {
-    redirect(`/admin/rounds/new?error=parse&message=${encodeURIComponent(parsed.error ?? "دامنه‌ای پیدا نشد.")}`);
+    redirect(`/admin/rounds/new?mode=csv&error=parse&message=${encodeURIComponent(parsed.error ?? "دامنه‌ای پیدا نشد.")}`);
   }
 
   const id = createRound({
@@ -81,7 +81,7 @@ export async function countMatchesAction(
   if (!getRound(roundId)) return { count: 0, error: "این دور دیگر وجود ندارد." };
   const { filters, error } = normalizeFilters(input);
   if (error) return { count: 0, error };
-  return { count: matchingDomains(roundId, filters).length };
+  return { count: countMatching(roundId, filters) };
 }
 
 export async function deriveRoundAction(formData: FormData) {
@@ -106,23 +106,10 @@ export async function deriveRoundAction(formData: FormData) {
   });
   if (error) redirect(`${back}&error=${encodeURIComponent(error)}`);
 
-  const matched = matchingDomains(roundId, filters);
-  if (matched.length === 0) {
+  if (countMatching(roundId, filters) === 0) {
     redirect(`${back}&error=${encodeURIComponent("هیچ دامنه‌ای با این فیلترها جور نیست.")}`);
   }
-
-  const id = createRound({
-    title,
-    parentRoundId: roundId,
-    filterJson: JSON.stringify(filters),
-    sortMode: filters.sort,
-    rows: matched.map((domain) => ({
-      name: domain.name,
-      price: domain.price,
-      isPremium: domain.isPremium,
-      sourceDomainId: domain.id,
-    })),
-  });
+  const { id } = deriveRound({ title, parentRoundId: roundId, filters });
 
   revalidatePath("/admin");
   redirect(`/admin/rounds/${id}?derived=1`);

@@ -31,3 +31,12 @@ export function withParams(path: string, params: Record<string, string | number 
   const query = search.toString();
   return query ? `${path}?${query}` : path;
 }
+
+/** Price in its original currency; pool rows without a price read "price on page". */
+export function formatMoney(price: number | null, currency: string | null, fromPool: boolean) {
+  if (price == null) return fromPool ? "قیمت در صفحه" : "—";
+  const code = (currency ?? "USD").toUpperCase();
+  if (code === "USD") return formatPrice(price);
+  const amount = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 }).format(price);
+  return `${amount} ${code}`;
+}

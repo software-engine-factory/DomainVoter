@@ -1,0 +1,76 @@
+"use server";
+
+import fs from "fs";
+import path from "path";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/auth";
+import { countPool, normalizePoolFilters } from "@/lib/pool";
+import { importFile } from "@/lib/pool-import";
+import { dataDir, resolveImportPath } from "@/lib/paths";
+import { createRoundFromPool } from "@/lib/rounds";
+
+function done(result: { rowsUpserted: number; rowsSkipped: number; error?: string }) {
+  revalidatePath("/admin/pool");
+  revalidatePath("/admin/rounds/new");
+  if (result.error) redirect(`/admin/pool?error=${encodeURIComponent(result.error)}`);
+  redirect(`/admin/pool?imported=${result.rowsUpserted}&skipped=${result.rowsSkipped}`);
+}
+
+export async function syncPoolAction(formData: FormData) {
+  await requireAdmin();
+  const input = String(formData.get("path") ?? "").trim();
+  const file = input ? resolveImportPath(input) : null;
+  if (!file) redirect(`/admin/pool?error=${encodeURIComponent("مسیر باید داخل پوشهٔ داده (/app/data) باشد.")}`);
+  if (!fs.existsSync(file)) redirect(`/admin/pool?error=${encodeURIComponent(`فایل پیدا نشد: ${input}`)}`);
+  done(await importFile(file, input));
+}
+
+export async function uploadPoolAction(formData: FormData) {
+  await requireAdmin();
+  const upload = formData.get("file");
+  if (!(upload instanceof File) || upload.size === 0) redirect(`/admin/pool?error=${encodeURIComponent("یک فایل CSV یا DB انتخاب کنید.")}`);
+  const ext = path.extname(upload.name).toLowerCase();
+  if (![".csv", ".db", ".sqlite", ".sqlite3"].includes(ext)) {
+    redirect(`/admin/pool?error=${encodeURIComponent("فقط فایل CSV یا SQLite پذیرفته می‌شود.")}`);
+  }
+  const dir = path.join(dataDir(), "uploads");
+  fs.mkdirSync(dir, { recursive: true });
+  const target = path.join(dir, `pool-${Date.now()}${ext}`);
+  fs.writeFileSync(target, Buffer.from(await upload.arrayBuffer()));
+  done(await importFile(target, `upload:${upload.name}`));
+}
+
+function filterInput(formData: FormData) {
+  return {
+    classes: formData.getAll("classes").map(String),
+    providers: formData.getAll("providers").map(String),
+    sets: formData.getAll("sets").map(String),
+    setMode: formData.get("setMode"),
+    evidence: formData.get("evidence"),
+    minUsd: formData.get("minUsd"),
+    maxUsd: formData.get("maxUsd"),
+    includeUnpriced: formData.get("includeUnpriced") ? "1" : "0",
+    order: formData.get("order"),
+  };
+}
+
+export async function countPoolAction(input: Record<string, unknown>) {
+  await requireAdmin();
+  const { filters, error } = normalizePoolFilters(input);
+  if (error) return { count: 0, error };
+  return { count: countPool(filters) };
+}
+
+export async function createPoolRoundAction(formData: FormData) {
+  await requireAdmin();
+  const title = String(formData.get("title") ?? "").trim();
+  const back = "/admin/rounds/new?mode=pool";
+  if (!title || title.length > 80) redirect(`${back}&error=title`);
+  const { filters, error } = normalizePoolFilters(filterInput(formData));
+  if (error) redirect(`${back}&error=parse&message=${encodeURIComponent(error)}`);
+  const result = createRoundFromPool(title, filters);
+  if (result.count === 0) redirect(`${back}&error=parse&message=${encodeURIComponent("هیچ نامی با این فیلترها جور نیست.")}`);
+  revalidatePath("/admin");
+  redirect(`/admin/rounds/${result.id}?imported=${result.count}`);
+}
