@@ -43,6 +43,11 @@ export function Header({ session, theme }: { session: SessionUser | null; theme:
               <NavLink href="/vote" exact>
                 {t.nav.rounds}
               </NavLink>
+            ) : null}
+            {session ? (
+              <NavLink href="/vote/bookmarks" exact>
+                {t.nav.myBookmarks}
+              </NavLink>
             ) : (
               <>
                 <NavLink href="/login" exact>
