@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { parseExplore } from "@/lib/explore-params";
 import { iterateActivity } from "@/lib/insights";
+import { iterateBrowse, parseBrowse } from "@/lib/pool-browse";
 
 const cell = (value: unknown) => {
   const text = value == null ? "" : String(value);
@@ -10,7 +11,19 @@ const cell = (value: unknown) => {
 export async function GET(request: Request) {
   const session = await getSession();
   if (!session || session.role !== "admin") return new Response("forbidden", { status: 403 });
-  const params = Object.fromEntries(new URL(request.url).searchParams);
+  const url = new URL(request.url);
+  const params = Object.fromEntries(url.searchParams);
+  if (params.mode !== "activity") {
+    const all: Record<string, string[]> = {};
+    for (const [k, v] of url.searchParams) (all[k] ??= []).push(v);
+    const lines = ["name,price,currency,price_usd,price_source,evidence,parking_provider,ns_class,sale_url,sets,rounds,views,votes,bookmarked"];
+    for (const r of iterateBrowse(parseBrowse(all))) {
+      lines.push([r.name, r.price, r.currency, r.priceUsd, r.source, r.evidence, r.provider, r.nsClass, r.url, r.sets, r.rounds, r.views, r.votes, r.bookmarked].map(cell).join(","));
+    }
+    return new Response(lines.join("\n"), {
+      headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="pool.csv"` },
+    });
+  }
   const q = { ...parseExplore(params), group: "event" as const };
   const lines = ["kind,at_iso,user,round_id,round,position,name,provider,evidence,price,currency,voted,bookmarked"];
   for (const r of iterateActivity(q)) {
