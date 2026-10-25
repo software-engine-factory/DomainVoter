@@ -3,6 +3,8 @@ import path from "path";
 import Database from "better-sqlite3";
 import { hashSync } from "bcryptjs";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { dataDir as resolveDataDir } from "@/lib/paths";
+import { runMigrations } from "./migrations";
 import * as schema from "./schema";
 
 const globalForDb = globalThis as unknown as {
@@ -10,7 +12,7 @@ const globalForDb = globalThis as unknown as {
 };
 
 function createSqlite() {
-  const dataDir = path.join(process.cwd(), "data");
+  const dataDir = resolveDataDir();
   fs.mkdirSync(dataDir, { recursive: true });
   const sqlite = new Database(path.join(dataDir, "voting.db"));
   sqlite.pragma("journal_mode = WAL");
@@ -71,6 +73,8 @@ function createSqlite() {
     CREATE INDEX IF NOT EXISTS views_round_idx ON views(round_id);
     CREATE INDEX IF NOT EXISTS domains_round_idx ON domains(round_id);
   `);
+
+  runMigrations(sqlite);
 
   const existing = sqlite.prepare("SELECT id FROM users WHERE username = ?").get("admin");
   if (!existing) {

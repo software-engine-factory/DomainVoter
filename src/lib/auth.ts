@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { dataDir as resolveDataDir } from "@/lib/paths";
 
 export type Role = "admin" | "voter";
 
@@ -18,7 +19,7 @@ const COOKIE = "dv_session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
 
 function secret() {
-  const dataDir = path.join(process.cwd(), "data");
+  const dataDir = resolveDataDir();
   const file = path.join(dataDir, "session.secret");
   fs.mkdirSync(dataDir, { recursive: true });
   if (!fs.existsSync(file)) {
