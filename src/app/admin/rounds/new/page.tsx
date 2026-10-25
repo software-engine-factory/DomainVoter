@@ -40,6 +40,7 @@ export default async function NewRoundPage({
       <div className="mt-6 flex gap-1 border-b border-line">
         {tab("pool", t.newRound.tabPool)}
         {tab("csv", t.newRound.tabCsv)}
+        <Link href="/admin/rounds/batch" className="px-4 py-2 text-sm text-muted hover:text-ink">{t.newRoundUx.batchLink}</Link>
       </div>
       {facets ? (
         <PoolRoundForm

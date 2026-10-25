@@ -24,7 +24,7 @@ export default async function PicksPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
       <h1 className="font-display text-4xl">{t.picks.title}</h1>
       <p className="mt-2 max-w-2xl text-sm text-muted">
-        {t.picks.lead}
+        {t.picksUx.lead} <a className="underline" href="/admin/bookmarks">{t.picksUx.leadLink}</a> {t.picksUx.leadTail}
       </p>
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-line">

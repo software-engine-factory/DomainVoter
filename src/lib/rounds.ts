@@ -322,7 +322,7 @@ const ROW_SELECT = `SELECT d.id, d.position, d.name, d.price, d.currency, d.is_p
 
 const ROW_FROM = `FROM domains d
   LEFT JOIN pool p ON p.name = d.pool_name
-  LEFT JOIN picks k ON k.name = d.name
+  LEFT JOIN picks k ON k.name = lower(d.name)
   LEFT JOIN (SELECT domain_id, COUNT(*) AS votes FROM votes WHERE round_id = ? GROUP BY domain_id) v ON v.domain_id = d.id
   LEFT JOIN (SELECT domain_id, COUNT(*) AS viewers FROM views WHERE round_id = ? GROUP BY domain_id) w ON w.domain_id = d.id`;
 
@@ -470,7 +470,7 @@ export function topVotedNames(limit = 50) {
        FROM votes v
        JOIN domains d ON d.id = v.domain_id
        LEFT JOIN pool p ON p.name = d.pool_name
-       LEFT JOIN picks k ON k.name = d.name
+       LEFT JOIN picks k ON k.name = lower(d.name)
        GROUP BY d.name
        ORDER BY votes DESC, d.name
        LIMIT ?`,

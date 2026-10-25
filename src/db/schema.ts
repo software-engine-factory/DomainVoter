@@ -19,6 +19,8 @@ export const rounds = sqliteTable("rounds", {
   openedAt: integer("opened_at", { mode: "timestamp_ms" }),
   closedAt: integer("closed_at", { mode: "timestamp_ms" }),
   source: text("source", { enum: ["csv", "pool"] }).notNull().default("csv"),
+  batchId: integer("batch_id"),
+  batchIndex: integer("batch_index"),
 });
 
 export const domains = sqliteTable(
@@ -89,4 +91,8 @@ export const picks = sqliteTable("picks", {
   note: text("note"),
   createdAt: integer("created_at").notNull(),
   createdBy: integer("created_by"),
+  status: text("status").notNull().default("shortlist"),
+  sourceUserId: integer("source_user_id"),
+  bonusUserId: integer("bonus_user_id"),
+  updatedAt: integer("updated_at"),
 });
