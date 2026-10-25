@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
+import { ACTIVE_SETS } from "@/lib/sets";
 import Link from "next/link";
 import { InfoTip } from "@/components/admin/info-tip";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
@@ -25,7 +26,7 @@ export default async function PoolPage({
 }) {
   await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const query = await searchParams;
-  const { bySet, bySource, totals } = poolOverview();
+  const { bySet, bySource, totals, overlap13 } = poolOverview();
   const samples = setSamples();
   const imports = recentImports();
   const error = one(query.error);
@@ -65,6 +66,7 @@ export default async function PoolPage({
                 <tr className="border-b border-line">
                   <th className="px-2 py-2 text-start text-xs font-medium text-muted">{t.browse.sets}</th>
                   <th className={th}>{t.overview.total}</th>
+                  <th className={th}>{t.overview.only}</th>
                   <th className={th}>{t.overview.priced}</th>
                   <th className={th}>{t.overview.median}</th>
                 </tr>
@@ -85,11 +87,12 @@ export default async function PoolPage({
                                 <span dir="ltr" className="font-mono">{samples[n].join(", ")}</span>
                               </span>
                             ) : null}
-                            <span className="mt-1 block text-[11px] text-muted">{t.poolSets.provisional} · set_{n}</span>
+                            <span className="mt-1 block text-[11px] text-muted" dir="ltr">set_{n}</span>
                           </InfoTip>
                         </span>
                       </td>
                       <td className={td}><Link className={cellLink} href={explore({ sets: n })}>{fa(row.total)}</Link></td>
+                      <td className={`${td} tabular-nums text-muted`}>{fa(row.only ?? 0)}</td>
                       <td className={td}><Link className={cellLink} href={explore({ sets: n, hp: "yes" })}>{fa(row.priced)}</Link></td>
                       <td className={`${td} whitespace-nowrap text-muted`} dir="ltr">{row.median != null ? formatPrice(row.median) : "—"}</td>
                     </tr>
@@ -98,6 +101,9 @@ export default async function PoolPage({
               </tbody>
             </table>
           </div>
+          <p className="mt-2 px-1 text-xs text-muted">
+            <Link className="hover:text-accent" href={explore({ sets: "1,3", sm: "all" })}>{t.overview.overlapNote(fa(overlap13))}</Link>
+          </p>
         </section>
 
         <section className="rounded-xl border border-line bg-card p-3">
@@ -109,7 +115,7 @@ export default async function PoolPage({
                   <th className="px-2 py-2 text-start text-xs font-medium text-muted">{t.browse.source}</th>
                   <th className={th}>{t.overview.total}</th>
                   <th className={th}>{t.overview.median}</th>
-                  {[1, 2, 3, 4, 5].map((n) => (
+                  {ACTIVE_SETS.map((n) => (
                     <th key={n} className={`${th} max-w-20 truncate`} title={SET_LABELS[n]}>{SET_LABELS[n]}</th>
                   ))}
                 </tr>
@@ -126,7 +132,7 @@ export default async function PoolPage({
                     <td className={`${td} whitespace-nowrap text-muted`} dir="ltr">{row.median != null ? formatPrice(row.median) : "—"}</td>
                     {row.perSet.map((count, i) => (
                       <td key={i} className={td}>
-                        {count ? <Link className={cellLink} href={explore({ src: row.key, sets: i + 1 })}>{fa(count)}</Link> : <span className="px-1 text-muted/50">·</span>}
+                        {count ? <Link className={cellLink} href={explore({ src: row.key, sets: ACTIVE_SETS[i] })}>{fa(count)}</Link> : <span className="px-1 text-muted/50">·</span>}
                       </td>
                     ))}
                   </tr>

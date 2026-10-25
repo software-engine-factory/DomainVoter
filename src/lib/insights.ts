@@ -1,4 +1,5 @@
 import { getSqlite } from "@/db";
+import { normalizeSetIds } from "@/lib/sets";
 
 /** Day buckets follow the team's clock (Tbilisi, UTC+4) unless STATS_TZ_OFFSET_MINUTES says otherwise. */
 export const TZ_OFFSET_MS = Number(process.env.STATS_TZ_OFFSET_MINUTES ?? 240) * 60_000;
@@ -88,7 +89,7 @@ export function userSetCoverage(userId: number) {
   return getSqlite()
     .prepare(
       `SELECT COUNT(*) AS viewed,
-              SUM(p.set_1) AS s1, SUM(p.set_2) AS s2, SUM(p.set_3) AS s3, SUM(p.set_4) AS s4, SUM(p.set_5) AS s5,
+              SUM(p.set_1) AS s1, SUM(p.set_3) AS s3, SUM(p.set_4) AS s4, SUM(p.set_5) AS s5,
               SUM(CASE WHEN p.evidence = 'sale_page' THEN 1 ELSE 0 END) AS salePage,
               SUM(CASE WHEN p.evidence = 'nameserver' THEN 1 ELSE 0 END) AS nameserver
        FROM views w JOIN domains d ON d.id = w.domain_id LEFT JOIN pool p ON p.name = d.pool_name
@@ -168,7 +169,8 @@ function activitySource(q: ActivityQuery) {
       where.push("d.name LIKE ?");
       p.push(`%${q.q.toLowerCase()}%`);
     }
-    if (q.set && q.set >= 1 && q.set <= 5) where.push(`p.set_${q.set} = 1`);
+    const set = q.set ? normalizeSetIds([q.set])[0] : undefined;
+    if (set) where.push(`p.set_${set} = 1`);
     if (q.provider) {
       if (q.provider === "__none__") where.push("p.dns_parking_provider IS NULL");
       else {

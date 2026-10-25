@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
+import { ACTIVE_SETS } from "@/lib/sets";
 import { BookmarkButton } from "@/components/admin/bookmark-button";
 import { Pager } from "@/components/admin/pager";
 import { PatternSlots } from "@/components/admin/pattern-slots";
@@ -84,7 +85,7 @@ export function NamesView({ query }: { query: Record<string, string | string[] |
         {/* 5 sets */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={groupLabel}>{t.browse.sets}</span>
-          {[1, 2, 3, 4, 5].map((n) => (
+          {ACTIVE_SETS.map((n) => (
             <label key={n} className={chip(q.sets.includes(n))} title={t.poolSets.rule[n]}>
               <input type="checkbox" name="sets" value={n} defaultChecked={q.sets.includes(n)} className="sr-only" />
               {SET_LABELS[n]}

@@ -35,7 +35,7 @@ function orderSql(order: BatchOrder) {
     case "provider":
       return "p.dns_ns_class IS NULL, p.dns_ns_class, p.dns_parking_provider IS NULL, p.dns_parking_provider, p.name";
     case "set":
-      return "p.set_1 DESC, p.set_2 DESC, p.set_3 DESC, p.set_4 DESC, p.set_5 DESC, p.name";
+      return "p.set_1 DESC, p.set_3 DESC, p.set_4 DESC, p.set_5 DESC, p.name";
     default:
       return "dv_seeded_rank(?, p.name), p.name";
   }

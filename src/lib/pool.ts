@@ -1,5 +1,6 @@
 import { getSqlite } from "@/db";
 import { t } from "@/lib/copy/fa";
+import { normalizeSetIds } from "@/lib/sets";
 
 export type PoolFilters = {
   classes: string[];
@@ -44,7 +45,7 @@ export function normalizePoolFilters(input: Record<string, unknown>): { filters:
   const filters: PoolFilters = {
     classes: list(input.classes),
     providers: list(input.providers),
-    sets: list(input.sets).map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 5),
+    sets: normalizeSetIds(list(input.sets)),
     setMode: input.setMode === "all" ? "all" : "any",
     evidence: input.evidence === "sale_page" || input.evidence === "nameserver" ? input.evidence : "any",
     minUsd: optionalNumber(input.minUsd),
@@ -186,5 +187,5 @@ export function recentImports(limit = 5) {
   }>;
 }
 
-/** Persian set names (provisional; see t.poolSets). */
+/** Persian set names (see t.poolSets; set 2 is retired, see lib/sets). */
 export const SET_LABELS: Record<number, string> = t.poolSets.name;

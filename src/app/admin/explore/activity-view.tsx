@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
+import { ACTIVE_SETS } from "@/lib/sets";
 import { BookmarkButton } from "@/components/admin/bookmark-button";
 import { Pager } from "@/components/admin/pager";
 import { rate } from "@/components/admin/stat-card";
@@ -47,7 +48,7 @@ export function ActivityView({ query }: { query: Record<string, string | string[
         </select>
         <select name="set" defaultValue={q.set ?? ""} className={field} aria-label={t.explore.set}>
           <option value="">{t.explore.allSets}</option>
-          {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{SET_LABELS[n]}</option>)}
+          {ACTIVE_SETS.map((n) => <option key={n} value={n}>{SET_LABELS[n]}</option>)}
         </select>
         <select name="provider" defaultValue={q.provider ?? ""} className={field} aria-label={t.explore.provider}>
           <option value="">{t.explore.allProviders}</option>
