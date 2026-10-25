@@ -6,6 +6,7 @@ import { getSession, requireAdmin } from "@/lib/auth";
 import { parseDomainCsv } from "@/lib/csv";
 import { normalizeFilters } from "@/lib/filters";
 import { closeRound, createRound, getRound, countMatching, deriveRound } from "@/lib/rounds";
+import { t } from "@/lib/copy/fa";
 
 function optionalNumberInput(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
@@ -37,7 +38,7 @@ export async function createRoundAction(formData: FormData) {
   );
 
   if (parsed.error || parsed.rows.length === 0) {
-    redirect(`/admin/rounds/new?mode=csv&error=parse&message=${encodeURIComponent(parsed.error ?? "دامنه‌ای پیدا نشد.")}`);
+    redirect(`/admin/rounds/new?mode=csv&error=parse&message=${encodeURIComponent(parsed.error ?? t.newRound.err.parse)}`);
   }
 
   const id = createRound({
@@ -77,8 +78,8 @@ export async function countMatchesAction(
   },
 ) {
   const session = await getSession();
-  if (!session || session.role !== "admin") return { count: 0, error: "برای پیش‌نمایش با حساب مدیر وارد شوید." };
-  if (!getRound(roundId)) return { count: 0, error: "این دور دیگر وجود ندارد." };
+  if (!session || session.role !== "admin") return { count: 0, error: t.newRound.err.preview };
+  if (!getRound(roundId)) return { count: 0, error: t.newRound.err.gone };
   const { filters, error } = normalizeFilters(input);
   if (error) return { count: 0, error };
   return { count: countMatching(roundId, filters) };
@@ -93,7 +94,7 @@ export async function deriveRoundAction(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const back = `/admin/rounds/${roundId}?tab=next`;
   if (!title || title.length > 80) {
-    redirect(`${back}&error=${encodeURIComponent("برای دور بعد عنوانی تا ۸۰ نویسه بگذارید.")}`);
+    redirect(`${back}&error=${encodeURIComponent(t.newRound.err.nextTitle)}`);
   }
 
   const { filters, error } = normalizeFilters({
@@ -107,7 +108,7 @@ export async function deriveRoundAction(formData: FormData) {
   if (error) redirect(`${back}&error=${encodeURIComponent(error)}`);
 
   if (countMatching(roundId, filters) === 0) {
-    redirect(`${back}&error=${encodeURIComponent("هیچ دامنه‌ای با این فیلترها جور نیست.")}`);
+    redirect(`${back}&error=${encodeURIComponent(t.newRound.err.noMatch)}`);
   }
   const { id } = deriveRound({ title, parentRoundId: roundId, filters });
 

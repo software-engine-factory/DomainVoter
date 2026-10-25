@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
 import { countPoolAction, createPoolRoundAction } from "@/lib/actions/pool";
+import { t } from "@/lib/copy/fa";
 
 type Facet = { value: string | null; count: number };
 const NONE = "__none__";
@@ -77,7 +78,7 @@ export function PoolRoundForm({
   if (total === 0) {
     return (
       <div className="mt-8">
-        <Alert>استخر هنوز خالی است. اول از صفحهٔ «استخر فروشی» فایل را همگام‌سازی کنید.</Alert>
+        <Alert>{t.newRound.poolEmpty}</Alert>
       </div>
     );
   }
@@ -86,16 +87,16 @@ export function PoolRoundForm({
     <form ref={form} action={createPoolRoundAction} onChange={refresh} className="mt-8 grid gap-5">
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <label className="grid gap-1.5 text-sm font-semibold">
-        عنوان دور
-        <input name="title" required maxLength={80} className={fieldClass} placeholder="مثلاً: فروشی‌های Afternic زیر ۵ هزار دلار" />
+        {t.newRound.roundTitle}
+        <input name="title" required maxLength={80} className={fieldClass} placeholder={t.newRound.poolPlaceholder} />
       </label>
       <div className="grid gap-4 md:grid-cols-2">
-        <Checks name="classes" facets={classes} label="کلاس NS (dns_ns_class)" />
-        <Checks name="providers" facets={providers} label="پارکینگ (dns_parking_provider)" />
+        <Checks name="classes" facets={classes} label={t.pool.facetClass} />
+        <Checks name="providers" facets={providers} label={t.pool.facetProvider} />
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <fieldset className="rounded-xl border border-line p-3">
-          <legend className="px-1 text-sm font-semibold">مجموعه‌ها</legend>
+          <legend className="px-1 text-sm font-semibold">{t.pool.sets}</legend>
           <div className="grid gap-1 text-sm">
             {setCounts.map((s) => (
               <label key={s.n} className="flex items-center justify-between gap-3">
@@ -107,42 +108,42 @@ export function PoolRoundForm({
               </label>
             ))}
             <label className="mt-2 flex items-center gap-2">
-              حالت:
+              {t.newRound.mode}
               <select name="setMode" className="h-8 rounded-md border border-line bg-paper px-2">
-                <option value="any">هر کدام</option>
-                <option value="all">همه</option>
+                <option value="any">{t.newRound.modeAny}</option>
+                <option value="all">{t.common.all}</option>
               </select>
             </label>
           </div>
         </fieldset>
         <fieldset className="grid gap-3 rounded-xl border border-line p-3 text-sm">
-          <legend className="px-1 font-semibold">شاهد و قیمت</legend>
+          <legend className="px-1 font-semibold">{t.newRound.evidencePrice}</legend>
           <label className="flex items-center gap-2">
-            شاهد:
+            {t.newRound.evidence}
             <select name="evidence" className="h-8 rounded-md border border-line bg-paper px-2">
-              <option value="any">همه</option>
-              <option value="sale_page">صفحهٔ فروش</option>
-              <option value="nameserver">نیم‌سرور</option>
+              <option value="any">{t.common.all}</option>
+              <option value="sale_page">{t.common.salePage}</option>
+              <option value="nameserver">{t.common.nameserver}</option>
             </select>
           </label>
           <div className="flex flex-wrap items-center gap-2">
-            قیمت دلاری از
+            {t.newRound.usdFrom}
             <input name="minUsd" inputMode="decimal" dir="ltr" className="h-8 w-24 rounded-md border border-line bg-paper px-2" />
-            تا
+            {t.newRound.usdTo}
             <input name="maxUsd" inputMode="decimal" dir="ltr" className="h-8 w-24 rounded-md border border-line bg-paper px-2" />
           </div>
           <label className="flex items-center gap-2">
             <input type="checkbox" name="includeUnpriced" value="1" defaultChecked />
-            نام‌های بی‌قیمت یا غیردلاری هم بیایند
+            {t.newRound.includeUnpriced}
           </label>
           <label className="flex items-center gap-2">
-            ترتیب نمایش به رأی‌دهنده:
+            {t.newRound.order}
             <select name="order" className="h-8 rounded-md border border-line bg-paper px-2">
-              <option value="provider">گروه‌بندی با کلاس NS و پارکینگ</option>
-              <option value="name">الفبایی</option>
-              <option value="random">تصادفی</option>
-              <option value="price_asc">ارزان‌ترین (USD)</option>
-              <option value="price_desc">گران‌ترین (USD)</option>
+              <option value="provider">{t.newRound.orderProvider}</option>
+              <option value="name">{t.newRound.orderName}</option>
+              <option value="random">{t.newRound.orderRandom}</option>
+              <option value="price_asc">{t.newRound.orderCheap}</option>
+              <option value="price_desc">{t.newRound.orderExpensive}</option>
             </select>
           </label>
         </fieldset>
@@ -153,16 +154,16 @@ export function PoolRoundForm({
             <span className="text-red-700">{countError}</span>
           ) : (
             <>
-              <span className="font-display text-2xl tabular-nums">{count.toLocaleString("fa-IR")}</span> نام از{" "}
-              {total.toLocaleString("fa-IR")} وارد این دور می‌شود{pending ? " …" : ""}
+              <span className="font-display text-2xl tabular-nums">{count.toLocaleString("fa-IR")}</span> {t.newRound.countMid}{" "}
+              {total.toLocaleString("fa-IR")} {t.newRound.countEnd}{pending ? " …" : ""}
             </>
           )}
         </p>
         <button className={buttonClass()} disabled={!!countError || count === 0}>
-          باز کردن دور
+          {t.newRound.openVoting}
         </button>
       </div>
-      <p className="text-xs text-muted">رأی‌دهندگان فقط نام دامنه را می‌بینند؛ قیمت، بازار و پارکینگ تنها در صفحه‌های مدیر نمایش داده می‌شود.</p>
+      <p className="text-xs text-muted">{t.newRound.privacyNote}</p>
     </form>
   );
 }

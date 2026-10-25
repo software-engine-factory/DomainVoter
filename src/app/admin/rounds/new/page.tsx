@@ -4,13 +4,14 @@ import { one } from "@/lib/format";
 import { poolFacets, SET_LABELS } from "@/lib/pool";
 import { PoolRoundForm } from "./pool-form";
 import { UploadForm } from "./upload-form";
+import { t } from "@/lib/copy/fa";
 
-export const metadata: Metadata = { title: "ساخت دور" };
+export const metadata: Metadata = { title: t.admin.createRound };
 
 const errors: Record<string, string> = {
-  title: "برای دور عنوانی تا ۸۰ نویسه بگذارید.",
-  file: "یک فایل CSV انتخاب کنید.",
-  size: "این فایل بزرگ‌تر از ۲۰ مگابایت است.",
+  title: t.newRound.err.title,
+  file: t.newRound.err.file,
+  size: t.newRound.err.size,
 };
 
 export default async function NewRoundPage({
@@ -20,7 +21,7 @@ export default async function NewRoundPage({
 }) {
   const query = await searchParams;
   const code = one(query.error);
-  const error = code === "parse" ? one(query.message) || "این فایل خوانده نشد." : errors[code ?? ""];
+  const error = code === "parse" ? one(query.message) || t.newRound.err.unreadable : errors[code ?? ""];
 
   const mode = one(query.mode) === "csv" ? "csv" : "pool";
   const facets = mode === "pool" ? poolFacets() : null;
@@ -35,10 +36,10 @@ export default async function NewRoundPage({
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
-      <h1 className="font-display text-4xl">ساخت دور رأی‌گیری</h1>
+      <h1 className="font-display text-4xl">{t.newRound.title}</h1>
       <div className="mt-6 flex gap-1 border-b border-line">
-        {tab("pool", "از استخر فروشی")}
-        {tab("csv", "بارگذاری CSV (قدیمی)")}
+        {tab("pool", t.newRound.tabPool)}
+        {tab("csv", t.newRound.tabCsv)}
       </div>
       {facets ? (
         <PoolRoundForm
@@ -51,8 +52,8 @@ export default async function NewRoundPage({
       ) : (
         <>
           <p className="mt-6 max-w-xl text-muted">
-            یک فایل بارگذاری کنید، ستون دامنه، قیمت و پریمیوم را مشخص کنید و دور را باز کنید. نام‌های خالی رد می‌شوند.
-            اگر دامنه‌ای تکرار شده باشد، ردیف اول نگه داشته می‌شود.
+            {t.newRound.csvLead1}
+            {t.newRound.csvLead2}
           </p>
           <UploadForm error={error} />
         </>

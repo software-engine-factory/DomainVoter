@@ -3,6 +3,7 @@ import { El_Messiri, JetBrains_Mono, Vazirmatn } from "next/font/google";
 import { Header } from "@/components/header";
 import { getSession } from "@/lib/auth";
 import "./globals.css";
+import { t } from "@/lib/copy/fa";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -26,10 +27,10 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "رأی دامنه",
-    template: "%s · رأی دامنه",
+    default: t.app.name,
+    template: t.app.titleTemplate,
   },
-  description: "به دامنه‌ها، دور به دور، رأی بدهید.",
+  description: t.app.description,
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

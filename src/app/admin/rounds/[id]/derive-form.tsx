@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { countMatchesAction, deriveRoundAction } from "@/lib/actions/rounds";
 import { Alert, Field, buttonClass, fieldClass } from "@/components/ui";
+import { t } from "@/lib/copy/fa";
 
 export function DeriveForm({ roundId, defaultTitle, serverError }: { roundId: number; defaultTitle: string; serverError?: string }) {
   const [title, setTitle] = useState(defaultTitle);
@@ -26,7 +27,7 @@ export function DeriveForm({ roundId, defaultTitle, serverError }: { roundId: nu
         })
         .catch(() => {
           if (!active) return;
-          setError("شمار تطابق‌ها به‌روز نشد.");
+          setError(t.derive.err.count);
         });
     }, 250);
     return () => {
@@ -40,44 +41,44 @@ export function DeriveForm({ roundId, defaultTitle, serverError }: { roundId: nu
   return (
     <form action={deriveRoundAction} className="grid max-w-xl gap-5">
       <input type="hidden" name="roundId" value={roundId} />
-      <Field label="عنوان دور بعد">
+      <Field label={t.derive.nextTitle}>
         <input name="title" value={title} maxLength={80} required onChange={(event) => setTitle(event.target.value)} className={fieldClass} />
       </Field>
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="حداقل رأی" hint="برای بدون حداقل، خالی بگذارید.">
+        <Field label={t.derive.minVotes} hint={t.derive.blankNoLimit}>
           <input name="minVotes" dir="ltr" inputMode="numeric" value={minVotes} onChange={(event) => setMinVotes(event.target.value)} className={fieldClass} />
         </Field>
-        <Field label="حداکثر رأی" hint="برای بدون حداکثر، خالی بگذارید.">
+        <Field label={t.derive.maxVotes} hint={t.derive.blankNoLimit}>
           <input name="maxVotes" dir="ltr" inputMode="numeric" value={maxVotes} onChange={(event) => setMaxVotes(event.target.value)} className={fieldClass} />
         </Field>
-        <Field label="حداقل قیمت">
+        <Field label={t.derive.minPrice}>
           <input name="minPrice" dir="ltr" inputMode="decimal" value={minPrice} onChange={(event) => setMinPrice(event.target.value)} className={fieldClass} />
         </Field>
-        <Field label="حداکثر قیمت">
+        <Field label={t.derive.maxPrice}>
           <input name="maxPrice" dir="ltr" inputMode="decimal" value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)} className={fieldClass} />
         </Field>
       </div>
-      <Field label="پریمیوم">
+      <Field label={t.common.premium}>
         <select name="premium" value={premium} onChange={(event) => setPremium(event.target.value)} className={fieldClass}>
-          <option value="any">هر دامنه</option>
-          <option value="premium">فقط پریمیوم</option>
-          <option value="standard">فقط معمولی</option>
+          <option value="any">{t.derive.anyDomain}</option>
+          <option value="premium">{t.derive.onlyPremium}</option>
+          <option value="standard">{t.derive.onlyStandard}</option>
         </select>
       </Field>
-      <Field label="ترتیب در دور جدید">
+      <Field label={t.derive.order}>
         <select name="sort" value={sort} onChange={(event) => setSort(event.target.value)} className={fieldClass}>
-          <option value="original">ترتیب اصلی</option>
-          <option value="votes">بیشترین رأی اول</option>
+          <option value="original">{t.derive.orderOriginal}</option>
+          <option value="votes">{t.derive.orderVotes}</option>
         </select>
       </Field>
       {serverError && serverError !== error ? <Alert tone="danger">{serverError}</Alert> : null}
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <p className="text-sm text-muted">
-        {count == null ? "در حال شمارش…" : `${count} دامنه جور است. دور جدید با صفر رأی و صفر بازدید شروع می‌شود.`}
+        {count == null ? t.derive.counting : t.derive.matches(count)}
       </p>
       <div>
         <button className={buttonClass()} disabled={blocked}>
-          ساخت دور بعد
+          {t.derive.submit}
         </button>
       </div>
     </form>

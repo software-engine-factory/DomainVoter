@@ -1,4 +1,5 @@
 import { getSqlite } from "@/db";
+import { t } from "@/lib/copy/fa";
 
 export type PoolFilters = {
   classes: string[];
@@ -54,7 +55,7 @@ export function normalizePoolFilters(input: Record<string, unknown>): { filters:
       : "provider",
   };
   if (filters.minUsd != null && filters.maxUsd != null && filters.minUsd > filters.maxUsd) {
-    return { filters, error: "حداقل قیمت نمی‌تواند از حداکثر بیشتر باشد." };
+    return { filters, error: t.pool.err.priceRange };
   }
   return { filters };
 }

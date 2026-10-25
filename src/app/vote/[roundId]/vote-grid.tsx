@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toggleVote } from "@/lib/actions/votes";
+import { t } from "@/lib/copy/fa";
 
 type Card = {
   id: number;
@@ -73,7 +74,7 @@ export function VoteGrid({
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-2 flex shrink-0 items-baseline justify-between gap-3 text-sm">
         <p className="text-muted">
-          به <span className="font-semibold tabular-nums text-ink">{count}</span> دامنه در این دور رأی داده‌اید.
+          {t.vote.votedPrefix} <span className="font-semibold tabular-nums text-ink">{count}</span> {t.vote.votedSuffix}
         </p>
         {error ? (
           <p role="alert" className="text-danger">
@@ -127,7 +128,7 @@ export function VoteGrid({
                         strokeLinejoin="round"
                       />
                     </svg>
-                    {selected ? "رأی داده شد" : "رأی"}
+                    {selected ? t.vote.voted : t.vote.vote}
                   </span>
                 </span>
               </button>

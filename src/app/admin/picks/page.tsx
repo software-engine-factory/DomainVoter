@@ -3,8 +3,9 @@ import { buttonClass } from "@/components/ui";
 import { togglePickAction, updatePickNoteAction } from "@/lib/actions/picks";
 import { formatMoney } from "@/lib/format";
 import { listPicks, topVotedNames } from "@/lib/rounds";
+import { t } from "@/lib/copy/fa";
 
-export const metadata: Metadata = { title: "منتخب‌ها" };
+export const metadata: Metadata = { title: t.nav.picks };
 
 function NameLink({ name, url }: { name: string; url: string | null }) {
   const href = url ?? `https://${name}`;
@@ -21,23 +22,23 @@ export default async function PicksPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-      <h1 className="font-display text-4xl">فهرست منتخب</h1>
+      <h1 className="font-display text-4xl">{t.picks.title}</h1>
       <p className="mt-2 max-w-2xl text-sm text-muted">
-        نام‌هایی که مدیر برگزیده، با لینک صفحهٔ فروش. شمار آرا روی همهٔ دورها و همهٔ رأی‌دهندگان جمع زده شده است.
+        {t.picks.lead}
       </p>
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-line">
         <table className="w-full min-w-[900px] border-collapse text-sm">
           <thead className="bg-card text-muted">
             <tr>
-              <th className="px-3 py-3 text-start font-medium">دامنه</th>
-              <th className="px-3 py-3 text-end font-medium">قیمت</th>
-              <th className="px-3 py-3 text-start font-medium">بازار</th>
-              <th className="px-3 py-3 text-start font-medium">پارکینگ / NS</th>
-              <th className="px-3 py-3 text-end font-medium">آرا</th>
-              <th className="px-3 py-3 text-end font-medium">رأی‌دهندگان</th>
-              <th className="px-3 py-3 text-end font-medium">دورها</th>
-              <th className="px-3 py-3 text-start font-medium">یادداشت</th>
+              <th className="px-3 py-3 text-start font-medium">{t.common.domain}</th>
+              <th className="px-3 py-3 text-end font-medium">{t.common.price}</th>
+              <th className="px-3 py-3 text-start font-medium">{t.common.marketplace}</th>
+              <th className="px-3 py-3 text-start font-medium">{t.common.providerNs}</th>
+              <th className="px-3 py-3 text-end font-medium">{t.common.votes}</th>
+              <th className="px-3 py-3 text-end font-medium">{t.common.voters}</th>
+              <th className="px-3 py-3 text-end font-medium">{t.common.rounds}</th>
+              <th className="px-3 py-3 text-start font-medium">{t.common.note}</th>
               <th className="px-3 py-3" />
             </tr>
           </thead>
@@ -45,7 +46,7 @@ export default async function PicksPage() {
             {picks.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-3 py-10 text-center text-muted">
-                  هنوز منتخبی نیست. در نتایج هر دور روی ★ بزنید.
+                  {t.picks.empty}
                 </td>
               </tr>
             ) : null}
@@ -64,13 +65,13 @@ export default async function PicksPage() {
                   <form action={updatePickNoteAction} className="flex gap-2">
                     <input type="hidden" name="name" value={pick.name} />
                     <input name="note" defaultValue={pick.note ?? ""} className="h-8 w-40 rounded-md border border-line bg-paper px-2" />
-                    <button className={buttonClass("ghost", "sm")}>ذخیره</button>
+                    <button className={buttonClass("ghost", "sm")}>{t.common.save}</button>
                   </form>
                 </td>
                 <td className="px-3 py-2.5">
                   <form action={togglePickAction}>
                     <input type="hidden" name="name" value={pick.name} />
-                    <button className={buttonClass("ghost", "sm")}>حذف</button>
+                    <button className={buttonClass("ghost", "sm")}>{t.common.remove}</button>
                   </form>
                 </td>
               </tr>
@@ -79,18 +80,18 @@ export default async function PicksPage() {
         </table>
       </div>
 
-      <h2 className="mt-10 font-display text-2xl">پررأی‌ترین‌ها در همهٔ دورها</h2>
+      <h2 className="mt-10 font-display text-2xl">{t.picks.topTitle}</h2>
       <div className="mt-3 overflow-x-auto rounded-xl border border-line">
         <table className="w-full min-w-[720px] border-collapse text-sm">
           <thead className="bg-card text-muted">
             <tr>
-              <th className="px-3 py-3 text-start font-medium">دامنه</th>
-              <th className="px-3 py-3 text-end font-medium">قیمت</th>
-              <th className="px-3 py-3 text-start font-medium">پارکینگ</th>
-              <th className="px-3 py-3 text-end font-medium">آرا</th>
-              <th className="px-3 py-3 text-end font-medium">رأی‌دهندگان</th>
-              <th className="px-3 py-3 text-end font-medium">دورها</th>
-              <th className="px-3 py-3 text-center font-medium">منتخب</th>
+              <th className="px-3 py-3 text-start font-medium">{t.common.domain}</th>
+              <th className="px-3 py-3 text-end font-medium">{t.common.price}</th>
+              <th className="px-3 py-3 text-start font-medium">{t.common.provider}</th>
+              <th className="px-3 py-3 text-end font-medium">{t.common.votes}</th>
+              <th className="px-3 py-3 text-end font-medium">{t.common.voters}</th>
+              <th className="px-3 py-3 text-end font-medium">{t.common.rounds}</th>
+              <th className="px-3 py-3 text-center font-medium">{t.common.picked}</th>
             </tr>
           </thead>
           <tbody>
