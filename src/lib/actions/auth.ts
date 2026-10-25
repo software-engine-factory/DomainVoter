@@ -50,7 +50,6 @@ export async function loginAction(formData: FormData) {
   }
 
   await setSession({ userId: user.id, username: user.username, role: user.role });
-  if (user.role === "admin") redirect("/admin");
   redirect("/vote");
 }
 

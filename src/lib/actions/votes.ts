@@ -9,7 +9,7 @@ import { t } from "@/lib/copy/fa";
 
 export async function toggleVote(domainId: number): Promise<{ voted: boolean; count: number } | { error: string }> {
   const session = await getSession();
-  if (!session || session.role !== "voter") return { error: t.vote.err.login };
+  if (!session) return { error: t.vote.err.login };
   if (!Number.isInteger(domainId)) return { error: t.vote.err.notInRound };
 
   const domain = getDb().select().from(domains).where(eq(domains.id, domainId)).get();
@@ -53,7 +53,7 @@ export async function toggleVote(domainId: number): Promise<{ voted: boolean; co
 
 export async function recordViews(roundId: number, domainIds: number[]) {
   const session = await getSession();
-  if (!session || session.role !== "voter") return;
+  if (!session) return;
   if (!Number.isInteger(roundId)) return;
 
   const round = getDb().select().from(rounds).where(eq(rounds.id, roundId)).get();

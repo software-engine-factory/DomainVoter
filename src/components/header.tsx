@@ -21,29 +21,25 @@ export function Header({ session, theme }: { session: SessionUser | null; theme:
           <span className="h-2.5 w-2.5 rounded-sm bg-accent transition-transform duration-300 group-hover:rotate-45" aria-hidden />
           {t.app.name}
         </Link>
-        <div className="flex shrink-0 items-center gap-1.5 sm:order-last">
+        <div className="flex shrink-0 items-center gap-1 sm:order-last sm:gap-1.5">
           <ThemePicker initial={theme} />
+          {session?.role === "admin" ? (
+            <Link href="/admin" className={`${buttonClass("secondary", "sm")} h-8 whitespace-nowrap px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm`}>
+              {t.nav.adminPanel}
+            </Link>
+          ) : null}
           {session ? (
             <form action={logoutAction} className="flex items-center gap-2">
               <span dir="ltr" className="hidden text-sm text-muted md:inline">
                 {session.username}
               </span>
-              <button className={buttonClass("ghost", "sm")}>{t.nav.logout}</button>
+              <button className={`${buttonClass("ghost", "sm")} px-2 sm:px-3`}>{t.nav.logout}</button>
             </form>
           ) : null}
         </div>
         <div className="order-last -mx-4 flex w-[calc(100%+2rem)] items-center gap-x-3 overflow-x-auto px-4 pb-1 text-sm [scrollbar-width:none] sm:order-none sm:mx-0 sm:me-auto sm:w-auto sm:overflow-visible sm:px-0 sm:pb-0">
           <nav className="flex shrink-0 items-center gap-1 sm:gap-3" aria-label={t.nav.main}>
-            {session?.role === "admin" ? (
-              <>
-                <NavLink href="/admin" exact>
-                  {t.nav.rounds}
-                </NavLink>
-                <NavLink href="/admin/rounds/new">{t.nav.newRound}</NavLink>
-                <NavLink href="/admin/pool">{t.nav.pool}</NavLink>
-                <NavLink href="/admin/picks">{t.nav.picks}</NavLink>
-              </>
-            ) : session ? (
+            {session ? (
               <NavLink href="/vote" exact>
                 {t.nav.rounds}
               </NavLink>

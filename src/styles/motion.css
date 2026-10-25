@@ -96,3 +96,14 @@ main details[open] > :not(summary) { animation: pop-in var(--dur) var(--ease-out
   }
   .vote-tile:hover, .vote-tile:active, .press:active, main button:active, main a:active { transform: none; }
 }
+
+/* Admin guided tour */
+.tour-spot {
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.55);
+  transition: top var(--dur) var(--ease-out), left var(--dur) var(--ease-out), width var(--dur) var(--ease-out), height var(--dur) var(--ease-out);
+}
+.tour-dim { background: rgb(0 0 0 / 0.55); }
+.tour-card { animation: pop-in var(--dur) var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  .tour-spot { transition: none; }
+}
