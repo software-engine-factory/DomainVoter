@@ -59,6 +59,14 @@ export function normalizeName(value: unknown) {
 }
 
 /** Turns a raw row into bind parameters, or null when the row has no usable name. */
+/** set_1..set_5 may arrive with a label suffix (set_1_loose, set_2_persian, …); read either form. */
+function setFlag(row: Raw, n: number) {
+  const exact = row[`set_${n}`];
+  if (exact !== undefined) return flag(exact);
+  const key = Object.keys(row).find((k) => k.toLowerCase().startsWith(`set_${n}_`));
+  return flag(key ? row[key] : undefined);
+}
+
 export function normalizeRow(row: Raw, now: number) {
   const name = normalizeName(row.name);
   if (!name) return null;
@@ -69,11 +77,11 @@ export function normalizeRow(row: Raw, now: number) {
   const lpUrl = text(row.lp_url);
   return {
     name,
-    set_1: flag(row.set_1),
-    set_2: flag(row.set_2),
-    set_3: flag(row.set_3),
-    set_4: flag(row.set_4),
-    set_5: flag(row.set_5),
+    set_1: setFlag(row, 1),
+    set_2: setFlag(row, 2),
+    set_3: setFlag(row, 3),
+    set_4: setFlag(row, 4),
+    set_5: setFlag(row, 5),
     evidence: evidence === "sale_page" || evidence === "nameserver" ? evidence : null,
     dns_ns_class: text(row.dns_ns_class)?.toLowerCase() ?? null,
     dns_parking_provider: text(row.dns_parking_provider)?.toLowerCase() ?? null,
@@ -212,17 +220,27 @@ export function importSqliteFile(file: string, source: string): ImportResult {
         tables.find((t) => t.name === "names") ??
         (tables.length === 1 ? tables[0] : undefined);
       if (!table) throw new Error(`جدول خروجی پیدا نشد (${tables.map((t) => t.name).join(", ") || "خالی"}).`);
-      const present = new Set(
-        (sqlite.prepare(`PRAGMA src.table_info("${table.name.replaceAll('"', '""')}")`).all() as Array<{ name: string }>).map(
-          (c) => c.name.toLowerCase(),
-        ),
+      const present = (sqlite.prepare(`PRAGMA src.table_info("${table.name.replaceAll('"', '""')}")`).all() as Array<{ name: string }>).map(
+        (c) => c.name,
       );
-      if (!present.has("name")) throw new Error("ستون name در جدول نیست.");
-      const columns = POOL_COLUMNS.filter((c) => present.has(c));
-      const select = sqlite.prepare(
-        `SELECT ${columns.map((c) => `"${c}"`).join(", ")} FROM src."${table.name.replaceAll('"', '""')}"`,
-      );
-      for (const row of select.iterate() as Iterable<Raw>) writer.push(row);
+      const find = (c: string) =>
+        present.find((p) => p.toLowerCase() === c) ??
+        (/^set_\d$/.test(c) ? present.find((p) => p.toLowerCase().startsWith(`${c}_`)) : undefined);
+      if (!find("name")) throw new Error("ستون name در جدول نیست.");
+      const columns = POOL_COLUMNS.flatMap((c) => {
+        const col = find(c);
+        return col ? [`"${col.replaceAll('"', '""')}" AS "${c}"`] : [];
+      });
+      // Read in rowid pages: the same connection writes the upserts, and SQLite won't write while a SELECT is open.
+      const quoted = table.name.replaceAll('"', '""');
+      const page = sqlite.prepare(`SELECT rowid AS __rid, ${columns.join(", ")} FROM src."${quoted}" WHERE rowid > ? ORDER BY rowid LIMIT ${BATCH}`);
+      let last = 0;
+      for (;;) {
+        const rows = page.all(last) as Array<Raw & { __rid: number }>;
+        if (!rows.length) break;
+        for (const row of rows) writer.push(row);
+        last = rows[rows.length - 1].__rid;
+      }
       writer.flush();
     } finally {
       sqlite.exec("DETACH DATABASE src");
