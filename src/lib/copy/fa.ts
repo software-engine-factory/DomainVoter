@@ -802,6 +802,24 @@ export const t = {
     byLength: "به تفکیک طول",
     all: "همه",
   },
+  /** Gap names appended to existing rounds as a flagged segment. */
+  supp: {
+    title: "تکمیل دورها",
+    badge: (n: number) => `+${n.toLocaleString("fa-IR")}`,
+    badgeTip: (seen: number, n: number) => `${n.toLocaleString("fa-IR")} نام تکمیلی · ${seen.toLocaleString("fa-IR")} دیده‌شده`,
+    tag: "برچسب ورود",
+    round: "دور",
+    core: "اصلی",
+    add: "افزوده",
+    sample: "نمونه",
+    apply: "افزودن به دورها",
+    undo: "برداشتن تکمیلی‌ها",
+    applied: (n: string, r: string) => `${n} نام به ${r} دور افزوده شد`,
+    removed: (n: string) => `${n} نام برداشته شد`,
+    skip: { csv: "دور CSV", derived: "دور مشتق", explore: "دور کاوش", done: "قبلاً افزوده شده", none: "نام جدیدی ندارد" } as Record<string, string>,
+    total: (n: string) => `${n} نام برای افزودن`,
+    noTags: "هنوز ورودی برچسب‌دار نیست",
+  },
   /** Admin-only list of unregistered candidates. */
   free: {
     nav: "نام‌های آزاد",
