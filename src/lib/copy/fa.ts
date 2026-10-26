@@ -802,6 +802,23 @@ export const t = {
     byLength: "به تفکیک طول",
     all: "همه",
   },
+  /** Admin-only list of unregistered candidates. */
+  free: {
+    nav: "نام‌های آزاد",
+    title: "نام‌های آزاد",
+    count: (n: string) => `${n} نام ثبت‌نشده`,
+    adminOnly: "فقط مدیر",
+    adminOnlyTip: "این فهرست به رأی‌دهنده‌ها نشان داده نمی‌شود",
+    inPool: "در فهرست",
+    inPoolTip: "این نام در فهرست دامنه‌ها هم هست (برای فروش)",
+    search: "جست‌وجوی نام…",
+    upload: "بارگذاری CSV",
+    tag: "برچسب",
+    imported: (n: string, s: string) => `${n} نام وارد شد${s !== "۰" ? ` · ${s} رد شد` : ""}`,
+    empty: "نامی پیدا نشد",
+    shape: "الگو",
+    sets: "مجموعه",
+  },
 } as const;
 
 export type Copy = typeof t;

@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/admin", label: t.adminNav.rounds, exact: true, tour: "rounds" },
   { href: "/admin/rounds/new", label: t.nav.newRound, tour: "newRound" },
   { href: "/admin/pool", label: t.nav.pool, tour: "pool" },
+  { href: "/admin/free", label: t.free.nav, tour: "free" },
   { href: "/admin/picks", label: t.nav.picks, tour: "picks" },
   { href: "/admin/stats", label: t.adminNav.stats, tour: "stats" },
   { href: "/admin/users", label: t.adminNav.users, tour: "users" },

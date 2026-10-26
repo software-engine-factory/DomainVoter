@@ -220,6 +220,28 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       CREATE INDEX IF NOT EXISTS pool_len_price_idx ON pool(name_len, price_usd);
     `,
   },
+  {
+    version: 10,
+    name: "free_names: admin-only list of unregistered candidates (never shown to voters)",
+    sql: `
+      CREATE TABLE IF NOT EXISTS free_names (
+        name TEXT PRIMARY KEY,
+        name_len INTEGER GENERATED ALWAYS AS (instr(name || '.', '.') - 1) VIRTUAL,
+        set_1 INTEGER NOT NULL DEFAULT 0,
+        set_2 INTEGER NOT NULL DEFAULT 0,
+        set_3 INTEGER NOT NULL DEFAULT 0,
+        set_4 INTEGER NOT NULL DEFAULT 0,
+        set_5 INTEGER NOT NULL DEFAULT 0,
+        set4_part TEXT,
+        shape TEXT,
+        ord INTEGER,
+        import_tag TEXT,
+        imported_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS free_names_len_ord_idx ON free_names(name_len, ord);
+      CREATE INDEX IF NOT EXISTS free_names_tag_idx ON free_names(import_tag) WHERE import_tag IS NOT NULL;
+    `,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */
