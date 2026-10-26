@@ -799,6 +799,8 @@ export const t = {
     letters: (n: number) => `${n.toLocaleString("fa-IR")} حرفی`,
     mixed: "چند طول",
     roundLength: (n: number) => `نام‌های ${n.toLocaleString("fa-IR")} حرفی`,
+    byLength: "به تفکیک طول",
+    all: "همه",
   },
 } as const;
 
