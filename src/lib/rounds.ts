@@ -680,3 +680,55 @@ function stepRule(nextRule: string | null, filterJson: string | null): FunnelSte
   } catch {}
   return null;
 }
+
+export type VoteSummary = { total: number; users: { username: string; total: number; names: string[] }[]; moreUsers: number };
+
+/** Who voted on what in a round: at most `maxUsers` people, `maxNames` names each. */
+export function roundVoteSummary(roundId: number, maxUsers = 5, maxNames = 3): VoteSummary {
+  const sqlite = getSqlite();
+  const people = sqlite
+    .prepare(
+      `SELECT u.id, u.username, COUNT(*) AS total FROM votes v JOIN users u ON u.id = v.user_id
+       WHERE v.round_id = ? GROUP BY u.id ORDER BY total DESC, u.username`,
+    )
+    .all(roundId) as { id: number; username: string; total: number }[];
+  const namesOf = sqlite.prepare(
+    `SELECT d.name FROM votes v JOIN domains d ON d.id = v.domain_id WHERE v.round_id = ? AND v.user_id = ? ORDER BY v.created_at, d.position LIMIT ?`,
+  );
+  return {
+    total: people.reduce((sum, p) => sum + p.total, 0),
+    users: people.slice(0, maxUsers).map((p) => ({
+      username: p.username,
+      total: p.total,
+      names: (namesOf.all(roundId, p.id, maxNames) as { name: string }[]).map((r) => r.name.replace(/\.com$/i, "")),
+    })),
+    moreUsers: Math.max(0, people.length - maxUsers),
+  };
+}
+
+/** Deletes a round and everything hanging off it in one transaction. */
+export function deleteRound(roundId: number) {
+  const sqlite = getSqlite();
+  return sqlite.transaction(() => {
+    const row = sqlite.prepare("SELECT batch_id AS batchId FROM rounds WHERE id = ?").get(roundId) as { batchId: number | null } | undefined;
+    if (!row) return false;
+    // Other rounds' names may point at this round's names (carried over); keep them, drop the link.
+    sqlite
+      .prepare("UPDATE domains SET source_domain_id = NULL WHERE round_id <> ? AND source_domain_id IN (SELECT id FROM domains WHERE round_id = ?)")
+      .run(roundId, roundId);
+    sqlite.prepare("UPDATE rounds SET parent_round_id = NULL WHERE parent_round_id = ?").run(roundId);
+    sqlite.prepare("DELETE FROM views WHERE round_id = ?").run(roundId);
+    sqlite.prepare("DELETE FROM votes WHERE round_id = ?").run(roundId);
+    sqlite.prepare("DELETE FROM pick_provenance WHERE round_id = ?").run(roundId);
+    sqlite.prepare("DELETE FROM domains WHERE round_id = ?").run(roundId);
+    sqlite.prepare("DELETE FROM rounds WHERE id = ?").run(roundId); // round_assignees cascade
+    if (row.batchId != null) {
+      const left = (sqlite.prepare("SELECT COUNT(*) AS n FROM rounds WHERE batch_id = ?").get(row.batchId) as { n: number }).n;
+      if (left === 0) {
+        sqlite.prepare("DELETE FROM round_batch_items WHERE batch_id = ?").run(row.batchId);
+        sqlite.prepare("DELETE FROM round_batches WHERE id = ?").run(row.batchId); // batch assignees cascade
+      }
+    }
+    return true;
+  })();
+}

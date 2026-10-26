@@ -6,7 +6,7 @@ import { getSession, requireAdmin } from "@/lib/auth";
 import { parseDomainCsv } from "@/lib/csv";
 import { normalizeFilters } from "@/lib/filters";
 import { parseAssigneeIds, setRoundAssignees } from "@/lib/assignees";
-import { closeRound, countNext, createNextRound, createRound, getRound, countMatching, deriveRound, renameRound } from "@/lib/rounds";
+import { closeRound, countNext, createNextRound, createRound, getRound, countMatching, deriveRound, renameRound, deleteRound, roundVoteSummary } from "@/lib/rounds";
 import { t } from "@/lib/copy/fa";
 
 function optionalNumberInput(value: FormDataEntryValue | null) {
@@ -171,4 +171,19 @@ export async function nextRoundAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/vote", "layout");
   redirect(`/admin/rounds/${id}?derived=1`);
+}
+
+export async function roundVoteSummaryAction(roundId: number) {
+  await requireAdmin();
+  return roundVoteSummary(roundId);
+}
+
+export async function deleteRoundAction(roundId: number) {
+  await requireAdmin();
+  const id = Math.floor(Number(roundId));
+  if (!Number.isFinite(id) || !deleteRound(id)) return { ok: false as const, error: t.newRound.err.gone };
+  revalidatePath("/admin", "layout");
+  revalidatePath("/vote", "layout");
+  revalidatePath("/");
+  return { ok: true as const };
 }

@@ -750,6 +750,17 @@ export const t = {
     violet: "بنفش شیشه‌ای",
     emerald: "زمرد و طلا",
   },
+  del: {
+    action: "حذف دور",
+    title: "حذف",
+    plain: "این دور و همهٔ نام‌هایش حذف می‌شود.",
+    withVotes: (n: number) => `${n.toLocaleString("fa-IR")} رأی هم با آن پاک می‌شود:`,
+    moreNames: (n: number) => `+${n.toLocaleString("fa-IR")}`,
+    moreUsers: (n: number) => `+${n.toLocaleString("fa-IR")} نفر دیگر`,
+    confirm: "حذف",
+    cancel: "انصراف",
+    failed: "حذف نشد. دوباره امتحان کنید.",
+  },
   w4: {
     steps: ["نام‌ها", "ترتیب", "اسم و دسترسی"],
     stepOf: (i: number, n: number) => `مرحله ${i} از ${n}`,
