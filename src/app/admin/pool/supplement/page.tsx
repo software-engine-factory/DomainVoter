@@ -16,7 +16,9 @@ export default async function SupplementPage({ searchParams }: { searchParams: P
   const query = await searchParams;
   const tags = importTags();
   const tag = one(query.tag) || tags[0]?.tag || "";
-  const plan = tag ? planSupplement(tag) : [];
+  const match = one(query.match) === "length" ? "length" : "filters";
+  const plan = tag ? planSupplement(tag, match) : [];
+  const outside = plan.reduce((a, p) => a + p.outside, 0);
   const adding = plan.reduce((a, p) => a + p.add.length, 0);
   const appended = plan.reduce((a, p) => a + p.existing, 0);
   const applied = one(query.applied);
@@ -43,6 +45,21 @@ export default async function SupplementPage({ searchParams }: { searchParams: P
         )}
       </div>
 
+      {tag ? (
+        <div className="mt-3 inline-flex rounded-full border border-line bg-card p-0.5 text-xs font-semibold" data-testid="supp-match">
+          {(["filters", "length"] as const).map((m) => (
+            <Link
+              key={m}
+              href={withParams("/admin/pool/supplement", { tag, match: m === "length" ? "length" : undefined })}
+              title={t.supp.matchTip[m]}
+              className={`press rounded-full px-3 py-1.5 transition-colors ${match === m ? "bg-accent text-white shadow-sm" : "text-muted"}`}
+            >
+              {t.supp.match[m]}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
       <div className="mt-3 grid gap-2 empty:hidden">
         {applied ? <Alert tone="success">{t.supp.applied(fa(Number(applied)), fa(Number(one(query.rounds) ?? 0)))}</Alert> : null}
         {removed ? <Alert tone="success">{t.supp.removed(fa(Number(removed)))}</Alert> : null}
@@ -51,7 +68,14 @@ export default async function SupplementPage({ searchParams }: { searchParams: P
       {tag ? (
         <>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <p className="font-display text-2xl tabular-nums" data-testid="supp-total">{t.supp.total(fa(adding))}</p>
+            <p className="flex items-center gap-2 font-display text-2xl tabular-nums" data-testid="supp-total">
+              {t.supp.total(fa(adding))}
+              {outside ? (
+                <span title={t.supp.outsideTip} className="rounded-full bg-gold-soft px-2 py-0.5 font-sans text-xs font-semibold text-gold">
+                  {t.supp.outside(fa(outside))}
+                </span>
+              ) : null}
+            </p>
             <div className="flex gap-2">
               {appended ? (
                 <form action={removeSupplementAction}>
@@ -61,6 +85,7 @@ export default async function SupplementPage({ searchParams }: { searchParams: P
               ) : null}
               <form action={applySupplementAction}>
                 <input type="hidden" name="tag" value={tag} />
+                <input type="hidden" name="match" value={match} />
                 <button className={buttonClass("primary", "sm")} disabled={!adding}>{t.supp.apply}</button>
               </form>
             </div>

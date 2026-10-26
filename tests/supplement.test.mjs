@@ -42,3 +42,18 @@ test("option (b): gap names appended to existing round, core untouched, idempote
   assert.equal(supp.removeSupplement(TAG), 2, "seen supplement row is kept");
   assert.ok(supp.importTags().some((t) => t.tag === TAG && t.lmin === 4 && t.lmax === 5));
 });
+
+test("gap names outside the round's set filter: skipped as 'filter' unless match = length", () => {
+  const ins = db.prepare("INSERT INTO pool (name, price_usd, set_1, set_4, import_tag, imported_at) VALUES (?, NULL, ?, ?, ?, 1)");
+  for (const n of ["wqaa", "wqab"]) ins.run(`${n}.com`, 1, 0, null);
+  const f = pool.normalizePoolFilters({ length: "4", sets: ["1"], q: "wq" }).filters;
+  const { id } = createRoundFromPool("supp-sets", f, null);
+  for (const n of ["wqba", "wqbb", "wqbc"]) ins.run(`${n}.com`, 0, 1, "gap-set4");
+  const strict = supp.planSupplement("gap-set4").find((p) => p.roundId === id);
+  assert.equal(strict.add.length, 0);
+  assert.equal(strict.skip, "filter");
+  assert.equal(strict.outside, 3);
+  const loose = supp.planSupplement("gap-set4", "length").find((p) => p.roundId === id);
+  assert.equal(loose.add.length, 3);
+  assert.equal(supp.applySupplement("gap-set4", null, [id], "length").names, 3);
+});

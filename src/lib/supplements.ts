@@ -20,7 +20,9 @@ export type SupplementPlanRow = {
   core: number;
   existing: number; // already appended for this tag
   add: string[];
-  skip?: "csv" | "explore" | "derived" | "done" | "none";
+  skip?: "csv" | "explore" | "derived" | "done" | "filter" | "none";
+  /** Tag names of the round's length that the round's own filters exclude (why "filter" skips). */
+  outside: number;
 };
 
 type RoundRow = { id: number; parentId: number | null; title: string; status: string; filterJson: string | null; source: string; batchId: number | null; batchIndex: number | null; batchSeed: string | null; batchFilter: string | null; batchOrder: string | null };
@@ -76,8 +78,23 @@ function counts(roundId: number, tag: string) {
     .get(tag, roundId) as { core: number | null; existing: number | null };
 }
 
+/**
+ * "filters": the round's stored filters decide (default, conservative).
+ * "length": only the round's label length + the tag; set/provider/price filters are ignored (for gap sets whose
+ * names sit outside the original filters, e.g. set_4-only gap names vs a sets 1/3/5 batch).
+ */
+export type SupplementMatch = "filters" | "length";
+
+function lengthOnly(f: { filters: PoolFilters; seed: string | null } | null) {
+  return f ? { filters: { ...normalizePoolFilters({}).filters, order: f.filters.order }, seed: f.seed } : f;
+}
+
+function tagCount(tag: string, length: number | null, excludeRounds: number[]) {
+  return candidates(normalizePoolFilters({}).filters, length, tag, null, excludeRounds).length;
+}
+
 /** Dry run: what each round would receive. Pure read. */
-export function planSupplement(tag: string): SupplementPlanRow[] {
+export function planSupplement(tag: string, match: SupplementMatch = "filters"): SupplementPlanRow[] {
   const all = rounds();
   const out: SupplementPlanRow[] = [];
   const batches = new Map<number, RoundRow[]>();
@@ -89,32 +106,38 @@ export function planSupplement(tag: string): SupplementPlanRow[] {
     const c = counts(r.id, tag);
     const base = { roundId: r.id, title: r.title, status: r.status, batchId: null, core: c.core ?? 0, existing: c.existing ?? 0 };
     if (r.source !== "pool") {
-      out.push({ ...base, add: [], skip: "csv" });
+      out.push({ ...base, outside: 0, add: [], skip: "csv" });
       continue;
     }
     if (r.parentId != null) {
       // Derived rounds hold round filters, not pool filters; they pick names up when derived again.
-      out.push({ ...base, add: [], skip: "derived" });
+      out.push({ ...base, outside: 0, add: [], skip: "derived" });
       continue;
     }
-    const f = parseFilters(r.filterJson);
+    const parsed = parseFilters(r.filterJson);
+    const f = match === "length" ? lengthOnly(parsed) : parsed;
     if (!f) {
-      out.push({ ...base, add: [], skip: "explore" });
+      out.push({ ...base, outside: 0, add: [], skip: "explore" });
       continue;
     }
     if (base.existing) {
-      out.push({ ...base, add: [], skip: "done" });
+      out.push({ ...base, outside: 0, add: [], skip: "done" });
       continue;
     }
-    const add = candidates(f.filters, labelLength(r.id), tag, f.seed, [r.id]);
-    out.push({ ...base, add, skip: add.length ? undefined : "none" });
+    const len = labelLength(r.id);
+    const add = candidates(f.filters, len, tag, f.seed, [r.id]);
+    const outside = tagCount(tag, len, [r.id]) - add.length;
+    out.push({ ...base, outside, add, skip: add.length ? undefined : outside ? "filter" : "none" });
   }
   for (const [, members] of batches) {
     members.sort((a, b) => (a.batchIndex ?? 0) - (b.batchIndex ?? 0));
-    const f = parseFilters(members[0].batchFilter);
+    const parsed = parseFilters(members[0].batchFilter);
+    const f = match === "length" ? lengthOnly(parsed) : parsed;
     const ids = members.map((m) => m.id);
+    const len = labelLength(ids[0]);
     const already = members.some((m) => (counts(m.id, tag).existing ?? 0) > 0);
-    const names = f && !already ? candidates(f.filters, labelLength(ids[0]), tag, members[0].batchOrder === "random" ? members[0].batchSeed : null, ids) : [];
+    const names = f && !already ? candidates(f.filters, len, tag, members[0].batchOrder === "random" ? members[0].batchSeed : null, ids) : [];
+    const outsideAll = f && !already ? tagCount(tag, len, ids) - names.length : 0;
     // Contiguous chunks of the seeded list, as even as possible across the opened rounds (first rounds take the remainder).
     const k = members.length;
     const sizes = members.map((_, i) => Math.floor(names.length / k) + (i < names.length % k ? 1 : 0));
@@ -126,7 +149,8 @@ export function planSupplement(tag: string): SupplementPlanRow[] {
       at += take;
       out.push({
         roundId: m.id, title: m.title, status: m.status, batchId: m.batchId, core: c.core ?? 0, existing: c.existing ?? 0, add,
-        skip: !f ? "explore" : already ? "done" : add.length ? undefined : "none",
+        outside: i === 0 ? outsideAll : 0,
+        skip: !f ? "explore" : already ? "done" : add.length ? undefined : outsideAll ? "filter" : "none",
       });
     });
   }
@@ -134,9 +158,9 @@ export function planSupplement(tag: string): SupplementPlanRow[] {
 }
 
 /** Appends the planned names after each round's last position, flagged with the tag. Idempotent per (round, tag). */
-export function applySupplement(tag: string, adminId: number | null, onlyRounds?: number[]) {
+export function applySupplement(tag: string, adminId: number | null, onlyRounds?: number[], match: SupplementMatch = "filters") {
   const sqlite = getSqlite();
-  const plan = planSupplement(tag).filter((p) => p.add.length && (!onlyRounds || onlyRounds.includes(p.roundId)));
+  const plan = planSupplement(tag, match).filter((p) => p.add.length && (!onlyRounds || onlyRounds.includes(p.roundId)));
   const now = Date.now();
   return sqlite.transaction(() => {
     let total = 0;

@@ -9,9 +9,10 @@ export async function applySupplementAction(formData: FormData) {
   const admin = await requireAdmin();
   const tag = String(formData.get("tag") ?? "").trim();
   if (!tag) redirect("/admin/pool/supplement");
-  const res = applySupplement(tag, admin.userId);
+  const match = formData.get("match") === "length" ? "length" : "filters";
+  const res = applySupplement(tag, admin.userId, undefined, match);
   revalidatePath("/admin");
-  redirect(`/admin/pool/supplement?tag=${encodeURIComponent(tag)}&applied=${res.names}&rounds=${res.rounds}`);
+  redirect(`/admin/pool/supplement?tag=${encodeURIComponent(tag)}&match=${match}&applied=${res.names}&rounds=${res.rounds}`);
 }
 
 export async function removeSupplementAction(formData: FormData) {
