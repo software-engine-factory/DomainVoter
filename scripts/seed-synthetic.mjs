@@ -1,10 +1,11 @@
-// Local test data only: node scripts/seed-synthetic.mjs <data-dir>
+// Local test data only: node scripts/seed-synthetic.mjs <data-dir> [lengths, e.g. 4 or 3,4,5]
 // Requires the app to have started once against <data-dir> (so the schema and migrations exist).
 import path from "path";
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 
 const dir = process.argv[2] || "data";
+const LENGTHS = (process.argv[3] || "4").split(",").map(Number).filter((n) => n >= 1 && n <= 63);
 const db = new Database(path.join(dir, "voting.db"));
 let seed = 42;
 const rnd = () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -18,7 +19,7 @@ db.transaction(() => {
   const ins = db.prepare(`INSERT OR IGNORE INTO pool (name,set_1,set_2,set_3,set_4,set_5,evidence,dns_ns_class,dns_parking_provider,lp_marketplace,lp_price,lp_currency,lp_url,best_price,best_source,price_usd,imported_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
   for (let i = 0; i < 20000; i++) {
-    const name = Array.from({ length: 4 }, () => pick(L)).join("") + ".com";
+    const name = Array.from({ length: pick(LENGTHS) }, () => pick(L)).join("") + ".com";
     const [cls, prov] = pick(providers);
     const sale = rnd() < 0.7;
     const price = sale && rnd() < 0.2 ? Math.round(500 + rnd() * 20000) : null;

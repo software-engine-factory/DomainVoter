@@ -84,6 +84,10 @@ export const pool = sqliteTable("pool", {
   bestPrice: real("best_price"),
   bestSource: text("best_source"),
   priceUsd: real("price_usd"),
+  shape: text("shape"),
+  set4Part: text("set4_part"),
+  importTag: text("import_tag"),
+  bestCurrency: text("best_currency"),
   importedAt: integer("imported_at").notNull(),
 });
 

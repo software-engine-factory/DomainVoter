@@ -203,6 +203,23 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       }
     },
   },
+  {
+    version: 9,
+    name: "multi-length pool: shape / set4_part / import_tag / best_currency + per-length set indexes",
+    sql: `
+      -- Additive only: nullable columns (no table rewrite) and new indexes. Existing rows keep NULLs.
+      ALTER TABLE pool ADD COLUMN shape TEXT;
+      ALTER TABLE pool ADD COLUMN set4_part TEXT;
+      ALTER TABLE pool ADD COLUMN import_tag TEXT;
+      ALTER TABLE pool ADD COLUMN best_currency TEXT;
+      CREATE INDEX IF NOT EXISTS pool_import_tag_idx ON pool(import_tag) WHERE import_tag IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS pool_len_set1_idx ON pool(name_len) WHERE set_1 = 1;
+      CREATE INDEX IF NOT EXISTS pool_len_set3_idx ON pool(name_len) WHERE set_3 = 1;
+      CREATE INDEX IF NOT EXISTS pool_len_set4_idx ON pool(name_len) WHERE set_4 = 1;
+      CREATE INDEX IF NOT EXISTS pool_len_set5_idx ON pool(name_len) WHERE set_5 = 1;
+      CREATE INDEX IF NOT EXISTS pool_len_price_idx ON pool(name_len, price_usd);
+    `,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */
