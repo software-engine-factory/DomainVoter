@@ -6,6 +6,7 @@ import { assigneesByRound } from "@/lib/assignees";
 import { Badge, ProgressBar, buttonClass } from "@/components/ui";
 import { formatPercent, formatWhen } from "@/lib/format";
 import { listRounds } from "@/lib/rounds";
+import { DeleteRoundButton } from "@/components/admin/delete-round";
 import { RoundTitle } from "@/components/admin/round-title";
 import { t } from "@/lib/copy/fa";
 
@@ -42,6 +43,7 @@ export default async function AdminHomePage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <RoundTitle id={round.id} title={round.title} className="font-display text-2xl sm:text-3xl" />
                     <Badge tone={round.status === "open" ? "accent" : "muted"}>{round.status === "open" ? t.common.open : t.common.closed}</Badge>
+                    <span className="ms-auto sm:ms-0"><DeleteRoundButton id={round.id} title={round.title} /></span>
                   </div>
                   <Link href={`/admin/rounds/${round.id}`} className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted hover:text-ink">
                     <span>

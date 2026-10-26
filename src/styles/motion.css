@@ -117,3 +117,13 @@ main details[open] > :not(summary) { animation: pop-in var(--dur) var(--ease-out
 .sale-link:hover, .sale-link:focus-visible { opacity: 1; transform: scale(1.08); }
 @media (hover: none) { .sale-link { opacity: .8; } }
 @media (prefers-reduced-motion: reduce) { .slot-pop, .sale-link { transition: none; } .slot-pop:focus, .sale-link:hover { transform: none; } }
+
+/* Confirmation sheet: rises from the bottom on phones, pops in centred on wider screens. */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-up { from { opacity: 0.6; transform: translateY(100%); } to { opacity: 1; transform: none; } }
+@keyframes row-out { to { opacity: 0; transform: translateX(-12px); } }
+.backdrop-in { animation: fade-in var(--dur) ease both; }
+.sheet-in { animation: sheet-up var(--dur-slow) var(--ease-out) both; }
+@media (min-width: 640px) { .sheet-in { animation: pop-in var(--dur) var(--ease-out) both; transform-origin: center; } }
+.row-out { animation: row-out var(--dur) var(--ease-out) both; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .backdrop-in, .sheet-in, .row-out { animation: none; } }
