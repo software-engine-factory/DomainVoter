@@ -26,7 +26,7 @@ export default async function PoolPage({
 }) {
   await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const query = await searchParams;
-  const { bySet, bySource, totals, overlap13 } = poolOverview();
+  const { bySet, bySource, byLength, totals, overlap13 } = poolOverview();
   const samples = setSamples();
   const imports = recentImports();
   const error = one(query.error);
@@ -105,6 +105,36 @@ export default async function PoolPage({
             <Link className="hover:text-accent" href={explore({ sets: "1,3", sm: "all" })}>{t.overview.overlapNote(fa(overlap13))}</Link>
           </p>
         </section>
+        {byLength.length > 1 ? (
+          <section className="rounded-xl border border-line bg-card p-3 lg:col-span-2" data-testid="pool-by-length">
+            <h2 className="px-1 font-semibold">{t.len.byLength}</h2>
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line">
+                    <th className="px-2 py-2 text-start text-xs font-medium text-muted">{t.len.picker}</th>
+                    <th className={th}>{t.overview.total}</th>
+                    <th className={th}>{t.overview.priced}</th>
+                    <th className={th}>{t.overview.median}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byLength.map((row) => {
+                    const n = Number(row.key);
+                    return (
+                      <tr key={row.key} className="border-b border-line last:border-0">
+                        <td className="px-1 py-1"><Link href={explore({ lmin: n, lmax: n })} className={`${cellLink} font-medium`} title={t.len.roundLength(n)}>{t.len.letters(n)}</Link></td>
+                        <td className={td}><Link className={cellLink} href={explore({ lmin: n, lmax: n })}>{fa(row.total)}</Link></td>
+                        <td className={td}><Link className={cellLink} href={explore({ lmin: n, lmax: n, hp: "yes" })}>{fa(row.priced)}</Link></td>
+                        <td className={`${td} whitespace-nowrap text-muted`} dir="ltr">{row.median != null ? formatPrice(row.median) : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
 
         <section className="rounded-xl border border-line bg-card p-3">
           <h2 className="px-1 font-semibold">{t.overview.bySource}</h2>

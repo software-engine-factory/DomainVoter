@@ -48,6 +48,29 @@ export function NamesView({ query }: { query: Record<string, string | string[] |
           <PatternSlots key={`${q.pat}|${q.exact}`} pat={q.pat} exact={q.exact} />
         </div>
 
+        {/* 10 length: one tap per label length (sets lmin = lmax); counts are whole-pool */}
+        {facets.lengths.length > 1 ? (
+          <div className="flex flex-wrap items-center gap-1.5" data-testid="explore-lengths">
+            <span className={groupLabel}>{t.len.picker}</span>
+            {(() => {
+              const exactLen = q.lmin != null && q.lmin === q.lmax ? q.lmin : null;
+              return (
+                <>
+                  <Link href={withParams("/admin/explore", { ...params, lmin: undefined, lmax: undefined })} className={chip(q.lmin == null && q.lmax == null)}>
+                    {t.len.all}
+                  </Link>
+                  {facets.lengths.map((l) => (
+                    <Link key={l.length} href={withParams("/admin/explore", { ...params, lmin: l.length, lmax: l.length })} className={chip(exactLen === l.length)} title={t.len.roundLength(l.length)}>
+                      {t.len.letters(l.length)}
+                      <span className="tabular-nums opacity-70">{fa(l.count)}</span>
+                    </Link>
+                  ))}
+                </>
+              );
+            })()}
+          </div>
+        ) : null}
+
         {/* 1 has price · 4 USD range */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex items-center gap-1" role="radiogroup" aria-label={t.browse.hasPrice}>

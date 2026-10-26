@@ -1,4 +1,5 @@
 import { getSqlite } from "@/db";
+import { getDatasetVersion } from "@/lib/dataset-version";
 import { normalizePattern, normalizeQuery, patternActive, PATTERN_MAX } from "@/lib/vote-view";
 import { ACTIVE_SETS, normalizeSetIds } from "@/lib/sets";
 
@@ -312,11 +313,23 @@ export function* iterateBrowse(q: BrowseQuery) {
 
 export type Facet = { value: string | null; count: number };
 
-/** Option lists with whole-pool counts for the filter controls. */
-export function browseFacets() {
+type Facets = { sources: Facet[]; providers: Facet[]; classes: Facet[]; lengths: Array<{ length: number; count: number }> };
+let facetCache: { version: string; value: Facets } | null = null;
+
+/**
+ * Option lists with whole-pool counts for the filter controls.
+ * Whole-pool GROUP BYs grow with the 3/5-letter imports, so they are cached per dataset version
+ * (bumps on every finished import / new round), not recomputed per page view.
+ */
+export function browseFacets(): Facets {
+  const version = getDatasetVersion();
+  if (facetCache?.version === version) return facetCache.value;
   const sqlite = getSqlite();
   const facet = (col: string) => sqlite.prepare(`SELECT ${col} AS value, COUNT(*) AS count FROM pool GROUP BY ${col} ORDER BY count DESC`).all() as Facet[];
-  return { sources: facet("price_source"), providers: facet("dns_parking_provider"), classes: facet("dns_ns_class") };
+  const lengths = sqlite.prepare("SELECT name_len AS length, COUNT(*) AS count FROM pool GROUP BY name_len ORDER BY name_len").all() as Facets["lengths"];
+  const value = { sources: facet("price_source"), providers: facet("dns_parking_provider"), classes: facet("dns_ns_class"), lengths };
+  facetCache = { version, value };
+  return value;
 }
 
 export type OverviewRow = { key: string; total: number; priced: number; usd: number; median: number | null; perSet: number[]; only?: number };
@@ -359,8 +372,25 @@ export function poolOverview() {
   const totals = sqlite
     .prepare("SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd, MAX(imported_at) AS lastImport FROM pool")
     .get() as { total: number; priced: number; usd: number; lastImport: number | null };
+  // Per label length (3/4/5…): same columns as per set, plus the set split.
+  const byLength: OverviewRow[] = (
+    sqlite
+      .prepare(
+        `SELECT name_len AS len, COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd,
+                SUM(set_1) AS s1, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5
+         FROM pool GROUP BY name_len ORDER BY name_len`,
+      )
+      .all() as Array<{ len: number; total: number; priced: number; usd: number; s1: number; s3: number; s4: number; s5: number }>
+  ).map((r) => ({
+    key: String(r.len),
+    total: r.total,
+    priced: r.priced,
+    usd: r.usd,
+    median: median("name_len = ?", [r.len], r.usd),
+    perSet: [r.s1, r.s3, r.s4, r.s5].map((x) => x ?? 0),
+  }));
   const overlap13 = (sqlite.prepare("SELECT COUNT(*) AS n FROM pool WHERE set_1 = 1 AND set_3 = 1").get() as { n: number }).n;
-  return { bySet, bySource, totals, overlap13 };
+  return { bySet, bySource, byLength, totals, overlap13 };
 }
 
 /** A few example names per set for the set tooltips. */
