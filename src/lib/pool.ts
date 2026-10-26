@@ -12,6 +12,8 @@ export type PoolFilters = {
   maxUsd: number | null;
   includeUnpriced: boolean;
   order: "provider" | "name" | "price_asc" | "price_desc" | "random";
+  /** Label length (3, 4, 5…). null = any length; new rounds always pick one (no mixed-length rounds). */
+  length?: number | null;
 };
 
 export function emptyPoolFilters(): PoolFilters {
@@ -25,7 +27,13 @@ export function emptyPoolFilters(): PoolFilters {
     maxUsd: null,
     includeUnpriced: true,
     order: "provider",
+    length: null,
   };
+}
+
+function lengthValue(value: unknown) {
+  const n = Number(String(value ?? "").trim());
+  return Number.isInteger(n) && n >= 1 && n <= 63 ? n : null;
 }
 
 function list(value: unknown) {
@@ -54,6 +62,7 @@ export function normalizePoolFilters(input: Record<string, unknown>): { filters:
     order: (["provider", "name", "price_asc", "price_desc", "random"] as const).includes(input.order as never)
       ? (input.order as PoolFilters["order"])
       : "provider",
+    length: lengthValue(input.length),
   };
   if (filters.minUsd != null && filters.maxUsd != null && filters.minUsd > filters.maxUsd) {
     return { filters, error: t.pool.err.priceRange };
@@ -85,6 +94,10 @@ export function poolWhere(filters: PoolFilters, alias = "p") {
     }
     if (filters.providers.includes(NONE)) parts.push(`${alias}.dns_parking_provider IS NULL`);
     clauses.push(`(${parts.join(" OR ")})`);
+  }
+  if (filters.length != null) {
+    clauses.push(`${alias}.name_len = ?`);
+    params.push(filters.length);
   }
   if (filters.sets.length) {
     const join = filters.setMode === "all" ? " AND " : " OR ";
@@ -170,6 +183,19 @@ export function poolFacets() {
     providers: facet("dns_parking_provider"),
     evidence: facet("evidence"),
   };
+}
+
+export type LengthCount = { length: number; count: number };
+
+/** Names per label length, for the round-creation length picker (index-only scan of pool_name_len_idx). */
+export function poolLengthCounts(): LengthCount[] {
+  return getSqlite().prepare("SELECT name_len AS length, COUNT(*) AS count FROM pool GROUP BY name_len ORDER BY name_len").all() as LengthCount[];
+}
+
+/** The length a new round starts on: 4 when present (the original pool), else the biggest group. */
+export function defaultLength(counts: LengthCount[]) {
+  if (counts.some((c) => c.length === 4)) return 4;
+  return [...counts].sort((a, b) => b.count - a.count)[0]?.length ?? null;
 }
 
 export function recentImports(limit = 5) {

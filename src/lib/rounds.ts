@@ -17,6 +17,8 @@ export type RoundListItem = {
   createdAt: number;
   domainCount: number;
   viewedCount: number;
+  lenMin: number | null;
+  lenMax: number | null;
 };
 
 export type StoredDomain = {
@@ -39,7 +41,9 @@ export function listRounds(visibleTo?: number): RoundListItem[] {
       `SELECT r.id, r.title, r.status, r.parent_round_id AS parentRoundId, p.title AS parentTitle,
               r.created_at AS createdAt,
               (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id) AS domainCount,
-              (SELECT COUNT(DISTINCT v.domain_id) FROM views v WHERE v.round_id = r.id) AS viewedCount
+              (SELECT COUNT(DISTINCT v.domain_id) FROM views v WHERE v.round_id = r.id) AS viewedCount,
+              (SELECT MIN(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id) AS lenMin,
+              (SELECT MAX(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id) AS lenMax
        FROM rounds r
        LEFT JOIN rounds p ON p.id = r.parent_round_id
        ${visible}
@@ -50,6 +54,16 @@ export function listRounds(visibleTo?: number): RoundListItem[] {
 
 export function listOpenRounds(userId: number): RoundListItem[] {
   return listRounds(userId).filter((round) => round.status === "open");
+}
+
+/** The round's label length (most common one), so the letter-slot filter opens with that many slots. */
+export function roundLabelLength(roundId: number) {
+  const row = getSqlite()
+    .prepare(
+      `SELECT instr(name || '.', '.') - 1 AS len, COUNT(*) AS n FROM domains WHERE round_id = ? GROUP BY len ORDER BY n DESC LIMIT 1`,
+    )
+    .get(roundId) as { len: number } | undefined;
+  return row?.len ?? 4;
 }
 
 export function countDomains(roundId: number) {

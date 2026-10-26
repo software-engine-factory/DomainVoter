@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Alert } from "@/components/ui";
 import { requireVoter } from "@/lib/auth";
 import { one } from "@/lib/format";
-import { countDomains, getRound, getUserVoteCount, getUserVotedIds, queryVoteCards } from "@/lib/rounds";
+import { countDomains, getRound, roundLabelLength, getUserVoteCount, getUserVotedIds, queryVoteCards } from "@/lib/rounds";
 import { canSeeRound } from "@/lib/assignees";
 import { getSession } from "@/lib/auth";
 import { getVotePageSize } from "@/lib/settings";
@@ -69,6 +69,7 @@ export default async function VoteRoundPage({ params, searchParams }: PageProps)
         <VoteBoard
           roundId={round.id}
           total={total}
+          labelLength={roundLabelLength(round.id)}
           initialView={{ ...view, page: initialPage.page }}
           initialPage={initialPage}
           initialVotes={{ votedIds, count: voteCount }}
