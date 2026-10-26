@@ -67,7 +67,7 @@ export default async function SupplementPage({ searchParams }: { searchParams: P
           </div>
           <ul className="mt-3 grid gap-2">
             {plan.map((p) => (
-              <li key={p.roundId} className="pop-in rounded-xl border border-line bg-card p-3">
+              <li key={p.roundId} className="pop-in min-w-0 overflow-hidden rounded-xl border border-line bg-card p-3">
                 <div className="flex items-center justify-between gap-2">
                   <Link href={`/admin/rounds/${p.roundId}`} className="min-w-0 truncate font-semibold hover:text-accent">{p.title}</Link>
                   <span className="flex shrink-0 items-center gap-1.5 text-xs tabular-nums">
