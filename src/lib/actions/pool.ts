@@ -55,6 +55,7 @@ function filterInput(formData: FormData) {
     maxUsd: formData.get("maxUsd"),
     includeUnpriced: formData.get("includeUnpriced") ? "1" : "0",
     order: formData.get("order"),
+    length: formData.get("length"),
   };
 }
 

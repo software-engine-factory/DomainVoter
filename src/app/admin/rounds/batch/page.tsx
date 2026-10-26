@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Alert } from "@/components/ui";
 import { listBatches } from "@/lib/batches";
 import { formatWhen, one } from "@/lib/format";
-import { SET_LABELS, poolFacets } from "@/lib/pool";
+import { SET_LABELS, defaultLength, poolFacets, poolLengthCounts } from "@/lib/pool";
 import { listAssignableUsers } from "@/lib/assignees";
 import { BatchForm } from "./batch-form";
 import { t } from "@/lib/copy/fa";
@@ -16,11 +16,12 @@ export default async function BatchPage({ searchParams }: { searchParams: Promis
   const error = one((await searchParams).error);
   const facets = poolFacets();
   const batches = listBatches();
+  const lengths = poolLengthCounts();
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="font-display text-3xl sm:text-4xl">{t.batch.title}</h1>
       {error ? <div className="mt-3"><Alert tone="danger">{error}</Alert></div> : null}
-      <BatchForm classes={facets.classes} providers={facets.providers} setLabels={SET_LABELS} poolTotal={facets.totals.total} users={listAssignableUsers()} />
+      <BatchForm classes={facets.classes} providers={facets.providers} setLabels={SET_LABELS} poolTotal={facets.totals.total} users={listAssignableUsers()} lengths={lengths} initialLength={defaultLength(lengths)} />
       {batches.length ? (
         <section className="mt-8">
           <h2 className="font-semibold">{t.batch.previous}</h2>

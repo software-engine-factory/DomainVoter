@@ -42,6 +42,11 @@ export default async function AdminHomePage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <RoundTitle id={round.id} title={round.title} className="font-display text-2xl sm:text-3xl" />
+                    {round.lenMin != null ? (
+                      <span title={round.lenMin === round.lenMax ? t.len.roundLength(round.lenMin) : t.len.mixed} data-testid="round-length">
+                        <Badge tone="muted">{round.lenMin === round.lenMax ? t.len.letters(round.lenMin) : t.len.mixed}</Badge>
+                      </span>
+                    ) : null}
                     <Badge tone={round.status === "open" ? "accent" : "muted"}>{round.status === "open" ? t.common.open : t.common.closed}</Badge>
                     <span className="ms-auto sm:ms-0"><DeleteRoundButton id={round.id} title={round.title} /></span>
                   </div>

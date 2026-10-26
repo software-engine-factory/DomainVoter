@@ -19,12 +19,14 @@ import { Pager } from "./pager";
 export function VoteBoard({
   roundId,
   total,
+  labelLength,
   initialView,
   initialPage,
   initialVotes,
 }: {
   roundId: number;
   total: number;
+  labelLength: number;
   initialView: VoteView;
   initialPage: CardsPage;
   initialVotes: MyVotes;
@@ -82,6 +84,7 @@ export function VoteBoard({
         key={filterReset}
         view={view}
         total={total}
+        labelLength={labelLength}
         matched={filtered || view.from != null || view.to != null ? data.matched : null}
         onChange={(patch) => update(patch)}
       />

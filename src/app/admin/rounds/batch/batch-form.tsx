@@ -1,5 +1,6 @@
 "use client";
 
+import { LengthPicker, type LengthOption } from "@/components/admin/length-picker";
 import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
 import { ACTIVE_SETS } from "@/lib/sets";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -10,7 +11,7 @@ import { t } from "@/lib/copy/fa";
 
 type Facet = { value: string | null; count: number };
 
-export function BatchForm({ classes, providers, setLabels, poolTotal, users }: { classes: Facet[]; providers: Facet[]; setLabels: Record<number, string>; poolTotal: number; users: PickerUser[] }) {
+export function BatchForm({ classes, providers, setLabels, poolTotal, users, lengths, initialLength }: { classes: Facet[]; providers: Facet[]; setLabels: Record<number, string>; poolTotal: number; users: PickerUser[]; lengths: LengthOption[]; initialLength: number | null }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [block, setBlock] = useState(poolTotal);
   const [counting, startCount] = useTransition();
@@ -36,6 +37,7 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users }: {
         includeUnpriced: data.get("includeUnpriced") ? "1" : "0",
         cap: data.get("cap"),
         excludeUsed: data.get("excludeUsed"),
+        length: data.get("length"),
       });
       setBlock(result.count);
     });
@@ -58,6 +60,7 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users }: {
       <div className="space-y-4">
         <fieldset className="rounded-xl border border-line p-3 text-sm">
           <legend className="px-1 font-semibold">{t.batch.blockLegend}</legend>
+          <div className="mt-2"><LengthPicker options={lengths} initial={initialLength} /></div>
           <div className="mt-3 font-medium">{t.batch.sets}</div>
           <div className="mt-1 flex flex-wrap gap-2">
             {ACTIVE_SETS.map((n) => (

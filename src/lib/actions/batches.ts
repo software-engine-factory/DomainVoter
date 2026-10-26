@@ -18,6 +18,7 @@ function filterInput(input: Record<string, unknown>) {
     minUsd: input.minUsd,
     maxUsd: input.maxUsd,
     includeUnpriced: input.includeUnpriced,
+    length: input.length,
   });
 }
 
@@ -48,6 +49,7 @@ export async function createBatchAction(formData: FormData) {
     minUsd: formData.get("minUsd"),
     maxUsd: formData.get("maxUsd"),
     includeUnpriced: formData.get("includeUnpriced") ? "1" : "0",
+    length: formData.get("length"),
   });
   if (error) redirect(`${back}?error=${encodeURIComponent(error)}`);
   const order = (BATCH_ORDERS as readonly string[]).includes(String(formData.get("order"))) ? (String(formData.get("order")) as BatchOrder) : "random";

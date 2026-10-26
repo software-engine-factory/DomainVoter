@@ -13,12 +13,12 @@ import {
 } from "@/lib/vote-view";
 import { t } from "@/lib/copy/fa";
 
-const DEFAULT_SLOTS = 4;
 const MIN_SLOTS = 1;
 
-function slotsFrom(pat: string, exact: boolean) {
+/** Slots default to the round's label length (3, 4, 5…), so a 5-letter round opens with five boxes. */
+function slotsFrom(pat: string, exact: boolean, defaultSlots: number) {
   const chars = [...pat].map((ch) => (ch === "_" ? "" : ch));
-  const length = exact ? chars.length : Math.max(DEFAULT_SLOTS, chars.length);
+  const length = exact ? chars.length : Math.max(defaultSlots, chars.length);
   return Array.from({ length: Math.max(length, MIN_SLOTS) }, (_, i) => chars[i] ?? "");
 }
 
@@ -67,16 +67,18 @@ function GroupedInput({
 export function FilterBar({
   view,
   total,
+  labelLength = 4,
   matched,
   onChange,
 }: {
   view: VoteView;
   total: number;
+  labelLength?: number;
   matched: number | null;
   onChange: (patch: Partial<VoteView>) => void;
 }) {
   const [text, setText] = useState(view.q);
-  const [slots, setSlots] = useState(() => slotsFrom(view.pat, view.exact));
+  const [slots, setSlots] = useState(() => slotsFrom(view.pat, view.exact, labelLength));
   const [exact, setExact] = useState(view.exact);
   const [from, setFrom] = useState<number | null>(view.from);
   const [to, setTo] = useState<number | null>(view.to);
@@ -120,7 +122,7 @@ export function FilterBar({
 
   function clearAll() {
     setText("");
-    setSlots(slotsFrom("", false));
+    setSlots(slotsFrom("", false, labelLength));
     setExact(false);
     setFrom(null);
     setTo(null);

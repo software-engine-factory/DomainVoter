@@ -793,6 +793,13 @@ export const t = {
       defaultTitle: (title: string) => `${title} · دور بعد`,
     },
   },
+  /** Multi-length pool (3/4/5 letters). */
+  len: {
+    picker: "طول نام",
+    letters: (n: number) => `${n.toLocaleString("fa-IR")} حرفی`,
+    mixed: "چند طول",
+    roundLength: (n: number) => `نام‌های ${n.toLocaleString("fa-IR")} حرفی`,
+  },
 } as const;
 
 export type Copy = typeof t;

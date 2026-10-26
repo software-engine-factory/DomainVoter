@@ -1,5 +1,6 @@
 "use client";
 
+import { LengthPicker, type LengthOption } from "@/components/admin/length-picker";
 import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
@@ -20,6 +21,7 @@ function readForm(form: HTMLFormElement) {
     minUsd: data.get("minUsd"),
     maxUsd: data.get("maxUsd"),
     includeUnpriced: data.get("includeUnpriced") ? "1" : "0",
+    length: data.get("length"),
   };
 }
 
@@ -49,7 +51,11 @@ export function PoolRoundForm({
   total,
   error,
   users,
+  lengths,
+  initialLength,
 }: {
+  lengths: LengthOption[];
+  initialLength: number | null;
   classes: Facet[];
   providers: Facet[];
   setCounts: Array<{ n: number; label: string; count: number }>;
@@ -58,7 +64,7 @@ export function PoolRoundForm({
   users: PickerUser[];
 }) {
   const form = useRef<HTMLFormElement>(null);
-  const [count, setCount] = useState<number>(total);
+  const [count, setCount] = useState<number>(() => lengths.find((l) => l.length === initialLength)?.count ?? total);
   const [countError, setCountError] = useState<string>();
   const [pending, start] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -129,6 +135,7 @@ export function PoolRoundForm({
       </ol>
 
       <section className={show(0)} data-step="0">
+        <LengthPicker options={lengths} initial={initialLength} />
         <fieldset className="grid gap-2">
           <legend className="mb-2 text-sm font-semibold">{t.pool.sets}</legend>
           <div className="grid gap-2 sm:grid-cols-2">

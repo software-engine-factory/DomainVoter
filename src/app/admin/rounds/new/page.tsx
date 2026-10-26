@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { ACTIVE_SETS } from "@/lib/sets";
 import Link from "next/link";
 import { one } from "@/lib/format";
-import { poolFacets, SET_LABELS } from "@/lib/pool";
+import { defaultLength, poolFacets, poolLengthCounts, SET_LABELS } from "@/lib/pool";
 import { listAssignableUsers } from "@/lib/assignees";
 import { PoolRoundForm } from "./pool-form";
 import { ExploreRoundForm } from "./explore-form";
@@ -35,6 +35,7 @@ export default async function NewRoundPage({
   const browse = mode === "explore" ? parseBrowse(query) : null;
   const explore = browse ? withParams("", browseToParams(browse)).replace(/^\?/, "") : "";
   const facets = mode === "pool" ? poolFacets() : null;
+  const lengths = mode === "pool" ? poolLengthCounts() : [];
   const tab = (id: string, label: string) => (
     <Link
       href={`/admin/rounds/new?mode=${id}`}
@@ -57,6 +58,8 @@ export default async function NewRoundPage({
       ) : facets ? (
         <PoolRoundForm
           users={listAssignableUsers()}
+          lengths={lengths}
+          initialLength={defaultLength(lengths)}
           classes={facets.classes}
           providers={facets.providers}
           total={facets.totals.total}
