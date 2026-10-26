@@ -247,6 +247,7 @@ export function importSqliteFile(file: string, source: string): ImportResult {
         tables.find((t) => t.name === preferred) ??
         tables.find((t) => t.name === "app_names") ??
         tables.find((t) => t.name === "app_export_purchasable") ??
+        tables.find((t) => t.name.startsWith("app_export_")) ??
         tables.find((t) => t.name === "names") ??
         (tables.length === 1 ? tables[0] : undefined);
       if (!table) throw new Error(t.pool.err.noTable(tables.map((x) => x.name).join(", ")));

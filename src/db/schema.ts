@@ -36,6 +36,7 @@ export const domains = sqliteTable(
     sourceDomainId: integer("source_domain_id"),
     poolName: text("pool_name"),
     currency: text("currency"),
+    segment: text("segment"),
   },
   (table) => [
     uniqueIndex("domains_round_position").on(table.roundId, table.position),

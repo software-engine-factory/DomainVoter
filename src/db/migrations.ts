@@ -242,6 +242,26 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       CREATE INDEX IF NOT EXISTS free_names_tag_idx ON free_names(import_tag) WHERE import_tag IS NOT NULL;
     `,
   },
+  {
+    version: 11,
+    name: "supplement segment: late-imported names appended after a round's frozen order",
+    sql: `
+      -- NULL = core (the original frozen order). Non-NULL = the import_tag of a supplement appended after it.
+      ALTER TABLE domains ADD COLUMN segment TEXT;
+      CREATE INDEX IF NOT EXISTS domains_round_segment_idx ON domains(round_id, segment) WHERE segment IS NOT NULL;
+      CREATE TABLE IF NOT EXISTS round_supplements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        round_id INTEGER NOT NULL,
+        tag TEXT NOT NULL,
+        first_position INTEGER NOT NULL,
+        added INTEGER NOT NULL,
+        seed TEXT,
+        created_at INTEGER NOT NULL,
+        created_by INTEGER,
+        UNIQUE (round_id, tag)
+      );
+    `,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */

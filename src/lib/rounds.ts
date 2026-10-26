@@ -19,6 +19,9 @@ export type RoundListItem = {
   viewedCount: number;
   lenMin: number | null;
   lenMax: number | null;
+  /** Supplement segment (late imports appended after the frozen order). Core = domainCount - suppCount. */
+  suppCount: number;
+  suppViewed: number;
 };
 
 export type StoredDomain = {
@@ -42,8 +45,10 @@ export function listRounds(visibleTo?: number): RoundListItem[] {
               r.created_at AS createdAt,
               (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id) AS domainCount,
               (SELECT COUNT(DISTINCT v.domain_id) FROM views v WHERE v.round_id = r.id) AS viewedCount,
-              (SELECT MIN(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id) AS lenMin,
-              (SELECT MAX(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id) AS lenMax
+              (SELECT MIN(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id AND d.segment IS NULL) AS lenMin,
+              (SELECT MAX(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id AND d.segment IS NULL) AS lenMax,
+              (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id AND d.segment IS NOT NULL) AS suppCount,
+              (SELECT COUNT(DISTINCT v.domain_id) FROM views v JOIN domains d ON d.id = v.domain_id WHERE v.round_id = r.id AND d.segment IS NOT NULL) AS suppViewed
        FROM rounds r
        LEFT JOIN rounds p ON p.id = r.parent_round_id
        ${visible}

@@ -36,7 +36,9 @@ export default async function AdminHomePage() {
       ) : (
         <ul className="mt-8 divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
           {rounds.map((round) => {
-            const percent = formatPercent(round.viewedCount, round.domainCount);
+            // Seen % stays on the core (frozen order) so a supplement never drops an existing round's coverage.
+            const coreCount = round.domainCount - round.suppCount;
+            const percent = formatPercent(round.viewedCount - round.suppViewed, coreCount);
             return (
               <li key={round.id} className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_14rem] sm:px-5">
                 <div className="min-w-0">
@@ -52,7 +54,13 @@ export default async function AdminHomePage() {
                   </div>
                   <Link href={`/admin/rounds/${round.id}`} className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted hover:text-ink">
                     <span>
-                      {round.domainCount.toLocaleString("fa-IR")} {t.common.domains} · {formatWhen(round.createdAt)}
+                      {coreCount.toLocaleString("fa-IR")} {t.common.domains}
+                      {round.suppCount ? (
+                        <span title={t.supp.badgeTip(round.suppViewed, round.suppCount)} data-testid="supp-badge" className="ms-1 rounded-full bg-gold-soft px-1.5 text-[11px] font-semibold text-gold">
+                          {t.supp.badge(round.suppCount)}
+                        </span>
+                      ) : null}{" "}
+                      · {formatWhen(round.createdAt)}
                     </span>
                     {round.parentTitle ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-0.5 text-xs" title={t.common.fromParent(round.parentTitle)}>
@@ -69,7 +77,7 @@ export default async function AdminHomePage() {
                     </p>
                   ) : null}
                 </div>
-                <Link href={`/admin/rounds/${round.id}`} className="flex flex-col justify-center" title={t.admin.seenCount(round.viewedCount, round.domainCount)}>
+                <Link href={`/admin/rounds/${round.id}`} className="flex flex-col justify-center" title={t.admin.seenCount(round.viewedCount - round.suppViewed, coreCount)}>
                   <ProgressBar value={percent} label={t.admin.seenLabel} />
                 </Link>
               </li>
