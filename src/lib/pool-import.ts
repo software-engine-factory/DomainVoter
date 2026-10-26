@@ -21,7 +21,17 @@ export const POOL_COLUMNS = [
   "lp_url",
   "best_price",
   "best_source",
+  // multi-length exports (v9): all optional
+  "length",
+  "shape",
+  "set4_part",
+  "import_tag",
+  "best_currency",
+  "price_usd",
 ] as const;
+
+/** A .com label we accept: 1–63 of [a-z0-9-], no leading/trailing hyphen. */
+const LABEL_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.com$/;
 
 export type ImportResult = {
   importId: number;
@@ -68,9 +78,17 @@ function setFlag(row: Raw, n: number) {
   return flag(key ? row[key] : undefined);
 }
 
+function normalizePart(value: unknown) {
+  const out = text(value)?.toLowerCase() ?? null;
+  return out === "main" || out === "vowel_edge" || out === "y_vowel" ? out : null;
+}
+
 export function normalizeRow(row: Raw, now: number) {
   const name = normalizeName(row.name);
-  if (!name) return null;
+  if (!name || !LABEL_RE.test(name)) return null;
+  // A declared length must match the label; a mismatch means a corrupt row, so skip it.
+  const length = num(row.length);
+  if (length != null && length !== name.length - 4) return null;
   const evidence = text(row.evidence)?.toLowerCase() ?? null;
   const currency = text(row.lp_currency)?.toUpperCase() ?? null;
   const lpPrice = num(row.lp_price);
@@ -92,8 +110,13 @@ export function normalizeRow(row: Raw, now: number) {
     lp_url: lpUrl && /^https?:\/\//i.test(lpUrl) ? lpUrl : null,
     best_price: bestPrice,
     best_source: text(row.best_source),
-    // Price sort and price bands are USD-only; other currencies keep their price but never get converted.
-    price_usd: currency === "USD" ? (lpPrice ?? bestPrice) : null,
+    // price_usd comes precomputed in newer exports (fixed EUR/GBP rate, else NULL); never converted here.
+    // Older exports without the column: USD passes through, other currencies stay NULL.
+    price_usd: row.price_usd !== undefined ? num(row.price_usd) : currency === "USD" ? (lpPrice ?? bestPrice) : null,
+    shape: text(row.shape)?.toUpperCase() ?? null,
+    set4_part: normalizePart(row.set4_part),
+    import_tag: text(row.import_tag),
+    best_currency: text(row.best_currency)?.toUpperCase() ?? null,
     imported_at: now,
   };
 }
@@ -101,16 +124,22 @@ export function normalizeRow(row: Raw, now: number) {
 function upsertStatement() {
   return getSqlite().prepare(`
     INSERT INTO pool (name, set_1, set_2, set_3, set_4, set_5, evidence, dns_ns_class, dns_parking_provider,
-                      lp_marketplace, lp_price, lp_currency, lp_url, best_price, best_source, price_usd, imported_at)
+                      lp_marketplace, lp_price, lp_currency, lp_url, best_price, best_source, price_usd, imported_at,
+                      shape, set4_part, import_tag, best_currency)
     VALUES (@name, @set_1, @set_2, @set_3, @set_4, @set_5, @evidence, @dns_ns_class, @dns_parking_provider,
-            @lp_marketplace, @lp_price, @lp_currency, @lp_url, @best_price, @best_source, @price_usd, @imported_at)
+            @lp_marketplace, @lp_price, @lp_currency, @lp_url, @best_price, @best_source, @price_usd, @imported_at,
+            @shape, @set4_part, @import_tag, @best_currency)
     ON CONFLICT(name) DO UPDATE SET
       set_1 = excluded.set_1, set_2 = excluded.set_2, set_3 = excluded.set_3,
       set_4 = excluded.set_4, set_5 = excluded.set_5, evidence = excluded.evidence,
       dns_ns_class = excluded.dns_ns_class, dns_parking_provider = excluded.dns_parking_provider,
       lp_marketplace = excluded.lp_marketplace, lp_price = excluded.lp_price, lp_currency = excluded.lp_currency,
       lp_url = excluded.lp_url, best_price = excluded.best_price, best_source = excluded.best_source,
-      price_usd = excluded.price_usd, imported_at = excluded.imported_at`);
+      price_usd = excluded.price_usd, imported_at = excluded.imported_at,
+      shape = coalesce(excluded.shape, pool.shape), set4_part = coalesce(excluded.set4_part, pool.set4_part),
+      -- the first tag sticks: re-importing a name never re-labels which batch brought it in
+      import_tag = coalesce(pool.import_tag, excluded.import_tag),
+      best_currency = coalesce(excluded.best_currency, pool.best_currency)`);
 }
 
 function startImport(source: string) {
@@ -256,6 +285,13 @@ export function importSqliteFile(file: string, source: string): ImportResult {
       error: error instanceof Error ? error.message : String(error),
     });
   }
+}
+
+/** Rollback for one import batch: drops the pool rows it brought in, unless a round already froze them. */
+export function deleteByImportTag(tag: string) {
+  return getSqlite()
+    .prepare("DELETE FROM pool WHERE import_tag = ? AND name NOT IN (SELECT pool_name FROM domains WHERE pool_name IS NOT NULL)")
+    .run(tag).changes;
 }
 
 export async function importFile(file: string, source = file): Promise<ImportResult> {
