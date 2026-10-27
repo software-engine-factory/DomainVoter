@@ -9,6 +9,7 @@ import { one, withParams } from "@/lib/format";
 import { SET_LABELS } from "@/lib/pool";
 import { ACTIVE_SETS } from "@/lib/sets";
 import { t } from "@/lib/copy/fa";
+import { FreePrice, RegisterMenu } from "@/components/register-menu";
 
 export const metadata: Metadata = { title: t.free.title };
 
@@ -77,19 +78,23 @@ export default async function FreeNamesPage({ searchParams }: { searchParams: Pr
       {res.rows.length ? (
         <ul className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {res.rows.map((r) => (
-            <li key={r.name} className="pop-in flex items-center justify-between gap-2 rounded-xl border border-line bg-card px-3 py-2.5">
-              <span dir="ltr" className="min-w-0 truncate font-mono text-base font-semibold">
+            <li key={r.name} className="pop-in relative flex flex-col gap-2 rounded-xl border border-line bg-card px-3 py-2.5">
+              <span dir="ltr" className="min-w-0 truncate pe-6 font-mono text-base font-semibold">
                 {r.name.slice(0, r.len)}
                 <span className="text-xs font-normal text-muted">.com</span>
               </span>
-              <span className="flex shrink-0 items-center gap-1">
-                {r.inPool ? (
-                  <span title={t.free.inPoolTip} className="size-2 rounded-full bg-accent" aria-label={t.free.inPool} />
-                ) : null}
-                {r.shape ? (
-                  <span title={t.free.shape} dir="ltr" className="rounded bg-chip px-1 font-mono text-[10px] text-muted">{r.shape}</span>
-                ) : null}
+              <span className="flex items-center justify-between gap-1">
+                {r.reg_price_usd != null ? <FreePrice price={r.reg_price_usd} /> : <span />}
+                <span className="flex shrink-0 items-center gap-1">
+                  {r.inPool ? (
+                    <span title={t.free.inPoolTip} className="size-2 rounded-full bg-accent" aria-label={t.free.inPool} />
+                  ) : null}
+                  {r.shape ? (
+                    <span title={t.free.shape} dir="ltr" className="rounded bg-chip px-1 font-mono text-[10px] text-muted">{r.shape}</span>
+                  ) : null}
+                </span>
               </span>
+              <RegisterMenu name={r.name} />
             </li>
           ))}
         </ul>
