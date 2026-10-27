@@ -1,6 +1,6 @@
 import { getSqlite } from "@/db";
-import { cached } from "@/lib/data-cache";
-import { ensureFunctions } from "@/lib/batches";
+import { cachedAsync } from "@/lib/data-cache";
+import { reader } from "@/lib/ro";
 import { normalizePoolFilters, poolWhere, type PoolFilters } from "@/lib/pool";
 
 /**
@@ -29,19 +29,18 @@ export type SupplementPlanRow = {
 type RoundRow = { id: number; parentId: number | null; title: string; status: string; filterJson: string | null; source: string; batchId: number | null; batchIndex: number | null; batchSeed: string | null; batchFilter: string | null; batchOrder: string | null };
 
 function rounds() {
-  return getSqlite()
-    .prepare(
+  return reader().all<RoundRow>(
       `SELECT r.id, r.parent_round_id AS parentId, r.title, r.status, r.filter_json AS filterJson, r.source, r.batch_id AS batchId, r.batch_index AS batchIndex,
               b.seed AS batchSeed, b.filter_json AS batchFilter, b.order_mode AS batchOrder
        FROM rounds r LEFT JOIN round_batches b ON b.id = r.batch_id ORDER BY r.id`,
-    )
-    .all() as RoundRow[];
+  );
 }
 
-function labelLength(roundId: number) {
-  const r = getSqlite()
-    .prepare("SELECT instr(name || '.', '.') - 1 AS len, COUNT(*) n FROM domains WHERE round_id = ? AND segment IS NULL GROUP BY len ORDER BY n DESC LIMIT 1")
-    .get(roundId) as { len: number } | undefined;
+async function labelLength(roundId: number) {
+  const r = await reader().get<{ len: number }>(
+    "SELECT instr(name || '.', '.') - 1 AS len, COUNT(*) n FROM domains WHERE round_id = ? AND segment IS NULL GROUP BY len ORDER BY n DESC LIMIT 1",
+    [roundId],
+  );
   return r?.len ?? null;
 }
 
@@ -60,23 +59,19 @@ function parseFilters(json: string | null): { filters: PoolFilters; seed: string
 }
 
 /** Candidate names for one filter set, in seeded order, excluding names already in `excludeRounds`. */
-function candidates(filters: PoolFilters, length: number | null, tag: string, seed: string | null, excludeRounds: number[]) {
-  ensureFunctions();
+async function candidates(filters: PoolFilters, length: number | null, tag: string, seed: string | null, excludeRounds: number[]) {
   const where = poolWhere({ ...filters, length: length ?? filters.length ?? null });
   const extra = [`p.import_tag = ?`, `p.name NOT IN (SELECT name FROM domains WHERE round_id IN (${excludeRounds.map(() => "?").join(",") || "NULL"}))`];
   const sql = where.sql ? `${where.sql} AND ${extra.join(" AND ")}` : `WHERE ${extra.join(" AND ")}`;
   const order = seed ? "dv_seeded_rank(?, p.name), p.name" : "p.name";
-  return (
-    getSqlite()
-      .prepare(`SELECT p.name FROM pool p ${sql} ORDER BY ${order}`)
-      .all(...where.params, tag, ...excludeRounds, ...(seed ? [seed] : [])) as Array<{ name: string }>
-  ).map((r) => r.name);
+  return (await reader().all<{ name: string }>(`SELECT p.name FROM pool p ${sql} ORDER BY ${order}`, [...where.params, tag, ...excludeRounds, ...(seed ? [seed] : [])])).map((r) => r.name);
 }
 
-function counts(roundId: number, tag: string) {
-  return getSqlite()
-    .prepare("SELECT SUM(segment IS NULL) AS core, SUM(segment = ?) AS existing FROM domains WHERE round_id = ?")
-    .get(tag, roundId) as { core: number | null; existing: number | null };
+async function counts(roundId: number, tag: string) {
+  return (await reader().get<{ core: number | null; existing: number | null }>("SELECT SUM(segment IS NULL) AS core, SUM(segment = ?) AS existing FROM domains WHERE round_id = ?", [
+    tag,
+    roundId,
+  ]))!;
 }
 
 /**
@@ -90,13 +85,16 @@ function lengthOnly(f: { filters: PoolFilters; seed: string | null } | null) {
   return f ? { filters: { ...normalizePoolFilters({}).filters, order: f.filters.order }, seed: f.seed } : f;
 }
 
-function tagCount(tag: string, length: number | null, excludeRounds: number[]) {
-  return candidates(normalizePoolFilters({}).filters, length, tag, null, excludeRounds).length;
+async function tagCount(tag: string, length: number | null, excludeRounds: number[]) {
+  const where = poolWhere({ ...normalizePoolFilters({}).filters, length });
+  const extra = [`p.import_tag = ?`, `p.name NOT IN (SELECT name FROM domains WHERE round_id IN (${excludeRounds.map(() => "?").join(",") || "NULL"}))`];
+  const sql = where.sql ? `${where.sql} AND ${extra.join(" AND ")}` : `WHERE ${extra.join(" AND ")}`;
+  return (await reader().get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool p ${sql}`, [...where.params, tag, ...excludeRounds]))!.n;
 }
 
-/** Dry run: what each round would receive. Pure read. */
-export function planSupplement(tag: string, match: SupplementMatch = "filters"): SupplementPlanRow[] {
-  const all = rounds();
+/** Dry run: what each round would receive. Pure read, off the main thread (lib/ro). */
+export async function planSupplement(tag: string, match: SupplementMatch = "filters"): Promise<SupplementPlanRow[]> {
+  const all = await rounds();
   const out: SupplementPlanRow[] = [];
   const batches = new Map<number, RoundRow[]>();
   for (const r of all) {
@@ -104,7 +102,7 @@ export function planSupplement(tag: string, match: SupplementMatch = "filters"):
       batches.set(r.batchId, [...(batches.get(r.batchId) ?? []), r]);
       continue;
     }
-    const c = counts(r.id, tag);
+    const c = await counts(r.id, tag);
     const base = { roundId: r.id, title: r.title, status: r.status, batchId: null, core: c.core ?? 0, existing: c.existing ?? 0 };
     if (r.source !== "pool") {
       out.push({ ...base, outside: 0, add: [], skip: "csv" });
@@ -125,9 +123,9 @@ export function planSupplement(tag: string, match: SupplementMatch = "filters"):
       out.push({ ...base, outside: 0, add: [], skip: "done" });
       continue;
     }
-    const len = labelLength(r.id);
-    const add = candidates(f.filters, len, tag, f.seed, [r.id]);
-    const outside = tagCount(tag, len, [r.id]) - add.length;
+    const len = await labelLength(r.id);
+    const add = await candidates(f.filters, len, tag, f.seed, [r.id]);
+    const outside = (await tagCount(tag, len, [r.id])) - add.length;
     out.push({ ...base, outside, add, skip: add.length ? undefined : outside ? "filter" : "none" });
   }
   for (const [, members] of batches) {
@@ -135,16 +133,17 @@ export function planSupplement(tag: string, match: SupplementMatch = "filters"):
     const parsed = parseFilters(members[0].batchFilter);
     const f = match === "length" ? lengthOnly(parsed) : parsed;
     const ids = members.map((m) => m.id);
-    const len = labelLength(ids[0]);
-    const already = members.some((m) => (counts(m.id, tag).existing ?? 0) > 0);
-    const names = f && !already ? candidates(f.filters, len, tag, members[0].batchOrder === "random" ? members[0].batchSeed : null, ids) : [];
-    const outsideAll = f && !already ? tagCount(tag, len, ids) - names.length : 0;
+    const len = await labelLength(ids[0]);
+    const memberCounts = await Promise.all(members.map((m) => counts(m.id, tag)));
+    const already = memberCounts.some((c) => (c.existing ?? 0) > 0);
+    const names = f && !already ? await candidates(f.filters, len, tag, members[0].batchOrder === "random" ? members[0].batchSeed : null, ids) : [];
+    const outsideAll = f && !already ? (await tagCount(tag, len, ids)) - names.length : 0;
     // Contiguous chunks of the seeded list, as even as possible across the opened rounds (first rounds take the remainder).
     const k = members.length;
     const sizes = members.map((_, i) => Math.floor(names.length / k) + (i < names.length % k ? 1 : 0));
     let at = 0;
     members.forEach((m, i) => {
-      const c = counts(m.id, tag);
+      const c = memberCounts[i];
       const take = sizes[i] ?? 0;
       const add = names.slice(at, at + take);
       at += take;
@@ -159,26 +158,31 @@ export function planSupplement(tag: string, match: SupplementMatch = "filters"):
 }
 
 /** Appends the planned names after each round's last position, flagged with the tag. Idempotent per (round, tag). */
-export function applySupplement(tag: string, adminId: number | null, onlyRounds?: number[], match: SupplementMatch = "filters") {
+export async function applySupplement(tag: string, adminId: number | null, onlyRounds?: number[], match: SupplementMatch = "filters") {
   const sqlite = getSqlite();
-  const plan = planSupplement(tag, match).filter((p) => p.add.length && (!onlyRounds || onlyRounds.includes(p.roundId)));
+  const plan = (await planSupplement(tag, match)).filter((p) => p.add.length && (!onlyRounds || onlyRounds.includes(p.roundId)));
   const now = Date.now();
   return sqlite.transaction(() => {
     let total = 0;
+    let applied = 0;
     const ins = sqlite.prepare(
       `INSERT INTO domains (round_id, position, name, price, is_premium, source_domain_id, pool_name, currency, segment)
        SELECT ?, ?, p.name, COALESCE(p.lp_price, p.best_price), 0, NULL, p.name,
               CASE WHEN p.lp_price IS NOT NULL THEN p.lp_currency ELSE COALESCE(p.best_currency, p.lp_currency) END, ? FROM pool p WHERE p.name = ?`,
     );
+    const done = sqlite.prepare("SELECT 1 FROM round_supplements WHERE round_id = ? AND tag = ?");
     for (const p of plan) {
+      // The plan was read off-thread; a concurrent apply may have landed since, so re-check per round here.
+      if (done.get(p.roundId, tag)) continue;
       const max = (sqlite.prepare("SELECT COALESCE(MAX(position), 0) AS m FROM domains WHERE round_id = ?").get(p.roundId) as { m: number }).m;
       p.add.forEach((name, i) => ins.run(p.roundId, max + 1 + i, tag, name));
       sqlite
         .prepare("INSERT INTO round_supplements (round_id, tag, first_position, added, seed, created_at, created_by) VALUES (?, ?, ?, ?, NULL, ?, ?)")
         .run(p.roundId, tag, max + 1, p.add.length, now, adminId);
       total += p.add.length;
+      applied += 1;
     }
-    return { rounds: plan.length, names: total };
+    return { rounds: applied, names: total };
   })();
 }
 
@@ -199,9 +203,9 @@ export function removeSupplement(tag: string) {
 
 /** Pool import tags with sizes; a GROUP BY over the whole pool, cached until the pool changes. */
 export function importTags() {
-  return cached("importTags", () =>
-    getSqlite()
-      .prepare("SELECT import_tag AS tag, COUNT(*) AS n, MIN(name_len) AS lmin, MAX(name_len) AS lmax FROM pool WHERE import_tag IS NOT NULL GROUP BY import_tag ORDER BY import_tag DESC")
-      .all() as Array<{ tag: string; n: number; lmin: number; lmax: number }>,
+  return cachedAsync("importTags", () =>
+    reader().all<{ tag: string; n: number; lmin: number; lmax: number }>(
+      "SELECT import_tag AS tag, COUNT(*) AS n, MIN(name_len) AS lmin, MAX(name_len) AS lmax FROM pool WHERE import_tag IS NOT NULL GROUP BY import_tag ORDER BY import_tag DESC",
+    ),
   );
 }

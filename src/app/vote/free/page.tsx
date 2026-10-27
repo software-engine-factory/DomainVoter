@@ -21,8 +21,7 @@ export default async function VoterFreePage({ searchParams }: { searchParams: Pr
   await requireVoter();
   if (!getVoterFreeTab()) notFound();
   const q = parseFreeQuery(await searchParams);
-  const lengths = freeLengthCounts();
-  const res = browseFreeForVoters(q);
+  const [lengths, res] = await Promise.all([freeLengthCounts(), browseFreeForVoters(q)]);
   const params = { len: q.len ?? undefined };
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8" data-testid="voter-free">

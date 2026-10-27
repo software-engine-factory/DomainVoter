@@ -1,5 +1,6 @@
 import { getSqlite } from "@/db";
-import { cached, cachedCount } from "@/lib/data-cache";
+import { cachedAsync, cachedCountAsync } from "@/lib/data-cache";
+import { reader } from "@/lib/ro";
 import { t } from "@/lib/copy/fa";
 import { normalizeSetIds } from "@/lib/sets";
 
@@ -144,35 +145,24 @@ export function poolOrder(order: PoolFilters["order"], alias = "p") {
 
 export function countPool(filters: PoolFilters) {
   const where = poolWhere(filters);
-  return cachedCount("pool", where.sql, where.params, () => (getSqlite().prepare(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`).get(...where.params) as { n: number }).n);
+  return cachedCountAsync("pool", where.sql, where.params, async () => (await reader().get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`, where.params))!.n);
 }
 
 export type PoolFacet = { value: string | null; count: number; priced: number };
 
 /** Whole-pool facets for the round forms; cached until the pool changes. */
 export function poolFacets() {
-  return cached("poolFacets", computePoolFacets);
+  return cachedAsync("poolFacets", computePoolFacets);
 }
 
-function computePoolFacets() {
-  const sqlite = getSqlite();
+async function computePoolFacets() {
+  const r = reader();
   const facet = (column: string) =>
-    sqlite
-      .prepare(
-        `SELECT ${column} AS value, COUNT(*) AS count, COUNT(price_usd) AS priced
-         FROM pool GROUP BY ${column} ORDER BY count DESC`,
-      )
-      .all() as PoolFacet[];
-  const totals = sqlite
-    .prepare(
-      `SELECT COUNT(*) AS total,
-              COUNT(lp_price) + SUM(CASE WHEN lp_price IS NULL AND best_price IS NOT NULL THEN 1 ELSE 0 END) AS priced,
-              COUNT(price_usd) AS pricedUsd,
-              SUM(set_1) AS s1, SUM(set_2) AS s2, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5,
-              MAX(imported_at) AS lastImport
-       FROM pool`,
-    )
-    .get() as {
+    r.all<PoolFacet>(
+      `SELECT ${column} AS value, COUNT(*) AS count, COUNT(price_usd) AS priced
+       FROM pool GROUP BY ${column} ORDER BY count DESC`,
+    );
+  const totals = (await r.get<{
     total: number;
     priced: number | null;
     pricedUsd: number;
@@ -182,20 +172,23 @@ function computePoolFacets() {
     s4: number | null;
     s5: number | null;
     lastImport: number | null;
-  };
-  return {
-    totals,
-    classes: facet("dns_ns_class"),
-    providers: facet("dns_parking_provider"),
-    evidence: facet("evidence"),
-  };
+  }>(
+      `SELECT COUNT(*) AS total,
+              COUNT(lp_price) + SUM(CASE WHEN lp_price IS NULL AND best_price IS NOT NULL THEN 1 ELSE 0 END) AS priced,
+              COUNT(price_usd) AS pricedUsd,
+              SUM(set_1) AS s1, SUM(set_2) AS s2, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5,
+              MAX(imported_at) AS lastImport
+       FROM pool`,
+  ))!;
+  const [classes, providers, evidence] = await Promise.all([facet("dns_ns_class"), facet("dns_parking_provider"), facet("evidence")]);
+  return { totals, classes, providers, evidence };
 }
 
 export type LengthCount = { length: number; count: number };
 
 /** Names per label length, for the round-creation length picker (index-only scan of pool_name_len_idx). */
-export function poolLengthCounts(): LengthCount[] {
-  return cached("poolLengthCounts", () => getSqlite().prepare("SELECT name_len AS length, COUNT(*) AS count FROM pool GROUP BY name_len ORDER BY name_len").all() as LengthCount[]);
+export function poolLengthCounts(): Promise<LengthCount[]> {
+  return cachedAsync("poolLengthCounts", () => reader().all<LengthCount>("SELECT name_len AS length, COUNT(*) AS count FROM pool GROUP BY name_len ORDER BY name_len"));
 }
 
 /** The length a new round starts on: 4 when present (the original pool), else the biggest group. */

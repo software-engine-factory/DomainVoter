@@ -6,10 +6,10 @@ const { getSqlite } = await j.import("@/db");
 const pool = await j.import("@/lib/pool");
 const db = getSqlite();
 
-test("length filter + length counts", () => {
+test("length filter + length counts", async () => {
   const ins = db.prepare("INSERT INTO pool (name, price_usd, imported_at) VALUES (?, 10, 1)");
   for (const n of ["zqa.com", "zqab.com", "zqabc.com", "zqb.com"]) ins.run(n);
-  const counts = pool.poolLengthCounts();
+  const counts = await pool.poolLengthCounts();
   const by = Object.fromEntries(counts.map((c) => [c.length, c.count]));
   assert.ok(by[3] >= 1 && by[4] >= 1 && by[5] >= 1, JSON.stringify(counts));
   assert.equal(pool.defaultLength(counts), 4);

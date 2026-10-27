@@ -2,7 +2,8 @@ import fs from "fs";
 import Papa from "papaparse";
 import { getSqlite } from "@/db";
 import { normalizeRow } from "@/lib/pool-import";
-import { bumpData, cached, cachedCount } from "@/lib/data-cache";
+import { bumpData, cachedAsync, cachedCountAsync } from "@/lib/data-cache";
+import { inlineReader, reader, type Reader } from "@/lib/ro";
 
 /**
  * free_names: .com names that are not registered yet (registrable at reg_price_usd).
@@ -147,35 +148,34 @@ const ORDER = ["f.name_len", "f.ord", "f.name"];
  * index-only walk; pages past the middle walk from the far end instead (exact reverse, NULL ord
  * included), so the last page is as cheap as the first.
  */
-function pageRows<T>(select: string, w: { sql: string; params: unknown[] }, total: number, page: number, size: number): T[] {
-  const sqlite = getSqlite();
+function pageRows<T>(r: Reader, select: string, w: { sql: string; params: unknown[] }, total: number, page: number, size: number): Promise<T[]> {
   const offset = (page - 1) * size;
   const ids = (dir: "ASC" | "DESC", limit: number, off: number) =>
     `SELECT f.rowid FROM free_names f ${w.sql} ORDER BY ${ORDER.map((c) => `${c} ${dir}`).join(", ")} LIMIT ${limit} OFFSET ${off}`;
   if (offset <= total / 2) {
-    return sqlite.prepare(`SELECT ${select} FROM free_names f WHERE f.rowid IN (${ids("ASC", size, offset)}) ORDER BY ${ORDER.join(", ")}`).all(...w.params) as T[];
+    return r.all<T>(`SELECT ${select} FROM free_names f WHERE f.rowid IN (${ids("ASC", size, offset)}) ORDER BY ${ORDER.join(", ")}`, w.params);
   }
   const end = Math.min(total, offset + size);
   const limit = Math.max(0, end - offset);
-  return sqlite
-    .prepare(`SELECT ${select} FROM free_names f WHERE f.rowid IN (${ids("DESC", limit, total - end)}) ORDER BY ${ORDER.join(", ")}`)
-    .all(...w.params) as T[];
+  return r.all<T>(`SELECT ${select} FROM free_names f WHERE f.rowid IN (${ids("DESC", limit, total - end)}) ORDER BY ${ORDER.join(", ")}`, w.params);
 }
 
-function countFree(w: { sql: string; params: unknown[] }, len: number | null, onlyLen: boolean) {
+async function countFree(w: { sql: string; params: unknown[] }, len: number | null, onlyLen: boolean) {
   if (onlyLen) {
-    const counts = freeLengthCounts();
+    const counts = await freeLengthCounts();
     return len == null ? counts.reduce((a, c) => a + c.count, 0) : (counts.find((c) => c.length === len)?.count ?? 0);
   }
-  return cachedCount("free_names", w.sql, w.params, () => (getSqlite().prepare(`SELECT COUNT(*) AS n FROM free_names f ${w.sql}`).get(...w.params) as { n: number }).n);
+  return cachedCountAsync("free_names", w.sql, w.params, async () => (await reader().get<{ n: number }>(`SELECT COUNT(*) AS n FROM free_names f ${w.sql}`, w.params))!.n);
 }
 
-export function browseFree(q: FreeQuery) {
+/** Admin list; set / text filters scan, so they run off the main thread. */
+export async function browseFree(q: FreeQuery) {
   const w = where(q);
-  const total = countFree(w, q.len, q.set == null && !q.q);
+  const total = await countFree(w, q.len, q.set == null && !q.q);
   const pages = Math.max(1, Math.ceil(total / FREE_PAGE));
   const page = Math.min(q.page, pages);
-  const rows = pageRows<FreeRow>(
+  const rows = await pageRows<FreeRow>(
+    q.set != null || q.q ? reader() : inlineReader(),
     `f.name, f.name_len AS len, f.set4_part, f.shape, f.ord, f.cf_checked_at, f.reg_price_usd, f.reg_registrar,
        rtrim((CASE WHEN f.set_1 = 1 THEN '1,' ELSE '' END) || (CASE WHEN f.set_3 = 1 THEN '3,' ELSE '' END) || (CASE WHEN f.set_4 = 1 THEN '4,' ELSE '' END) || (CASE WHEN f.set_5 = 1 THEN '5,' ELSE '' END), ',') AS sets,
        EXISTS (SELECT 1 FROM pool p WHERE p.name = f.name) AS inPool`,
@@ -189,19 +189,20 @@ export function browseFree(q: FreeQuery) {
 
 /** Names per length; cached until the free list changes. */
 export function freeLengthCounts() {
-  return cached("freeLengthCounts", () =>
-    getSqlite().prepare("SELECT name_len AS length, COUNT(*) AS count FROM free_names GROUP BY name_len ORDER BY name_len").all() as Array<{ length: number; count: number }>,
+  return cachedAsync("freeLengthCounts", () =>
+    reader().all<{ length: number; count: number }>("SELECT name_len AS length, COUNT(*) AS count FROM free_names GROUP BY name_len ORDER BY name_len"),
   );
 }
 
 
 /** Voter tab: name + registration price only (no pool flag, no tags, no sets). */
 export type VoterFree = { name: string; regPrice: number | null };
-export function browseFreeForVoters(q: Pick<FreeQuery, "len" | "page">) {
+/** Voters stay on the main connection (an index-only page, ~ms) so they never queue behind admin reads. */
+export async function browseFreeForVoters(q: Pick<FreeQuery, "len" | "page">) {
   const w = q.len != null ? { sql: "WHERE f.name_len = ?", params: [q.len] as unknown[] } : { sql: "", params: [] as unknown[] };
-  const total = countFree(w, q.len, true);
+  const total = await countFree(w, q.len, true);
   const pages = Math.max(1, Math.ceil(total / VOTER_FREE_PAGE));
   const page = Math.min(q.page, pages);
-  const rows = pageRows<VoterFree>("f.name, f.reg_price_usd AS regPrice", w, total, page, VOTER_FREE_PAGE);
+  const rows = await pageRows<VoterFree>(inlineReader(), "f.name, f.reg_price_usd AS regPrice", w, total, page, VOTER_FREE_PAGE);
   return { rows, total, page, pages };
 }

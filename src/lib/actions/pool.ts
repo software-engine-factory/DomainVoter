@@ -63,7 +63,7 @@ export async function countPoolAction(input: Record<string, unknown>) {
   await requireAdmin();
   const { filters, error } = normalizePoolFilters(input);
   if (error) return { count: 0, error };
-  return { count: countPool(filters) };
+  return { count: await countPool(filters) };
 }
 
 export async function createPoolRoundAction(formData: FormData) {
@@ -89,7 +89,7 @@ export async function createExploreRoundAction(formData: FormData) {
   if (!title || title.length > 80) redirect(`${back}&error=title`);
   const params: Record<string, string[]> = {};
   for (const [k, v] of new URLSearchParams(explore)) (params[k] ??= []).push(v);
-  const result = createRoundFromBrowse(title, parseBrowse(params));
+  const result = await createRoundFromBrowse(title, parseBrowse(params));
   if (result.count === 0) redirect(`${back}&error=parse&message=${encodeURIComponent(t.pool.err.noMatch)}`);
   setRoundAssignees(result.id, parseAssigneeIds(formData));
   revalidatePath("/admin");
