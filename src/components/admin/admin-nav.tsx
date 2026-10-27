@@ -35,7 +35,7 @@ export function AdminNav() {
   const path = usePathname();
   return (
     <nav aria-label={t.adminNav.label} className="border-b border-line bg-card/60">
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-1 gap-y-1 px-3 py-2 sm:px-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-1 gap-y-1 px-3 py-2 sm:px-6">
         {GROUPS.map((group, gi) => (
           <div key={gi} className="flex flex-wrap items-center gap-0.5">
             {gi > 0 ? <span aria-hidden className="mx-1 hidden h-4 w-px bg-line sm:block" /> : null}

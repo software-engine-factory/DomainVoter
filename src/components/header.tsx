@@ -2,6 +2,7 @@ import Link from "next/link";
 import { logoutAction } from "@/lib/actions/auth";
 import type { SessionUser } from "@/lib/auth";
 import { NavLink } from "@/components/nav-link";
+import { AdminPanelLink } from "@/components/admin-panel-link";
 import { AdminTour } from "@/components/admin/admin-tour";
 import { ThemePicker } from "@/components/theme-picker";
 import { buttonClass } from "@/components/ui";
@@ -26,9 +27,7 @@ export function Header({ session, theme, freeTab = false }: { session: SessionUs
           {session?.role === "admin" ? <AdminTour user={session.username} /> : null}
           <ThemePicker initial={theme} />
           {session?.role === "admin" ? (
-            <Link href="/admin" className={`${buttonClass("secondary", "sm")} h-8 whitespace-nowrap px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm`}>
-              {t.nav.adminPanel}
-            </Link>
+            <AdminPanelLink />
           ) : null}
           {session ? (
             <form action={logoutAction} className="flex items-center gap-2">
