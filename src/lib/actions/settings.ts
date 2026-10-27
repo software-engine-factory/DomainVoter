@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
-import { setVotePageSize } from "@/lib/settings";
+import { setVoterFreeTab, setVotePageSize } from "@/lib/settings";
 
 export async function saveVotePageSizeAction(formData: FormData) {
   const session = await requireAdmin();
@@ -14,4 +14,11 @@ export async function saveVotePageSizeAction(formData: FormData) {
   }
   revalidatePath("/admin/settings");
   revalidatePath("/vote", "layout");
+}
+
+export async function saveVoterFreeTabAction(formData: FormData) {
+  const session = await requireAdmin();
+  setVoterFreeTab(formData.get("on") === "1", session.userId);
+  revalidatePath("/admin/settings");
+  revalidatePath("/", "layout");
 }

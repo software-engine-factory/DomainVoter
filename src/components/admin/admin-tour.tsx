@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import { buttonClass } from "@/components/ui";
 import { t } from "@/lib/copy/fa";
 
@@ -33,7 +34,14 @@ function findAnchor(anchors: string[]): HTMLElement | null {
   return null;
 }
 
+/** Header icon button; the tour only exists on admin screens. */
 export function AdminTour({ user }: { user: string }) {
+  const path = usePathname();
+  if (!path.startsWith("/admin")) return null;
+  return <AdminTourInner user={user} />;
+}
+
+function AdminTourInner({ user }: { user: string }) {
   const [index, setIndex] = useState<number | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -115,13 +123,17 @@ export function AdminTour({ user }: { user: string }) {
       <button
         type="button"
         onClick={() => setIndex(0)}
-        className="ms-auto inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-muted hover:bg-card hover:text-ink"
+        title={t.tour.open}
+        aria-label={t.tour.open}
         aria-haspopup="dialog"
+        data-tour-open
+        className="press group inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-line bg-card text-muted transition duration-200 hover:border-accent/40 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-95"
       >
-        <span aria-hidden className="grid h-4 w-4 place-items-center rounded-full border border-current text-[10px] leading-none">
-          ?
-        </span>
-        {t.tour.open}
+        <svg viewBox="0 0 24 24" className="size-[18px] transition-transform duration-300 group-hover:-rotate-12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="9.5" />
+          <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.3-2.4 3.6" />
+          <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+        </svg>
       </button>
       {mounted && step && copy
         ? createPortal(

@@ -83,7 +83,12 @@ function normalizePart(value: unknown) {
   return out === "main" || out === "vowel_edge" || out === "y_vowel" ? out : null;
 }
 
+/** Availability values that mean "nobody can buy/register this": such rows never enter the DB. */
+const NOT_PURCHASABLE = new Set(["taken", "registered", "unavailable", "not_for_sale", "sold"]);
+
 export function normalizeRow(row: Raw, now: number) {
+  const status = text(row.status)?.toLowerCase();
+  if (status && NOT_PURCHASABLE.has(status)) return null;
   const name = normalizeName(row.name);
   if (!name || !LABEL_RE.test(name)) return null;
   // A declared length must match the label; a mismatch means a corrupt row, so skip it.

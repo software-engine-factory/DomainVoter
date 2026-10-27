@@ -21,3 +21,20 @@ export function setVotePageSize(size: number, userId: number) {
     )
     .run(VOTE_PAGE_SIZE_KEY, String(size), Date.now(), userId);
 }
+
+const VOTER_FREE_TAB_KEY = "voter_free_tab";
+
+/** Prototype: show voters a names-only "free names" tab. Off unless an admin turns it on. */
+export function getVoterFreeTab(): boolean {
+  const row = getSqlite().prepare("SELECT value FROM app_settings WHERE key = ?").get(VOTER_FREE_TAB_KEY) as { value: string } | undefined;
+  return row?.value === "1";
+}
+
+export function setVoterFreeTab(on: boolean, userId: number) {
+  getSqlite()
+    .prepare(
+      `INSERT INTO app_settings (key, value, updated_at, updated_by) VALUES (?, ?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
+    )
+    .run(VOTER_FREE_TAB_KEY, on ? "1" : "0", Date.now(), userId);
+}

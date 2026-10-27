@@ -262,6 +262,21 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       );
     `,
   },
+  {
+    version: 12,
+    name: "free_names: registration price columns + partial indexes for len/set filters",
+    sql: `
+      ALTER TABLE free_names ADD COLUMN cf_checked_at INTEGER;
+      ALTER TABLE free_names ADD COLUMN reg_price_usd REAL;
+      ALTER TABLE free_names ADD COLUMN reg_registrar TEXT;
+      -- One small partial index per set flag, so len+set filters on ~1.1M rows stay index-only.
+      CREATE INDEX IF NOT EXISTS free_names_s1_idx ON free_names(name_len, ord) WHERE set_1 = 1;
+      CREATE INDEX IF NOT EXISTS free_names_s2_idx ON free_names(name_len, ord) WHERE set_2 = 1;
+      CREATE INDEX IF NOT EXISTS free_names_s3_idx ON free_names(name_len, ord) WHERE set_3 = 1;
+      CREATE INDEX IF NOT EXISTS free_names_s4_idx ON free_names(name_len, ord) WHERE set_4 = 1;
+      CREATE INDEX IF NOT EXISTS free_names_s5_idx ON free_names(name_len, ord) WHERE set_5 = 1;
+    `,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */

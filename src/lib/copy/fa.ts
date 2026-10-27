@@ -843,6 +843,16 @@ export const t = {
     empty: "نامی پیدا نشد",
     shape: "الگو",
     sets: "مجموعه",
+    registerAt: (registrar: string) => `ثبت در ${registrar}`,
+    registerMenu: (name: string) => `ثبت ${name}`,
+    freeTip: (price: string) => `هنوز ثبت نشده · با ${price} قابل ثبت است`,
+    voterTab: "نام‌های آزاد",
+    voterTitle: "نام‌های آزاد",
+    voterCount: (n: string) => `${n} نام`,
+    tabSetting: "زبانهٔ «نام‌های آزاد» برای رأی‌دهنده‌ها",
+    tabSettingTip: "نام‌های ثبت‌نشده با قیمت ثبت و پیوند ثبت",
+    tabOn: "روشن",
+    tabOff: "خاموش",
   },
 } as const;
 

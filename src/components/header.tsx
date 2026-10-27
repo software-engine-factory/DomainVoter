@@ -2,12 +2,14 @@ import Link from "next/link";
 import { logoutAction } from "@/lib/actions/auth";
 import type { SessionUser } from "@/lib/auth";
 import { NavLink } from "@/components/nav-link";
+import { AdminPanelLink } from "@/components/admin-panel-link";
+import { AdminTour } from "@/components/admin/admin-tour";
 import { ThemePicker } from "@/components/theme-picker";
 import { buttonClass } from "@/components/ui";
 import { t } from "@/lib/copy/fa";
 import type { ThemeId } from "@/lib/theme/themes";
 
-export function Header({ session, theme }: { session: SessionUser | null; theme: ThemeId }) {
+export function Header({ session, theme, freeTab = false }: { session: SessionUser | null; theme: ThemeId; freeTab?: boolean }) {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper">
       <a
@@ -16,17 +18,16 @@ export function Header({ session, theme }: { session: SessionUser | null; theme:
       >
         {t.nav.skip}
       </a>
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-2 sm:h-14 sm:flex-nowrap sm:py-0 sm:px-6">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-1 sm:gap-x-6 px-4 py-2 sm:h-14 sm:flex-nowrap sm:py-0 sm:px-6">
         <Link href="/" className="group inline-flex items-center gap-2 font-display text-[1.65rem] leading-none text-ink">
           <span className="h-2.5 w-2.5 rounded-sm bg-accent transition-transform duration-300 group-hover:rotate-45" aria-hidden />
           {t.app.name}
         </Link>
         <div className="flex shrink-0 items-center gap-1 sm:order-last sm:gap-1.5">
+          {session?.role === "admin" ? <AdminTour user={session.username} /> : null}
           <ThemePicker initial={theme} />
           {session?.role === "admin" ? (
-            <Link href="/admin" className={`${buttonClass("secondary", "sm")} h-8 whitespace-nowrap px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm`}>
-              {t.nav.adminPanel}
-            </Link>
+            <AdminPanelLink />
           ) : null}
           {session ? (
             <form action={logoutAction} className="flex items-center gap-2">
@@ -42,6 +43,11 @@ export function Header({ session, theme }: { session: SessionUser | null; theme:
             {session ? (
               <NavLink href="/vote" exact>
                 {t.nav.rounds}
+              </NavLink>
+            ) : null}
+            {session && freeTab ? (
+              <NavLink href="/vote/free" exact>
+                {t.free.voterTab}
               </NavLink>
             ) : null}
             {session ? (

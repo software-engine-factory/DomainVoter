@@ -4,14 +4,49 @@ import { getSqlite } from "@/db";
 import { normalizeRow } from "@/lib/pool-import";
 
 /**
- * free_names: candidate .com names that are not registered (from the candidates_*L CSVs).
- * Admin-only reference list: never part of the pool, never shown to voters.
+ * free_names: .com names that are not registered yet (registrable at reg_price_usd).
+ * Never part of the pool; voters see them only with the voter_free_tab setting on (off by default).
  */
-export type FreeRow = { name: string; len: number; sets: string; set4_part: string | null; shape: string | null; ord: number | null; inPool: number };
+export type FreeRow = {
+  name: string; len: number; sets: string; set4_part: string | null; shape: string | null; ord: number | null; inPool: number;
+  cf_checked_at: number | null; reg_price_usd: number | null; reg_registrar: string | null;
+};
 export type FreeQuery = { len: number | null; set: number | null; q: string; page: number };
-export const FREE_PAGE = 100;
+export const FREE_PAGE = 60;
+export const VOTER_FREE_PAGE = 120;
 
-const BATCH = 2000;
+/** Rows per transaction, and rows per multi-row INSERT statement (14 params each, well under SQLite's 32766). */
+const BATCH = 10000;
+const CHUNK = 500;
+const COLS = ["name", "set_1", "set_2", "set_3", "set_4", "set_5", "set4_part", "shape", "ord", "import_tag", "imported_at", "cf_checked_at", "reg_price_usd", "reg_registrar"] as const;
+
+function num(v: unknown) {
+  const s = String(v ?? "").trim();
+  const n = Number(s);
+  return s !== "" && Number.isFinite(n) ? n : null;
+}
+/**
+ * Import-time guard: free_names only ever holds names that can still be registered. A row whose
+ * availability column says otherwise (cf_free / available / status) is rejected, never stored.
+ */
+const NOT_FREE = new Set(["0", "false", "no", "n", "taken", "registered", "unavailable"]);
+export function isRegistrable(row: Record<string, unknown>) {
+  for (const k of ["cf_free", "available", "status"]) {
+    const s = String(row[k] ?? "").trim().toLowerCase();
+    if (s && NOT_FREE.has(s)) return false;
+  }
+  return true;
+}
+/** cf_checked_at: epoch seconds/ms or an ISO date → epoch ms. */
+function when(v: unknown) {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (Number.isFinite(n)) return n < 1e12 ? Math.round(n * 1000) : Math.round(n);
+  const d = Date.parse(s);
+  return Number.isFinite(d) ? d : null;
+}
+
 
 function int(v: unknown) {
   const n = Number(String(v ?? "").trim());
@@ -22,13 +57,20 @@ function int(v: unknown) {
 export function importFreeCsv(file: string, tag: string | null): Promise<{ read: number; upserted: number; skipped: number; error?: string }> {
   const sqlite = getSqlite();
   const now = Date.now();
-  const upsert = sqlite.prepare(`INSERT INTO free_names (name, set_1, set_2, set_3, set_4, set_5, set4_part, shape, ord, import_tag, imported_at)
-    VALUES (@name, @set_1, @set_2, @set_3, @set_4, @set_5, @set4_part, @shape, @ord, @import_tag, @imported_at)
+  const upsertSql = (n: number) =>
+    `INSERT INTO free_names (${COLS.join(", ")}) VALUES ${Array(n).fill(`(${COLS.map(() => "?").join(",")})`).join(",")}
     ON CONFLICT(name) DO UPDATE SET set_1 = excluded.set_1, set_2 = excluded.set_2, set_3 = excluded.set_3, set_4 = excluded.set_4, set_5 = excluded.set_5,
-      set4_part = excluded.set4_part, shape = excluded.shape, ord = excluded.ord, import_tag = coalesce(free_names.import_tag, excluded.import_tag), imported_at = excluded.imported_at`);
-  const flush = sqlite.transaction((rows: Record<string, unknown>[]) => rows.forEach((r) => upsert.run(r)));
+      set4_part = excluded.set4_part, shape = excluded.shape, ord = excluded.ord, import_tag = coalesce(free_names.import_tag, excluded.import_tag), imported_at = excluded.imported_at,
+      cf_checked_at = coalesce(excluded.cf_checked_at, free_names.cf_checked_at),
+      reg_price_usd = coalesce(excluded.reg_price_usd, free_names.reg_price_usd), reg_registrar = coalesce(excluded.reg_registrar, free_names.reg_registrar)`;
+  const full = sqlite.prepare(upsertSql(CHUNK));
+  const flush = sqlite.transaction((rows: unknown[][]) => {
+    let i = 0;
+    for (; i + CHUNK <= rows.length; i += CHUNK) full.run(rows.slice(i, i + CHUNK).flat());
+    if (i < rows.length) sqlite.prepare(upsertSql(rows.length - i)).run(rows.slice(i).flat());
+  });
   const stats = { read: 0, upserted: 0, skipped: 0 };
-  let buf: Record<string, unknown>[] = [];
+  let buf: unknown[][] = [];
   let error: string | undefined;
   return new Promise((resolve) => {
     Papa.parse<Record<string, string>>(fs.createReadStream(file, { encoding: "utf8" }) as unknown as File, {
@@ -42,15 +84,19 @@ export function importFreeCsv(file: string, tag: string | null): Promise<{ read:
           parser.abort();
           return;
         }
-        const row = normalizeRow(res.data, now);
+        const row = isRegistrable(res.data) ? normalizeRow(res.data, now) : null;
         if (!row) {
           stats.skipped += 1;
           return;
         }
-        buf.push({
-          name: row.name, set_1: row.set_1, set_2: row.set_2, set_3: row.set_3, set_4: row.set_4, set_5: row.set_5,
-          set4_part: row.set4_part, shape: row.shape, ord: int(res.data.ord), import_tag: tag ?? row.import_tag ?? null, imported_at: now,
-        });
+        const d = res.data;
+        const price = num(d.reg_price_usd);
+        buf.push([
+          row.name, row.set_1, row.set_2, row.set_3, row.set_4, row.set_5, row.set4_part ?? null, row.shape ?? null, int(d.ord),
+          tag ?? row.import_tag ?? null, now, when(d.cf_checked_at),
+          price != null && price >= 0 && price < 1e5 ? Math.round(price * 100) / 100 : null,
+          String(d.reg_registrar ?? "").trim().toLowerCase().slice(0, 40) || null,
+        ]);
         if (buf.length >= BATCH) {
           flush(buf);
           stats.upserted += buf.length;
@@ -100,10 +146,10 @@ export function browseFree(q: FreeQuery) {
   const page = Math.min(q.page, pages);
   const rows = sqlite
     .prepare(
-      `SELECT f.name, f.name_len AS len, f.set4_part, f.shape, f.ord,
+      `SELECT f.name, f.name_len AS len, f.set4_part, f.shape, f.ord, f.cf_checked_at, f.reg_price_usd, f.reg_registrar,
          rtrim((CASE WHEN f.set_1 = 1 THEN '1,' ELSE '' END) || (CASE WHEN f.set_3 = 1 THEN '3,' ELSE '' END) || (CASE WHEN f.set_4 = 1 THEN '4,' ELSE '' END) || (CASE WHEN f.set_5 = 1 THEN '5,' ELSE '' END), ',') AS sets,
          EXISTS (SELECT 1 FROM pool p WHERE p.name = f.name) AS inPool
-       FROM free_names f ${w.sql} ORDER BY f.name_len, coalesce(f.ord, 1e18), f.name LIMIT ? OFFSET ?`,
+       FROM free_names f ${w.sql} ORDER BY f.name_len, f.ord, f.name LIMIT ? OFFSET ?`,
     )
     .all(...w.params, FREE_PAGE, (page - 1) * FREE_PAGE) as FreeRow[];
   return { rows, total, page, pages };
@@ -111,4 +157,20 @@ export function browseFree(q: FreeQuery) {
 
 export function freeLengthCounts() {
   return getSqlite().prepare("SELECT name_len AS length, COUNT(*) AS count FROM free_names GROUP BY name_len ORDER BY name_len").all() as Array<{ length: number; count: number }>;
+}
+
+
+/** Voter tab: name + registration price only (no pool flag, no tags, no sets). */
+export type VoterFree = { name: string; regPrice: number | null };
+export function browseFreeForVoters(q: Pick<FreeQuery, "len" | "page">) {
+  const sqlite = getSqlite();
+  const w = q.len != null ? "WHERE name_len = ?" : "";
+  const p = q.len != null ? [q.len] : [];
+  const total = (sqlite.prepare(`SELECT COUNT(*) AS n FROM free_names ${w}`).get(...p) as { n: number }).n;
+  const pages = Math.max(1, Math.ceil(total / VOTER_FREE_PAGE));
+  const page = Math.min(q.page, pages);
+  const rows = sqlite
+    .prepare(`SELECT name, reg_price_usd AS regPrice FROM free_names ${w} ORDER BY name_len, ord, name LIMIT ? OFFSET ?`)
+    .all(...p, VOTER_FREE_PAGE, (page - 1) * VOTER_FREE_PAGE) as VoterFree[];
+  return { rows, total, page, pages };
 }
