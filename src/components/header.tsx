@@ -2,6 +2,7 @@ import Link from "next/link";
 import { logoutAction } from "@/lib/actions/auth";
 import type { SessionUser } from "@/lib/auth";
 import { NavLink } from "@/components/nav-link";
+import { AdminTour } from "@/components/admin/admin-tour";
 import { ThemePicker } from "@/components/theme-picker";
 import { buttonClass } from "@/components/ui";
 import { t } from "@/lib/copy/fa";
@@ -22,6 +23,7 @@ export function Header({ session, theme, freeTab = false }: { session: SessionUs
           {t.app.name}
         </Link>
         <div className="flex shrink-0 items-center gap-1 sm:order-last sm:gap-1.5">
+          {session?.role === "admin" ? <AdminTour user={session.username} /> : null}
           <ThemePicker initial={theme} />
           {session?.role === "admin" ? (
             <Link href="/admin" className={`${buttonClass("secondary", "sm")} h-8 whitespace-nowrap px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm`}>
