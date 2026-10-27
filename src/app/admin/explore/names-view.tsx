@@ -19,11 +19,10 @@ const chip = (on: boolean) =>
   }`;
 const groupLabel = "shrink-0 text-xs font-semibold text-muted";
 
-export function NamesView({ query }: { query: Record<string, string | string[] | undefined> }) {
+export async function NamesView({ query }: { query: Record<string, string | string[] | undefined> }) {
   const q = parseBrowse(query);
   const params = browseToParams(q);
-  const result = browsePool(q);
-  const facets = browseFacets();
+  const [result, facets] = await Promise.all([browsePool(q), browseFacets()]);
   const rounds = roundOptions();
   const active = activeFilterCount(q);
   const back = withParams("/admin/explore", { ...params, page: result.page });

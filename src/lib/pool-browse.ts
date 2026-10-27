@@ -1,6 +1,7 @@
 import { getSqlite } from "@/db";
-import { cached, cachedCount } from "@/lib/data-cache";
-import { poolLengthCounts } from "@/lib/pool";
+import { cachedAsync, cachedCountAsync } from "@/lib/data-cache";
+import { reader } from "@/lib/ro";
+import { poolLengthCounts, type LengthCount } from "@/lib/pool";
 import { normalizePattern, normalizeQuery, patternActive, PATTERN_MAX } from "@/lib/vote-view";
 import { ACTIVE_SETS, normalizeSetIds } from "@/lib/sets";
 
@@ -134,7 +135,8 @@ export function activeFilterCount(q: BrowseQuery) {
 const likeEscape = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 const used = "EXISTS (SELECT 1 FROM domains d WHERE d.name = p.name)";
 
-export function browseWhere(q: BrowseQuery) {
+/** `lengths` (poolLengthCounts) only steers the plan for length filters; see below. */
+export function browseWhere(q: BrowseQuery, lengths: LengthCount[] = []) {
   const w: string[] = [];
   const params: Array<string | number> = [];
   if (q.hp === "yes") w.push("p.has_price = 1");
@@ -188,7 +190,7 @@ export function browseWhere(q: BrowseQuery) {
     // A length filter matching most of the pool (5 letters ≈ 76%) is cheaper as a walk of the
     // name-ordered table than an index range + sort of every match; "+" keeps SQLite off the
     // length indexes then (left alone it picks pool_len_price_idx and sorts 400k rows per page).
-    const counts = poolLengthCounts();
+    const counts = lengths;
     const all = counts.reduce((a, c) => a + c.count, 0);
     const hit = counts.filter((c) => (q.lmin == null || c.length >= q.lmin) && (q.lmax == null || c.length <= q.lmax)).reduce((a, c) => a + c.count, 0);
     const col = all > 0 && hit / all > 0.3 ? "+p.name_len" : "p.name_len";
@@ -220,16 +222,6 @@ export function browseWhere(q: BrowseQuery) {
 
 const votesOf = "(SELECT COUNT(*) FROM domains d JOIN votes v ON v.domain_id = d.id WHERE d.name = p.name)";
 
-function seededRank(seed: string, name: string) {
-  let h = 0x811c9dc5;
-  const text = `${seed}:${name}`;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
 function orderSql(q: BrowseQuery): { sql: string; params: string[] } {
   switch (q.sort) {
     case "price_asc":
@@ -239,7 +231,7 @@ function orderSql(q: BrowseQuery): { sql: string; params: string[] } {
     case "votes":
       return { sql: `${votesOf} DESC, p.name`, params: [] };
     case "random":
-      getSqlite().function("dv_browse_rank", { deterministic: true }, (s: unknown, n: unknown) => seededRank(String(s), String(n)));
+      // dv_browse_rank is registered on every reader connection (lib/ro) and by ensureRank() below.
       return { sql: "dv_browse_rank(?, p.name), p.name", params: [q.seed || "dv"] };
     default:
       return { sql: "p.name", params: [] };
@@ -273,28 +265,48 @@ const ROW_SELECT = `p.name, coalesce(p.lp_price, p.best_price) AS price, CASE WH
 
 /** Pool-only filters can be cached until the data changes; used/round/engagement ones depend on live votes. */
 function countWhere(q: BrowseQuery, where: { sql: string; params: Array<string | number> }) {
-  const run = () => (getSqlite().prepare(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`).get(...where.params) as { n: number }).n;
-  return q.used || q.inr != null || q.eng ? run() : cachedCount("pool", where.sql, where.params, run);
+  const run = async () => (await reader().get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`, where.params))!.n;
+  return q.used || q.inr != null || q.eng ? run() : cachedCountAsync("pool", where.sql, where.params, run);
 }
 
-export function browsePool(q: BrowseQuery, pageSize = BROWSE_PAGE_SIZE) {
-  const sqlite = getSqlite();
-  const where = browseWhere(q);
-  const total = countWhere(q, where);
+async function whereOf(q: BrowseQuery) {
+  return browseWhere(q, q.lmin != null || q.lmax != null ? await poolLengthCounts() : []);
+}
+
+/** One Explore page; COUNT and rows (ORDER BY votes / random / LIKE are full scans) run off the main thread. */
+export async function browsePool(q: BrowseQuery, pageSize = BROWSE_PAGE_SIZE) {
+  const where = await whereOf(q);
+  const total = await countWhere(q, where);
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(q.page, pages);
   const order = orderSql(q);
-  const rows = sqlite
-    .prepare(`SELECT ${ROW_SELECT} FROM pool p ${where.sql} ORDER BY ${order.sql} LIMIT ? OFFSET ?`)
-    .all(...where.params, ...order.params, pageSize, (page - 1) * pageSize) as BrowseRow[];
+  const rows = await reader().all<BrowseRow>(`SELECT ${ROW_SELECT} FROM pool p ${where.sql} ORDER BY ${order.sql} LIMIT ? OFFSET ?`, [
+    ...where.params,
+    ...order.params,
+    pageSize,
+    (page - 1) * pageSize,
+  ]);
   return { total, page, pages, rows };
 }
 
+function ensureRank() {
+  getSqlite().function("dv_browse_rank", { deterministic: true }, (s: unknown, n: unknown) => {
+    let h = 0x811c9dc5;
+    const text = `${String(s)}:${String(n)}`;
+    for (let i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  });
+}
+
 /** Explore → round: the filtered names, in Explore's current order, become a new open round. */
-export function createRoundFromBrowse(title: string, q: BrowseQuery) {
+export async function createRoundFromBrowse(title: string, q: BrowseQuery) {
   const sqlite = getSqlite();
-  const where = browseWhere(q);
+  const where = await whereOf(q);
   const order = orderSql(q);
+  if (q.sort === "random") ensureRank();
   return sqlite.transaction(() => {
     const now = Date.now();
     const id = Number(
@@ -319,16 +331,15 @@ export function createRoundFromBrowse(title: string, q: BrowseQuery) {
 }
 
 /** Total matches only (no rows). */
-export function countBrowse(q: BrowseQuery) {
-  return countWhere(q, browseWhere(q));
+export async function countBrowse(q: BrowseQuery) {
+  return countWhere(q, await whereOf(q));
 }
 
-export function* iterateBrowse(q: BrowseQuery) {
-  const where = browseWhere(q);
+/** CSV export: the whole filtered pool, walked in a reader thread and handed over in chunks. */
+export async function* iterateBrowse(q: BrowseQuery): AsyncGenerator<BrowseRow[]> {
+  const where = await whereOf(q);
   const order = orderSql(q);
-  yield* getSqlite()
-    .prepare(`SELECT ${ROW_SELECT} FROM pool p ${where.sql} ORDER BY ${order.sql}`)
-    .iterate(...where.params, ...order.params) as IterableIterator<BrowseRow>;
+  yield* reader().chunks<BrowseRow>(`SELECT ${ROW_SELECT} FROM pool p ${where.sql} ORDER BY ${order.sql}`, [...where.params, ...order.params]);
 }
 
 export type Facet = { value: string | null; count: number };
@@ -339,91 +350,96 @@ type Facets = { sources: Facet[]; providers: Facet[]; classes: Facet[]; lengths:
  * Option lists with whole-pool counts for the filter controls.
  * Whole-pool GROUP BYs grow with the 3/5-letter imports, so they are cached until the pool changes.
  */
-export function browseFacets(): Facets {
-  return cached("browseFacets", computeFacets);
+export function browseFacets(): Promise<Facets> {
+  return cachedAsync("browseFacets", computeFacets);
 }
 
-function computeFacets(): Facets {
-  const sqlite = getSqlite();
-  const facet = (col: string) => sqlite.prepare(`SELECT ${col} AS value, COUNT(*) AS count FROM pool GROUP BY ${col} ORDER BY count DESC`).all() as Facet[];
-  return { sources: facet("price_source"), providers: facet("dns_parking_provider"), classes: facet("dns_ns_class"), lengths: poolLengthCounts() };
+async function computeFacets(): Promise<Facets> {
+  const facet = (col: string) => reader().all<Facet>(`SELECT ${col} AS value, COUNT(*) AS count FROM pool GROUP BY ${col} ORDER BY count DESC`);
+  const [sources, providers, classes, lengths] = await Promise.all([facet("price_source"), facet("dns_parking_provider"), facet("dns_ns_class"), poolLengthCounts()]);
+  return { sources, providers, classes, lengths };
 }
 
 export type OverviewRow = { key: string; total: number; priced: number; usd: number; median: number | null; perSet: number[]; only?: number };
 
-function median(where: string, params: Array<string | number>, usd: number) {
+async function median(where: string, params: Array<string | number>, usd: number) {
   if (!usd) return null;
-  const row = getSqlite()
-    .prepare(`SELECT price_usd AS v FROM pool WHERE ${where} AND price_usd IS NOT NULL ORDER BY price_usd LIMIT 1 OFFSET ?`)
-    .get(...params, Math.floor((usd - 1) / 2)) as { v: number } | undefined;
+  const row = await reader().get<{ v: number }>(`SELECT price_usd AS v FROM pool WHERE ${where} AND price_usd IS NOT NULL ORDER BY price_usd LIMIT 1 OFFSET ?`, [
+    ...params,
+    Math.floor((usd - 1) / 2),
+  ]);
   return row?.v ?? null;
 }
 
 /** Pool page matrices: per set, and per price source (with its split across sets). Cached until the pool changes. */
 export function poolOverview() {
-  return cached("poolOverview", computeOverview);
+  return cachedAsync("poolOverview", computeOverview);
 }
 
-function computeOverview() {
-  const sqlite = getSqlite();
-  const bySet: OverviewRow[] = ACTIVE_SETS.map((n) => {
-    const r = sqlite
-      .prepare(`SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd FROM pool WHERE set_${n} = 1`)
-      .get() as { total: number; priced: number; usd: number };
-    // Sets overlap (1∩3 is large), so also count names found in no other shown set.
-    const others = ACTIVE_SETS.filter((m) => m !== n).map((m) => `set_${m} = 0`).join(" AND ");
-    const only = (sqlite.prepare(`SELECT COUNT(*) AS n FROM pool WHERE set_${n} = 1 AND ${others}`).get() as { n: number }).n;
-    return { key: String(n), ...r, only, median: median(`set_${n} = 1`, [], r.usd), perSet: [] };
-  });
-  const sources = sqlite
-    .prepare(
+type Split = { total: number; priced: number; usd: number; s1: number; s3: number; s4: number; s5: number };
+
+async function computeOverview() {
+  const r = reader();
+  const bySet: OverviewRow[] = await Promise.all(
+    ACTIVE_SETS.map(async (n) => {
+      // Sets overlap (1∩3 is large), so also count names found in no other shown set.
+      const others = ACTIVE_SETS.filter((m) => m !== n).map((m) => `set_${m} = 0`).join(" AND ");
+      const [row, only] = await Promise.all([
+        r.get<{ total: number; priced: number; usd: number }>(`SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd FROM pool WHERE set_${n} = 1`),
+        r.get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool WHERE set_${n} = 1 AND ${others}`),
+      ]);
+      return { key: String(n), ...row!, only: only!.n, median: await median(`set_${n} = 1`, [], row!.usd), perSet: [] };
+    }),
+  );
+  const [sources, totals, lengths, overlap] = await Promise.all([
+    r.all<Split & { key: string | null }>(
       `SELECT price_source AS key, COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd,
               SUM(set_1) AS s1, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5
        FROM pool GROUP BY price_source ORDER BY price_source IS NULL, total DESC`,
-    )
-    .all() as Array<{ key: string | null; total: number; priced: number; usd: number; s1: number; s3: number; s4: number; s5: number }>;
-  const bySource: OverviewRow[] = sources.map((r) => ({
-    key: r.key ?? NONE,
-    total: r.total,
-    priced: r.priced,
-    usd: r.usd,
-    median: r.key == null ? null : median("price_source = ?", [r.key], r.usd),
-    perSet: [r.s1, r.s3, r.s4, r.s5].map((x) => x ?? 0),
-  }));
-  const totals = sqlite
-    .prepare("SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd, MAX(imported_at) AS lastImport FROM pool")
-    .get() as { total: number; priced: number; usd: number; lastImport: number | null };
-  // Per label length (3/4/5…): same columns as per set, plus the set split.
-  const byLength: OverviewRow[] = (
-    sqlite
-      .prepare(
-        `SELECT name_len AS len, COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd,
-                SUM(set_1) AS s1, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5
-         FROM pool GROUP BY name_len ORDER BY name_len`,
-      )
-      .all() as Array<{ len: number; total: number; priced: number; usd: number; s1: number; s3: number; s4: number; s5: number }>
-  ).map((r) => ({
-    key: String(r.len),
-    total: r.total,
-    priced: r.priced,
-    usd: r.usd,
-    median: median("name_len = ?", [r.len], r.usd),
-    perSet: [r.s1, r.s3, r.s4, r.s5].map((x) => x ?? 0),
-  }));
-  const overlap13 = (sqlite.prepare("SELECT COUNT(*) AS n FROM pool WHERE set_1 = 1 AND set_3 = 1").get() as { n: number }).n;
-  return { bySet, bySource, byLength, totals, overlap13 };
+    ),
+    r.get<{ total: number; priced: number; usd: number; lastImport: number | null }>(
+      "SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd, MAX(imported_at) AS lastImport FROM pool",
+    ),
+    // Per label length (3/4/5…): same columns as per set, plus the set split.
+    r.all<Split & { len: number }>(
+      `SELECT name_len AS len, COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd,
+              SUM(set_1) AS s1, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5
+       FROM pool GROUP BY name_len ORDER BY name_len`,
+    ),
+    r.get<{ n: number }>("SELECT COUNT(*) AS n FROM pool WHERE set_1 = 1 AND set_3 = 1"),
+  ]);
+  const bySource: OverviewRow[] = await Promise.all(
+    sources.map(async (x) => ({
+      key: x.key ?? NONE,
+      total: x.total,
+      priced: x.priced,
+      usd: x.usd,
+      median: x.key == null ? null : await median("price_source = ?", [x.key], x.usd),
+      perSet: [x.s1, x.s3, x.s4, x.s5].map((v) => v ?? 0),
+    })),
+  );
+  const byLength: OverviewRow[] = await Promise.all(
+    lengths.map(async (x) => ({
+      key: String(x.len),
+      total: x.total,
+      priced: x.priced,
+      usd: x.usd,
+      median: await median("name_len = ?", [x.len], x.usd),
+      perSet: [x.s1, x.s3, x.s4, x.s5].map((v) => v ?? 0),
+    })),
+  );
+  return { bySet, bySource, byLength, totals: totals!, overlap13: overlap!.n };
 }
 
 /** A few example names per set for the set tooltips. */
-export function setSamples(limit = 4): Record<number, string[]> {
-  return cached(`setSamples:${limit}`, () => computeSamples(limit));
+export function setSamples(limit = 4): Promise<Record<number, string[]>> {
+  return cachedAsync(`setSamples:${limit}`, () => computeSamples(limit));
 }
 
-function computeSamples(limit: number): Record<number, string[]> {
-  const sqlite = getSqlite();
+async function computeSamples(limit: number): Promise<Record<number, string[]>> {
   const out: Record<number, string[]> = {};
   for (const n of ACTIVE_SETS) {
-    out[n] = (sqlite.prepare(`SELECT name FROM pool WHERE set_${n} = 1 AND name_len <= 8 LIMIT ?`).all(limit) as Array<{ name: string }>).map((r) => r.name);
+    out[n] = (await reader().all<{ name: string }>(`SELECT name FROM pool WHERE set_${n} = 1 AND name_len <= 8 LIMIT ?`, [limit])).map((r) => r.name);
   }
   return out;
 }

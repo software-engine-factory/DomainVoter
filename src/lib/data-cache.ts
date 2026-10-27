@@ -9,8 +9,11 @@ import { getSqlite } from "@/db";
  * + free_names max rowid (free CSV uploads) + an in-process bump for app write paths that
  * change pool/free rows without an imports row (rollback by tag, free upload).
  */
-const g = globalThis as unknown as { dvDataCache?: { bump: number; stamp: string; at: number; values: Map<string, unknown>; counts: Map<string, number> } };
-const state = (g.dvDataCache ??= { bump: 0, stamp: "", at: 0, values: new Map(), counts: new Map() });
+type State = { bump: number; stamp: string; at: number; gen: number; values: Map<string, unknown>; counts: Map<string, number>; inflight: Map<string, Promise<unknown>> };
+const g = globalThis as unknown as { dvDataCache?: State };
+const state = (g.dvDataCache ??= { bump: 0, stamp: "", at: 0, gen: 0, values: new Map(), counts: new Map(), inflight: new Map() });
+state.gen ??= 0;
+state.inflight ??= new Map();
 
 const COUNT_LIMIT = 500;
 
@@ -28,16 +31,21 @@ function sync() {
   const stamp = dataStamp();
   if (stamp !== state.stamp) {
     state.stamp = stamp;
-    state.values.clear();
-    state.counts.clear();
+    clear();
   }
 }
 
 /** Call after any app write that changes pool / free_names rows outside an import. */
 export function bumpData() {
   state.bump += 1;
+  clear();
+}
+
+function clear() {
+  state.gen += 1;
   state.values.clear();
   state.counts.clear();
+  state.inflight.clear();
 }
 
 export function cached<T>(key: string, compute: () => T): T {
@@ -61,5 +69,51 @@ export function cachedCount(table: string, sql: string, params: readonly unknown
   const n = compute();
   state.counts.set(key, n);
   if (state.counts.size > COUNT_LIMIT) state.counts.delete(state.counts.keys().next().value as string);
+  return n;
+}
+
+/**
+ * Async twin of `cached` for computations that run off-thread (lib/ro). Concurrent callers share one
+ * computation; a result that finishes after the data changed is returned but never stored.
+ */
+export function cachedAsync<T>(key: string, compute: () => Promise<T>): Promise<T> {
+  sync();
+  if (state.values.has(key)) return Promise.resolve(state.values.get(key) as T);
+  const running = state.inflight.get(key);
+  if (running) return running as Promise<T>;
+  const gen = state.gen;
+  const p = compute().then(
+    (value) => {
+      if (state.gen === gen) {
+        state.values.set(key, value);
+        state.inflight.delete(key);
+      }
+      return value;
+    },
+    (err) => {
+      if (state.gen === gen) state.inflight.delete(key);
+      throw err;
+    },
+  );
+  state.inflight.set(key, p);
+  return p;
+}
+
+export async function cachedCountAsync(table: string, sql: string, params: readonly unknown[], compute: () => Promise<number>): Promise<number> {
+  sync();
+  const key = `${table}|${sql}|${JSON.stringify(params)}`;
+  const hit = state.counts.get(key);
+  if (hit !== undefined) {
+    state.counts.delete(key);
+    state.counts.set(key, hit);
+    return hit;
+  }
+  const gen = state.gen;
+  const n = await cachedAsync(`count:${key}`, compute);
+  if (state.gen === gen) {
+    state.values.delete(`count:${key}`);
+    state.counts.set(key, n);
+    if (state.counts.size > COUNT_LIMIT) state.counts.delete(state.counts.keys().next().value as string);
+  }
   return n;
 }

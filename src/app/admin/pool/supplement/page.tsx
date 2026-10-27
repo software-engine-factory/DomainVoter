@@ -14,10 +14,10 @@ const fa = (n: number) => n.toLocaleString("fa-IR");
 export default async function SupplementPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdmin();
   const query = await searchParams;
-  const tags = importTags();
+  const tags = await importTags();
   const tag = one(query.tag) || tags[0]?.tag || "";
   const match = one(query.match) === "length" ? "length" : "filters";
-  const plan = tag ? planSupplement(tag, match) : [];
+  const plan = tag ? await planSupplement(tag, match) : [];
   const outside = plan.reduce((a, p) => a + p.outside, 0);
   const adding = plan.reduce((a, p) => a + p.add.length, 0);
   const appended = plan.reduce((a, p) => a + p.existing, 0);

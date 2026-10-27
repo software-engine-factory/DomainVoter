@@ -21,8 +21,7 @@ export default async function FreeNamesPage({ searchParams }: { searchParams: Pr
   await requireAdmin();
   const query = await searchParams;
   const q = parseFreeQuery(query);
-  const lengths = freeLengthCounts();
-  const res = browseFree(q);
+  const [lengths, res] = await Promise.all([freeLengthCounts(), browseFree(q)]);
   const params = { len: q.len ?? undefined, set: q.set ?? undefined, q: q.q || undefined };
   const href = (over: Record<string, string | number | undefined>) => withParams("/admin/free", { ...params, ...over, page: undefined });
   const total = lengths.reduce((a, l) => a + l.count, 0);

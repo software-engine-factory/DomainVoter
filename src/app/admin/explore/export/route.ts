@@ -16,11 +16,28 @@ export async function GET(request: Request) {
   if (params.mode !== "activity") {
     const all: Record<string, string[]> = {};
     for (const [k, v] of url.searchParams) (all[k] ??= []).push(v);
-    const lines = ["name,price,currency,price_usd,price_source,evidence,parking_provider,ns_class,sale_url,sets,rounds,views,votes,bookmarked"];
-    for (const r of iterateBrowse(parseBrowse(all))) {
-      lines.push([r.name, r.price, r.currency, r.priceUsd, r.source, r.evidence, r.provider, r.nsClass, r.url, r.sets, r.rounds, r.views, r.votes, r.bookmarked].map(cell).join(","));
-    }
-    return new Response(lines.join("\n"), {
+    // Streamed: rows come off-thread in chunks (lib/ro), so a 500k-name export never blocks voters
+    // and is never held as one giant string.
+    const q = parseBrowse(all);
+    const enc = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          controller.enqueue(enc.encode("name,price,currency,price_usd,price_source,evidence,parking_provider,ns_class,sale_url,sets,rounds,views,votes,bookmarked"));
+          for await (const chunk of iterateBrowse(q)) {
+            if (!chunk.length) continue;
+            const text = chunk
+              .map((r) => [r.name, r.price, r.currency, r.priceUsd, r.source, r.evidence, r.provider, r.nsClass, r.url, r.sets, r.rounds, r.views, r.votes, r.bookmarked].map(cell).join(","))
+              .join("\n");
+            controller.enqueue(enc.encode("\n" + text));
+          }
+          controller.close();
+        } catch (err) {
+          controller.error(err);
+        }
+      },
+    });
+    return new Response(body, {
       headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="pool.csv"` },
     });
   }

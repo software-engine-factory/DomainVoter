@@ -15,13 +15,13 @@ test("free_names: v10 table, CSV import (3/5 letters), browse by length/set, adm
   assert.equal(r.upserted, 3);
   assert.equal(r.skipped, 2, "bad chars + declared length mismatch");
   assert.equal(getSqlite().prepare("SELECT COUNT(*) n FROM pool").get().n, before, "pool untouched");
-  const counts = Object.fromEntries(free.freeLengthCounts().map((c) => [c.length, c.count]));
+  const counts = Object.fromEntries((await free.freeLengthCounts()).map((c) => [c.length, c.count]));
   assert.deepEqual(counts, { 3: 1, 4: 1, 5: 1 });
-  const b = free.browseFree(free.parseFreeQuery({ len: "5" }));
+  const b = await free.browseFree(free.parseFreeQuery({ len: "5" }));
   assert.equal(b.total, 1);
   assert.equal(b.rows[0].name, "qzxab.com");
   assert.equal(b.rows[0].shape, "CCCVC");
-  assert.equal(free.browseFree(free.parseFreeQuery({ set: "4" })).rows[0].name, "qzxa.com");
+  assert.equal((await free.browseFree(free.parseFreeQuery({ set: "4" }))).rows[0].name, "qzxa.com");
   const again = await free.importFreeCsv(f, "other");
   assert.equal(getSqlite().prepare("SELECT import_tag t FROM free_names WHERE name='qzx.com'").get().t, "free-test", "first tag kept");
   assert.equal(again.upserted, 3);
@@ -52,7 +52,7 @@ test("free_names v12: price columns, non-registrable rows rejected at import, re
   settings.setVoterFreeTab(true, 1);
   assert.equal(settings.getVoterFreeTab(), true);
   settings.setVoterFreeTab(false, 1);
-  const v = free.browseFreeForVoters({ len: 3, page: 1 });
+  const v = await free.browseFreeForVoters({ len: 3, page: 1 });
   assert.deepEqual(v.rows.find((x) => x.name === "wvq.com"), { name: "wvq.com", regPrice: 10.44 });
 });
 

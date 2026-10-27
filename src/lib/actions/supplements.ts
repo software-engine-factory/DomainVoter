@@ -10,7 +10,7 @@ export async function applySupplementAction(formData: FormData) {
   const tag = String(formData.get("tag") ?? "").trim();
   if (!tag) redirect("/admin/pool/supplement");
   const match = formData.get("match") === "length" ? "length" : "filters";
-  const res = applySupplement(tag, admin.userId, undefined, match);
+  const res = await applySupplement(tag, admin.userId, undefined, match);
   revalidatePath("/admin");
   redirect(`/admin/pool/supplement?tag=${encodeURIComponent(tag)}&match=${match}&applied=${res.names}&rounds=${res.rounds}`);
 }

@@ -34,8 +34,11 @@ export default async function NewRoundPage({
   const mode = rawMode === "csv" ? "csv" : rawMode === "explore" ? "explore" : "pool";
   const browse = mode === "explore" ? parseBrowse(query) : null;
   const explore = browse ? withParams("", browseToParams(browse)).replace(/^\?/, "") : "";
-  const facets = mode === "pool" ? poolFacets() : null;
-  const lengths = mode === "pool" ? poolLengthCounts() : [];
+  const [facets, lengths, browseCount] = await Promise.all([
+    mode === "pool" ? poolFacets() : null,
+    mode === "pool" ? poolLengthCounts() : [],
+    browse ? countBrowse(browse) : 0,
+  ]);
   const tab = (id: string, label: string) => (
     <Link
       href={`/admin/rounds/new?mode=${id}`}
@@ -54,7 +57,7 @@ export default async function NewRoundPage({
         <Link href="/admin/rounds/batch" className="px-4 py-2 text-sm text-muted hover:text-ink">{t.newRoundUx.batchLink}</Link>
       </div>
       {browse ? (
-        <ExploreRoundForm explore={explore} count={countBrowse(browse)} users={listAssignableUsers()} error={error} />
+        <ExploreRoundForm explore={explore} count={browseCount} users={listAssignableUsers()} error={error} />
       ) : facets ? (
         <PoolRoundForm
           users={listAssignableUsers()}

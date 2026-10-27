@@ -26,8 +26,7 @@ export default async function PoolPage({
 }) {
   await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const query = await searchParams;
-  const { bySet, bySource, byLength, totals, overlap13 } = poolOverview();
-  const samples = setSamples();
+  const [{ bySet, bySource, byLength, totals, overlap13 }, samples] = await Promise.all([poolOverview(), setSamples()]);
   const imports = recentImports();
   const error = one(query.error);
   const imported = one(query.imported);

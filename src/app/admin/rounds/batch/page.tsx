@@ -14,9 +14,8 @@ export const metadata: Metadata = { title: t.batch.title };
 export default async function BatchPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdmin(); // the layout checks too, but pages render in parallel with it
   const error = one((await searchParams).error);
-  const facets = poolFacets();
+  const [facets, lengths] = await Promise.all([poolFacets(), poolLengthCounts()]);
   const batches = listBatches();
-  const lengths = poolLengthCounts();
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="font-display text-3xl sm:text-4xl">{t.batch.title}</h1>
