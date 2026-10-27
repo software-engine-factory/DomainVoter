@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import Papa from "papaparse";
 import { getSqlite } from "@/db";
+import { bumpData } from "@/lib/data-cache";
 import { t } from "@/lib/copy/fa";
 
 /** Columns of app_export_purchasable.{csv,db}. Anything else in the file is ignored. */
@@ -160,6 +161,7 @@ function finishImport(result: ImportResult) {
       "UPDATE imports SET finished_at = ?, rows_read = ?, rows_upserted = ?, rows_skipped = ?, error = ? WHERE id = ?",
     )
     .run(Date.now(), result.rowsRead, result.rowsUpserted, result.rowsSkipped, result.error ?? null, result.importId);
+  bumpData();
   return result;
 }
 
@@ -295,9 +297,11 @@ export function importSqliteFile(file: string, source: string): ImportResult {
 
 /** Rollback for one import batch: drops the pool rows it brought in, unless a round already froze them. */
 export function deleteByImportTag(tag: string) {
-  return getSqlite()
+  const changes = getSqlite()
     .prepare("DELETE FROM pool WHERE import_tag = ? AND name NOT IN (SELECT pool_name FROM domains WHERE pool_name IS NOT NULL)")
     .run(tag).changes;
+  bumpData();
+  return changes;
 }
 
 export async function importFile(file: string, source = file): Promise<ImportResult> {

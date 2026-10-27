@@ -2,6 +2,7 @@ import fs from "fs";
 import Papa from "papaparse";
 import { getSqlite } from "@/db";
 import { normalizeRow } from "@/lib/pool-import";
+import { bumpData, cached, cachedCount } from "@/lib/data-cache";
 
 /**
  * free_names: .com names that are not registered yet (registrable at reg_price_usd).
@@ -108,6 +109,7 @@ export function importFreeCsv(file: string, tag: string | null): Promise<{ read:
           flush(buf);
           stats.upserted += buf.length;
         }
+        bumpData();
         resolve({ ...stats, error });
       },
       error(e) {
@@ -138,39 +140,68 @@ function where(q: FreeQuery) {
   return { sql: w.length ? `WHERE ${w.join(" AND ")}` : "", params };
 }
 
-export function browseFree(q: FreeQuery) {
+const ORDER = ["f.name_len", "f.ord", "f.name"];
+
+/**
+ * One page in (name_len, ord, name) order. The covering index (migration 13) makes OFFSET an
+ * index-only walk; pages past the middle walk from the far end instead (exact reverse, NULL ord
+ * included), so the last page is as cheap as the first.
+ */
+function pageRows<T>(select: string, w: { sql: string; params: unknown[] }, total: number, page: number, size: number): T[] {
   const sqlite = getSqlite();
+  const offset = (page - 1) * size;
+  const ids = (dir: "ASC" | "DESC", limit: number, off: number) =>
+    `SELECT f.rowid FROM free_names f ${w.sql} ORDER BY ${ORDER.map((c) => `${c} ${dir}`).join(", ")} LIMIT ${limit} OFFSET ${off}`;
+  if (offset <= total / 2) {
+    return sqlite.prepare(`SELECT ${select} FROM free_names f WHERE f.rowid IN (${ids("ASC", size, offset)}) ORDER BY ${ORDER.join(", ")}`).all(...w.params) as T[];
+  }
+  const end = Math.min(total, offset + size);
+  const limit = Math.max(0, end - offset);
+  return sqlite
+    .prepare(`SELECT ${select} FROM free_names f WHERE f.rowid IN (${ids("DESC", limit, total - end)}) ORDER BY ${ORDER.join(", ")}`)
+    .all(...w.params) as T[];
+}
+
+function countFree(w: { sql: string; params: unknown[] }, len: number | null, onlyLen: boolean) {
+  if (onlyLen) {
+    const counts = freeLengthCounts();
+    return len == null ? counts.reduce((a, c) => a + c.count, 0) : (counts.find((c) => c.length === len)?.count ?? 0);
+  }
+  return cachedCount("free_names", w.sql, w.params, () => (getSqlite().prepare(`SELECT COUNT(*) AS n FROM free_names f ${w.sql}`).get(...w.params) as { n: number }).n);
+}
+
+export function browseFree(q: FreeQuery) {
   const w = where(q);
-  const total = (sqlite.prepare(`SELECT COUNT(*) AS n FROM free_names f ${w.sql}`).get(...w.params) as { n: number }).n;
+  const total = countFree(w, q.len, q.set == null && !q.q);
   const pages = Math.max(1, Math.ceil(total / FREE_PAGE));
   const page = Math.min(q.page, pages);
-  const rows = sqlite
-    .prepare(
-      `SELECT f.name, f.name_len AS len, f.set4_part, f.shape, f.ord, f.cf_checked_at, f.reg_price_usd, f.reg_registrar,
-         rtrim((CASE WHEN f.set_1 = 1 THEN '1,' ELSE '' END) || (CASE WHEN f.set_3 = 1 THEN '3,' ELSE '' END) || (CASE WHEN f.set_4 = 1 THEN '4,' ELSE '' END) || (CASE WHEN f.set_5 = 1 THEN '5,' ELSE '' END), ',') AS sets,
-         EXISTS (SELECT 1 FROM pool p WHERE p.name = f.name) AS inPool
-       FROM free_names f ${w.sql} ORDER BY f.name_len, f.ord, f.name LIMIT ? OFFSET ?`,
-    )
-    .all(...w.params, FREE_PAGE, (page - 1) * FREE_PAGE) as FreeRow[];
+  const rows = pageRows<FreeRow>(
+    `f.name, f.name_len AS len, f.set4_part, f.shape, f.ord, f.cf_checked_at, f.reg_price_usd, f.reg_registrar,
+       rtrim((CASE WHEN f.set_1 = 1 THEN '1,' ELSE '' END) || (CASE WHEN f.set_3 = 1 THEN '3,' ELSE '' END) || (CASE WHEN f.set_4 = 1 THEN '4,' ELSE '' END) || (CASE WHEN f.set_5 = 1 THEN '5,' ELSE '' END), ',') AS sets,
+       EXISTS (SELECT 1 FROM pool p WHERE p.name = f.name) AS inPool`,
+    w,
+    total,
+    page,
+    FREE_PAGE,
+  );
   return { rows, total, page, pages };
 }
 
+/** Names per length; cached until the free list changes. */
 export function freeLengthCounts() {
-  return getSqlite().prepare("SELECT name_len AS length, COUNT(*) AS count FROM free_names GROUP BY name_len ORDER BY name_len").all() as Array<{ length: number; count: number }>;
+  return cached("freeLengthCounts", () =>
+    getSqlite().prepare("SELECT name_len AS length, COUNT(*) AS count FROM free_names GROUP BY name_len ORDER BY name_len").all() as Array<{ length: number; count: number }>,
+  );
 }
 
 
 /** Voter tab: name + registration price only (no pool flag, no tags, no sets). */
 export type VoterFree = { name: string; regPrice: number | null };
 export function browseFreeForVoters(q: Pick<FreeQuery, "len" | "page">) {
-  const sqlite = getSqlite();
-  const w = q.len != null ? "WHERE name_len = ?" : "";
-  const p = q.len != null ? [q.len] : [];
-  const total = (sqlite.prepare(`SELECT COUNT(*) AS n FROM free_names ${w}`).get(...p) as { n: number }).n;
+  const w = q.len != null ? { sql: "WHERE f.name_len = ?", params: [q.len] as unknown[] } : { sql: "", params: [] as unknown[] };
+  const total = countFree(w, q.len, true);
   const pages = Math.max(1, Math.ceil(total / VOTER_FREE_PAGE));
   const page = Math.min(q.page, pages);
-  const rows = sqlite
-    .prepare(`SELECT name, reg_price_usd AS regPrice FROM free_names ${w} ORDER BY name_len, ord, name LIMIT ? OFFSET ?`)
-    .all(...p, VOTER_FREE_PAGE, (page - 1) * VOTER_FREE_PAGE) as VoterFree[];
+  const rows = pageRows<VoterFree>("f.name, f.reg_price_usd AS regPrice", w, total, page, VOTER_FREE_PAGE);
   return { rows, total, page, pages };
 }

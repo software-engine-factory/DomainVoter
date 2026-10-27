@@ -1,4 +1,5 @@
 import { getSqlite } from "@/db";
+import { cached, cachedCount } from "@/lib/data-cache";
 import { t } from "@/lib/copy/fa";
 import { normalizeSetIds } from "@/lib/sets";
 
@@ -143,12 +144,17 @@ export function poolOrder(order: PoolFilters["order"], alias = "p") {
 
 export function countPool(filters: PoolFilters) {
   const where = poolWhere(filters);
-  return (getSqlite().prepare(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`).get(...where.params) as { n: number }).n;
+  return cachedCount("pool", where.sql, where.params, () => (getSqlite().prepare(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`).get(...where.params) as { n: number }).n);
 }
 
 export type PoolFacet = { value: string | null; count: number; priced: number };
 
+/** Whole-pool facets for the round forms; cached until the pool changes. */
 export function poolFacets() {
+  return cached("poolFacets", computePoolFacets);
+}
+
+function computePoolFacets() {
   const sqlite = getSqlite();
   const facet = (column: string) =>
     sqlite
@@ -189,7 +195,7 @@ export type LengthCount = { length: number; count: number };
 
 /** Names per label length, for the round-creation length picker (index-only scan of pool_name_len_idx). */
 export function poolLengthCounts(): LengthCount[] {
-  return getSqlite().prepare("SELECT name_len AS length, COUNT(*) AS count FROM pool GROUP BY name_len ORDER BY name_len").all() as LengthCount[];
+  return cached("poolLengthCounts", () => getSqlite().prepare("SELECT name_len AS length, COUNT(*) AS count FROM pool GROUP BY name_len ORDER BY name_len").all() as LengthCount[]);
 }
 
 /** The length a new round starts on: 4 when present (the original pool), else the biggest group. */
