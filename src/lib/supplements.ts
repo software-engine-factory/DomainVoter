@@ -1,4 +1,5 @@
 import { getSqlite } from "@/db";
+import { cached } from "@/lib/data-cache";
 import { ensureFunctions } from "@/lib/batches";
 import { normalizePoolFilters, poolWhere, type PoolFilters } from "@/lib/pool";
 
@@ -196,8 +197,11 @@ export function removeSupplement(tag: string) {
   })();
 }
 
+/** Pool import tags with sizes; a GROUP BY over the whole pool, cached until the pool changes. */
 export function importTags() {
-  return getSqlite()
-    .prepare("SELECT import_tag AS tag, COUNT(*) AS n, MIN(name_len) AS lmin, MAX(name_len) AS lmax FROM pool WHERE import_tag IS NOT NULL GROUP BY import_tag ORDER BY import_tag DESC")
-    .all() as Array<{ tag: string; n: number; lmin: number; lmax: number }>;
+  return cached("importTags", () =>
+    getSqlite()
+      .prepare("SELECT import_tag AS tag, COUNT(*) AS n, MIN(name_len) AS lmin, MAX(name_len) AS lmax FROM pool WHERE import_tag IS NOT NULL GROUP BY import_tag ORDER BY import_tag DESC")
+      .all() as Array<{ tag: string; n: number; lmin: number; lmax: number }>,
+  );
 }

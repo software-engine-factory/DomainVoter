@@ -277,6 +277,11 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       CREATE INDEX IF NOT EXISTS free_names_s5_idx ON free_names(name_len, ord) WHERE set_5 = 1;
     `,
   },
+  {
+    version: 13,
+    name: "free_names: (name_len, ord, name) index so the browse ORDER BY is index-only (deep pages without a sort)",
+    sql: `CREATE INDEX IF NOT EXISTS free_names_len_ord_name_idx ON free_names(name_len, ord, name);`,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */

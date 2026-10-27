@@ -1,5 +1,6 @@
 import { getSqlite } from "@/db";
-import { getDatasetVersion } from "@/lib/dataset-version";
+import { cached, cachedCount } from "@/lib/data-cache";
+import { poolLengthCounts } from "@/lib/pool";
 import { normalizePattern, normalizeQuery, patternActive, PATTERN_MAX } from "@/lib/vote-view";
 import { ACTIVE_SETS, normalizeSetIds } from "@/lib/sets";
 
@@ -183,13 +184,27 @@ export function browseWhere(q: BrowseQuery) {
     w.push(q.exact ? "p.name_len = ?" : "p.name_len >= ?", "p.name LIKE ?");
     params.push(q.pat.length, `${q.pat}%`);
   }
-  if (q.lmin != null) {
-    w.push("p.name_len >= ?");
-    params.push(q.lmin);
-  }
-  if (q.lmax != null) {
-    w.push("p.name_len <= ?");
-    params.push(q.lmax);
+  if (q.lmin != null || q.lmax != null) {
+    // A length filter matching most of the pool (5 letters ≈ 76%) is cheaper as a walk of the
+    // name-ordered table than an index range + sort of every match; "+" keeps SQLite off the
+    // length indexes then (left alone it picks pool_len_price_idx and sorts 400k rows per page).
+    const counts = poolLengthCounts();
+    const all = counts.reduce((a, c) => a + c.count, 0);
+    const hit = counts.filter((c) => (q.lmin == null || c.length >= q.lmin) && (q.lmax == null || c.length <= q.lmax)).reduce((a, c) => a + c.count, 0);
+    const col = all > 0 && hit / all > 0.3 ? "+p.name_len" : "p.name_len";
+    if (q.lmin != null && q.lmin === q.lmax) {
+      w.push(`${col} = ?`);
+      params.push(q.lmin);
+    } else {
+      if (q.lmin != null) {
+        w.push(`${col} >= ?`);
+        params.push(q.lmin);
+      }
+      if (q.lmax != null) {
+        w.push(`${col} <= ?`);
+        params.push(q.lmax);
+      }
+    }
   }
   if (q.used === "never") w.push(`NOT ${used}`);
   if (q.used === "used") w.push(used);
@@ -256,10 +271,16 @@ const ROW_SELECT = `p.name, coalesce(p.lp_price, p.best_price) AS price, CASE WH
   ${votesOf} AS votes,
   EXISTS (SELECT 1 FROM picks k WHERE k.name = p.name) AS bookmarked`;
 
+/** Pool-only filters can be cached until the data changes; used/round/engagement ones depend on live votes. */
+function countWhere(q: BrowseQuery, where: { sql: string; params: Array<string | number> }) {
+  const run = () => (getSqlite().prepare(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`).get(...where.params) as { n: number }).n;
+  return q.used || q.inr != null || q.eng ? run() : cachedCount("pool", where.sql, where.params, run);
+}
+
 export function browsePool(q: BrowseQuery, pageSize = BROWSE_PAGE_SIZE) {
   const sqlite = getSqlite();
   const where = browseWhere(q);
-  const total = (sqlite.prepare(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`).get(...where.params) as { n: number }).n;
+  const total = countWhere(q, where);
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(q.page, pages);
   const order = orderSql(q);
@@ -299,8 +320,7 @@ export function createRoundFromBrowse(title: string, q: BrowseQuery) {
 
 /** Total matches only (no rows). */
 export function countBrowse(q: BrowseQuery) {
-  const where = browseWhere(q);
-  return (getSqlite().prepare(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`).get(...where.params) as { n: number }).n;
+  return countWhere(q, browseWhere(q));
 }
 
 export function* iterateBrowse(q: BrowseQuery) {
@@ -314,22 +334,19 @@ export function* iterateBrowse(q: BrowseQuery) {
 export type Facet = { value: string | null; count: number };
 
 type Facets = { sources: Facet[]; providers: Facet[]; classes: Facet[]; lengths: Array<{ length: number; count: number }> };
-let facetCache: { version: string; value: Facets } | null = null;
 
 /**
  * Option lists with whole-pool counts for the filter controls.
- * Whole-pool GROUP BYs grow with the 3/5-letter imports, so they are cached per dataset version
- * (bumps on every finished import / new round), not recomputed per page view.
+ * Whole-pool GROUP BYs grow with the 3/5-letter imports, so they are cached until the pool changes.
  */
 export function browseFacets(): Facets {
-  const version = getDatasetVersion();
-  if (facetCache?.version === version) return facetCache.value;
+  return cached("browseFacets", computeFacets);
+}
+
+function computeFacets(): Facets {
   const sqlite = getSqlite();
   const facet = (col: string) => sqlite.prepare(`SELECT ${col} AS value, COUNT(*) AS count FROM pool GROUP BY ${col} ORDER BY count DESC`).all() as Facet[];
-  const lengths = sqlite.prepare("SELECT name_len AS length, COUNT(*) AS count FROM pool GROUP BY name_len ORDER BY name_len").all() as Facets["lengths"];
-  const value = { sources: facet("price_source"), providers: facet("dns_parking_provider"), classes: facet("dns_ns_class"), lengths };
-  facetCache = { version, value };
-  return value;
+  return { sources: facet("price_source"), providers: facet("dns_parking_provider"), classes: facet("dns_ns_class"), lengths: poolLengthCounts() };
 }
 
 export type OverviewRow = { key: string; total: number; priced: number; usd: number; median: number | null; perSet: number[]; only?: number };
@@ -342,8 +359,12 @@ function median(where: string, params: Array<string | number>, usd: number) {
   return row?.v ?? null;
 }
 
-/** Pool page matrices: per set, and per price source (with its split across sets). */
+/** Pool page matrices: per set, and per price source (with its split across sets). Cached until the pool changes. */
 export function poolOverview() {
+  return cached("poolOverview", computeOverview);
+}
+
+function computeOverview() {
   const sqlite = getSqlite();
   const bySet: OverviewRow[] = ACTIVE_SETS.map((n) => {
     const r = sqlite
@@ -395,6 +416,10 @@ export function poolOverview() {
 
 /** A few example names per set for the set tooltips. */
 export function setSamples(limit = 4): Record<number, string[]> {
+  return cached(`setSamples:${limit}`, () => computeSamples(limit));
+}
+
+function computeSamples(limit: number): Record<number, string[]> {
   const sqlite = getSqlite();
   const out: Record<number, string[]> = {};
   for (const n of ACTIVE_SETS) {
