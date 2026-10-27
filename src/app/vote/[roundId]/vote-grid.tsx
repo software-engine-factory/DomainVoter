@@ -2,6 +2,7 @@
 
 import { useToggleVote } from "@/lib/query/hooks";
 import { t } from "@/lib/copy/fa";
+import { FreePrice, RegisterMenu } from "@/components/register-menu";
 
 const DESKTOP_FIT_MAX = 20;
 
@@ -11,6 +12,8 @@ type Card = {
   price: number | null;
   currency: string | null;
   url: string | null;
+  /** Set when the name is still unregistered: the at-cost registration price (USD). */
+  regPrice?: number | null;
 };
 
 /** Compact price for a tile: "$1,200" / "€80" / "1.5K USD"-style; null when the pool has none. */
@@ -129,7 +132,9 @@ export function VoteGrid({
                   </span>
                 </span>
                 <span className="mt-auto flex min-h-6 items-end justify-between gap-2 pt-2">
-                  {price ? (
+                  {card.regPrice != null ? (
+                    <FreePrice price={card.regPrice} />
+                  ) : price ? (
                     <span
                       dir="ltr"
                       className="truncate rounded-md bg-chip px-1.5 py-0.5 font-mono text-xs leading-4 font-semibold tabular-nums text-ink/80"
@@ -161,19 +166,23 @@ export function VoteGrid({
                   ) : null}
                 </span>
               </button>
-              <a
-                href={saleHref(card)}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={t.vote.openSale(card.name)}
-                title={t.vote.openSale(card.name)}
-                onClick={(event) => event.stopPropagation()}
-                className="sale-link absolute top-1 start-1 z-10 grid size-7 place-items-center rounded-md text-muted hover:bg-chip hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden>
-                  <path d="M9 3h4v4M13 3 7.5 8.5M11.5 9.5V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1h2.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </a>
+              {card.regPrice != null ? (
+                <RegisterMenu name={card.name} />
+              ) : (
+                <a
+                  href={saleHref(card)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t.vote.openSale(card.name)}
+                  title={t.vote.openSale(card.name)}
+                  onClick={(event) => event.stopPropagation()}
+                  className="sale-link absolute top-1 start-1 z-10 grid size-7 place-items-center rounded-md text-muted hover:bg-chip hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden>
+                    <path d="M9 3h4v4M13 3 7.5 8.5M11.5 9.5V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1h2.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </a>
+              )}
             </li>
           );
         })}

@@ -1,6 +1,6 @@
 import { viewParams, type VoteView } from "@/lib/vote-view";
 
-export type Card = { id: number; name: string; price: number | null; currency: string | null; url: string | null };
+export type Card = { id: number; name: string; price: number | null; currency: string | null; url: string | null; regPrice?: number | null };
 export type CardsPage = {
   cards: Card[];
   matched: number;

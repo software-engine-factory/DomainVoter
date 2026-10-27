@@ -264,9 +264,8 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
   },
   {
     version: 12,
-    name: "free_names: Cloudflare availability/at-cost price columns + partial indexes for card filters",
+    name: "free_names: registration price columns + partial indexes for len/set filters",
     sql: `
-      ALTER TABLE free_names ADD COLUMN cf_free INTEGER;
       ALTER TABLE free_names ADD COLUMN cf_checked_at INTEGER;
       ALTER TABLE free_names ADD COLUMN reg_price_usd REAL;
       ALTER TABLE free_names ADD COLUMN reg_registrar TEXT;
@@ -276,8 +275,6 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       CREATE INDEX IF NOT EXISTS free_names_s3_idx ON free_names(name_len, ord) WHERE set_3 = 1;
       CREATE INDEX IF NOT EXISTS free_names_s4_idx ON free_names(name_len, ord) WHERE set_4 = 1;
       CREATE INDEX IF NOT EXISTS free_names_s5_idx ON free_names(name_len, ord) WHERE set_5 = 1;
-      CREATE INDEX IF NOT EXISTS free_names_cf_idx ON free_names(name_len, ord) WHERE cf_free = 1;
-      CREATE INDEX IF NOT EXISTS free_names_shape_idx ON free_names(name_len, shape, ord) WHERE shape IS NOT NULL;
     `,
   },
 ];
