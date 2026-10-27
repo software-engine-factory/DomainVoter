@@ -1,3 +1,4 @@
+import { getVoterFreeTab } from "@/lib/settings";
 import type { Metadata } from "next";
 import { El_Messiri, JetBrains_Mono, Vazirmatn } from "next/font/google";
 import localFont from "next/font/local";
@@ -88,7 +89,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         <QueryProvider datasetVersion={getDatasetVersion()}>
-          <Header session={session} theme={theme} />
+          <Header session={session} theme={theme} freeTab={session ? getVoterFreeTab() : false} />
           <div id="content" className="flex-1">
             {children}
           </div>

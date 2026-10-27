@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { buttonClass } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
-import { saveVotePageSizeAction } from "@/lib/actions/settings";
-import { getVotePageSize } from "@/lib/settings";
+import { saveVoterFreeTabAction, saveVotePageSizeAction } from "@/lib/actions/settings";
+import { getVoterFreeTab, getVotePageSize } from "@/lib/settings";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "@/lib/vote-view";
 import { t } from "@/lib/copy/fa";
 
@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function UiSettingsPage() {
   await requireAdmin(); // layout checks too, but pages render in parallel with it
   const size = getVotePageSize();
+  const freeTab = getVoterFreeTab();
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="font-display text-3xl sm:text-4xl">{t.uiSettings.title}</h1>
@@ -40,6 +41,19 @@ export default async function UiSettingsPage() {
           <p className="text-xs text-muted">{t.uiSettings.current(size)}</p>
           <button className={buttonClass("primary", "sm")}>{t.uiSettings.save}</button>
         </div>
+      </form>
+
+      <form action={saveVoterFreeTabAction} className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-card p-4 sm:p-5" data-testid="free-tab-setting">
+        <p className="text-sm font-semibold text-ink" title={t.free.tabSettingTip}>{t.free.tabSetting}</p>
+        <input type="hidden" name="on" value={freeTab ? "0" : "1"} />
+        <button
+          role="switch"
+          aria-checked={freeTab}
+          title={t.free.tabSettingTip}
+          className={`${buttonClass(freeTab ? "primary" : "secondary", "sm")} min-w-20`}
+        >
+          {freeTab ? t.free.tabOn : t.free.tabOff}
+        </button>
       </form>
     </main>
   );

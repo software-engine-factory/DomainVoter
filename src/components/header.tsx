@@ -7,7 +7,7 @@ import { buttonClass } from "@/components/ui";
 import { t } from "@/lib/copy/fa";
 import type { ThemeId } from "@/lib/theme/themes";
 
-export function Header({ session, theme }: { session: SessionUser | null; theme: ThemeId }) {
+export function Header({ session, theme, freeTab = false }: { session: SessionUser | null; theme: ThemeId; freeTab?: boolean }) {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper">
       <a
@@ -42,6 +42,11 @@ export function Header({ session, theme }: { session: SessionUser | null; theme:
             {session ? (
               <NavLink href="/vote" exact>
                 {t.nav.rounds}
+              </NavLink>
+            ) : null}
+            {session && freeTab ? (
+              <NavLink href="/vote/free" exact>
+                {t.free.voterTab}
               </NavLink>
             ) : null}
             {session ? (
