@@ -17,7 +17,7 @@ export function Header({ session, theme, freeTab = false }: { session: SessionUs
       >
         {t.nav.skip}
       </a>
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-2 sm:h-14 sm:flex-nowrap sm:py-0 sm:px-6">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-1 sm:gap-x-6 px-4 py-2 sm:h-14 sm:flex-nowrap sm:py-0 sm:px-6">
         <Link href="/" className="group inline-flex items-center gap-2 font-display text-[1.65rem] leading-none text-ink">
           <span className="h-2.5 w-2.5 rounded-sm bg-accent transition-transform duration-300 group-hover:rotate-45" aria-hidden />
           {t.app.name}

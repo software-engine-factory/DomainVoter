@@ -28,7 +28,7 @@ const GROUPS: NavItem[][] = [
 ];
 
 const chip =
-  "press shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-[13px] leading-6 transition-colors duration-200 sm:px-3 sm:text-sm";
+  "press shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-[13px] leading-6 transition-colors duration-200 sm:px-2.5 sm:text-sm xl:px-3";
 
 /** Admin-only sub navigation. Lives under the main header so the shared header stays untouched. */
 export function AdminNav() {
@@ -58,10 +58,13 @@ export function AdminNav() {
         <Link
           href="/vote"
           title={t.adminNav.backToVoting}
-          className={`${chip} ms-auto text-accent hover:bg-card`}
+          aria-label={t.adminNav.backToVoting}
+          className={`${chip} group ms-auto inline-flex items-center gap-1 text-accent hover:bg-card`}
         >
-          {t.adminNav.backToVoting}
-
+          <span className="hidden lg:inline">{t.adminNav.backToVoting}</span>
+          <svg viewBox="0 0 24 24" className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
         </Link>
       </div>
     </nav>
