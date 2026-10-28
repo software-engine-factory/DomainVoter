@@ -3,6 +3,8 @@
  * Reuses the app's own row rules: normalizeRow (pool-import.ts) and isRegistrable (free-names.ts).
  * Differences from the admin upload: duplicates are SKIPPED (ON CONFLICT DO NOTHING), so existing pool / free_names
  * rows and every round's frozen `domains` copy are never rewritten, and undo-by-tag removes exactly what one run added.
+ * Schema v14+: free names go into `pool` with avail = 'free'; a purchasable name that is currently free there is
+ * upgraded to avail = 'sale' (the only update this tool makes).
  *
  *   node import-forsale.cjs validate --dir D --tag T
  *   node import-forsale.cjs import   --db voting.db --dir D --tag T [--dry-run]
@@ -148,24 +150,36 @@ function stats(db: Database.Database, integrity = false) {
     user_version: db.pragma("user_version", { simple: true }),
     bytes: (db.pragma("page_count", { simple: true }) as number) * (db.pragma("page_size", { simple: true }) as number),
     counts: Object.fromEntries(["pool", "free_names", "rounds", "domains", "votes", "views", "users", "round_supplements"].filter((t) => tables.includes(t)).map((t) => [t, one(db, `SELECT count(*) n FROM "${t}"`)])),
-    poolByTag: db.prepare("SELECT coalesce(import_tag,'(none)') tag, count(*) n FROM pool GROUP BY 1 ORDER BY 1").all(),
+    poolByTag: db.prepare(`SELECT coalesce(import_tag,'(none)') tag, ${hasAvail(db) ? "avail" : "'sale'"} avail, count(*) n FROM pool GROUP BY 1, 2 ORDER BY 1, 2`).all(),
     freeByTag: db.prepare("SELECT coalesce(import_tag,'(none)') tag, count(*) n FROM free_names GROUP BY 1 ORDER BY 1").all(),
     hashes: Object.fromEntries(frozen.map((t) => [t, hashQuery(db, `SELECT * FROM "${t}" ORDER BY ${pk(t)}`)])),
     ...(integrity ? { integrity: db.pragma("integrity_check", { simple: true }) } : {}),
   };
 }
 
+const hasAvail = (db: Database.Database) => (db.prepare("PRAGMA table_info(pool)").all() as Array<{ name: string }>).some((c) => c.name === "avail");
+
 function runImport(db: Database.Database, parts: Part[], tag: string, dry: boolean) {
   const now = Date.now();
+  const v14 = hasAvail(db);
   const insPool = db.prepare(`INSERT INTO pool (name, set_1, set_2, set_3, set_4, set_5, evidence, dns_ns_class, dns_parking_provider,
       lp_marketplace, lp_price, lp_currency, lp_url, best_price, best_source, price_usd, imported_at, shape, set4_part, import_tag, best_currency)
     VALUES (@name, @set_1, @set_2, @set_3, @set_4, @set_5, @evidence, @dns_ns_class, @dns_parking_provider,
       @lp_marketplace, @lp_price, @lp_currency, @lp_url, @best_price, @best_source, @price_usd, @imported_at, @shape, @set4_part, @import_tag, @best_currency)
-    ON CONFLICT(name) DO NOTHING`);
-  const insFree = db.prepare(`INSERT INTO free_names (name, set_1, set_2, set_3, set_4, set_5, set4_part, shape, ord, import_tag, imported_at,
-      cf_checked_at, reg_price_usd, reg_registrar) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(name) DO NOTHING`);
-  const inPool = db.prepare("SELECT 1 FROM pool WHERE name = ?").pluck();
-  const inFree = db.prepare("SELECT 1 FROM free_names WHERE name = ?").pluck();
+    ${v14 ? `ON CONFLICT(name) DO UPDATE SET evidence = excluded.evidence, dns_ns_class = excluded.dns_ns_class, dns_parking_provider = excluded.dns_parking_provider,
+      lp_marketplace = excluded.lp_marketplace, lp_price = excluded.lp_price, lp_currency = excluded.lp_currency, lp_url = excluded.lp_url,
+      best_price = excluded.best_price, best_source = excluded.best_source, price_usd = excluded.price_usd, best_currency = excluded.best_currency,
+      imported_at = excluded.imported_at, import_tag = excluded.import_tag, avail = 'sale', reg_price_usd = NULL, reg_registrar = NULL
+    WHERE pool.avail = 'free'` : "ON CONFLICT(name) DO NOTHING"}`);
+  const freeCols = "name, set_1, set_2, set_3, set_4, set_5, set4_part, shape, ord, import_tag, imported_at, cf_checked_at, reg_price_usd, reg_registrar";
+  const insFree = v14
+    ? db.prepare(`INSERT INTO pool (${freeCols}, avail) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'free') ON CONFLICT(name) DO NOTHING`)
+    : db.prepare(`INSERT INTO free_names (${freeCols}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(name) DO NOTHING`);
+  const inPool = db.prepare(v14 ? "SELECT 1 FROM pool WHERE name = ? AND avail = 'sale'" : "SELECT 1 FROM pool WHERE name = ?").pluck();
+  const inFree = db
+    .prepare(v14 ? "SELECT 1 FROM pool WHERE name = ? AND avail = 'free' UNION ALL SELECT 1 FROM free_names WHERE name = ?" : "SELECT 1 FROM free_names WHERE name = ? AND ? IS NOT NULL")
+    .pluck();
+  const isFree = (name: unknown) => inFree.get(name, name);
   const out: Raw = {};
   const dryPool = new Set<string>(); // dry run: names the purchasable part would add, so the free part's in_pool check matches a real run
   for (const p of parts) {
@@ -178,13 +192,13 @@ function runImport(db: Database.Database, parts: Part[], tag: string, dry: boole
         const c = classify(p.kind, raw, now, tag);
         if ("reject" in c && c.reject) { st.rejected[c.reject]++; continue; }
         if (c.pool) {
-          if (inFree.get(c.pool.name)) st.alsoInFree++;
+          if (isFree(c.pool.name)) st.alsoInFree++;
           if (dry) { if (inPool.get(c.pool.name)) st.dup++; else st.added++, dryPool.add(c.pool.name); continue; }
           insPool.run(c.pool) .changes ? st.added++ : st.dup++;
         } else if (c.free) {
           if (inPool.get(c.free[0]) || dryPool.has(c.free[0] as string)) { st.rejected.in_pool++; continue; } // for sale elsewhere: never also "free"
           if (c.free[12] == null) st.nullPrice++;
-          if (dry) { inFree.get(c.free[0]) ? st.dup++ : st.added++; continue; }
+          if (dry) { isFree(c.free[0]) ? st.dup++ : st.added++; continue; }
           insFree.run(...c.free).changes ? st.added++ : st.dup++;
         }
       }
@@ -198,7 +212,7 @@ function runImport(db: Database.Database, parts: Part[], tag: string, dry: boole
       last = Number(rows[rows.length - 1].__rid);
     }
     src.close();
-    out[p.kind] = { ...st, table: p.kind === "purchasable" ? "pool" : "free_names", ms: Date.now() - t0 };
+    out[p.kind] = { ...st, table: p.kind === "purchasable" ? "pool" : v14 ? "pool (avail=free)" : "free_names", ms: Date.now() - t0 };
   }
   if (!dry) db.prepare("INSERT INTO imports (source, started_at, finished_at, rows_read, rows_upserted, rows_skipped, error) VALUES (?,?,?,?,?,?,NULL)")
     .run(`ops:import-forsale ${tag}`, now, Date.now(),

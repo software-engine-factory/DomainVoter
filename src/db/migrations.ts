@@ -282,6 +282,40 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
     name: "free_names: (name_len, ord, name) index so the browse ORDER BY is index-only (deep pages without a sort)",
     sql: `CREATE INDEX IF NOT EXISTS free_names_len_ord_name_idx ON free_names(name_len, ord, name);`,
   },
+  {
+    version: 14,
+    name: "pool.avail: free-to-register names live in the pool next to the for-sale ones (free_names is drained by lib/free-move)",
+    sql: `
+      -- 'sale' = purchasable (every row before v14), 'free' = not registered yet (registrable at reg_price_usd).
+      ALTER TABLE pool ADD COLUMN avail TEXT NOT NULL DEFAULT 'sale' CHECK (avail IN ('sale', 'free'));
+      ALTER TABLE pool ADD COLUMN ord INTEGER;
+      ALTER TABLE pool ADD COLUMN reg_price_usd REAL;
+      ALTER TABLE pool ADD COLUMN reg_registrar TEXT;
+      ALTER TABLE pool ADD COLUMN cf_checked_at INTEGER;
+      -- Length (+ set) counts split by availability stay index-only.
+      DROP INDEX IF EXISTS pool_name_len_idx;
+      CREATE INDEX IF NOT EXISTS pool_len_avail_idx ON pool(name_len, avail);
+      DROP INDEX IF EXISTS pool_len_set1_idx;
+      DROP INDEX IF EXISTS pool_len_set3_idx;
+      DROP INDEX IF EXISTS pool_len_set4_idx;
+      DROP INDEX IF EXISTS pool_len_set5_idx;
+      CREATE INDEX IF NOT EXISTS pool_len_set1_idx ON pool(name_len, avail) WHERE set_1 = 1;
+      CREATE INDEX IF NOT EXISTS pool_len_set3_idx ON pool(name_len, avail) WHERE set_3 = 1;
+      CREATE INDEX IF NOT EXISTS pool_len_set4_idx ON pool(name_len, avail) WHERE set_4 = 1;
+      CREATE INDEX IF NOT EXISTS pool_len_set5_idx ON pool(name_len, avail) WHERE set_5 = 1;
+      -- The free-names list order (length, ord, name), index-only for deep pages.
+      CREATE INDEX IF NOT EXISTS pool_free_ord_idx ON pool(name_len, ord, name) WHERE avail = 'free';
+      -- free_names is only read by the mover now (by name, its primary key).
+      DROP INDEX IF EXISTS free_names_len_ord_idx;
+      DROP INDEX IF EXISTS free_names_tag_idx;
+      DROP INDEX IF EXISTS free_names_s1_idx;
+      DROP INDEX IF EXISTS free_names_s2_idx;
+      DROP INDEX IF EXISTS free_names_s3_idx;
+      DROP INDEX IF EXISTS free_names_s4_idx;
+      DROP INDEX IF EXISTS free_names_s5_idx;
+      DROP INDEX IF EXISTS free_names_len_ord_name_idx;
+    `,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */

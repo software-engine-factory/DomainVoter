@@ -144,8 +144,11 @@ function upsertStatement() {
       price_usd = excluded.price_usd, imported_at = excluded.imported_at,
       shape = coalesce(excluded.shape, pool.shape), set4_part = coalesce(excluded.set4_part, pool.set4_part),
       -- the first tag sticks: re-importing a name never re-labels which batch brought it in
-      import_tag = coalesce(pool.import_tag, excluded.import_tag),
-      best_currency = coalesce(excluded.best_currency, pool.best_currency)`);
+      -- (a free-to-register name that turns up for sale takes the sale import's tag)
+      import_tag = CASE WHEN pool.avail = 'free' THEN coalesce(excluded.import_tag, pool.import_tag) ELSE coalesce(pool.import_tag, excluded.import_tag) END,
+      best_currency = coalesce(excluded.best_currency, pool.best_currency),
+      -- purchasable now: no longer a free-to-register row
+      avail = 'sale', reg_price_usd = NULL, reg_registrar = NULL`);
 }
 
 function startImport(source: string) {
@@ -295,10 +298,10 @@ export function importSqliteFile(file: string, source: string): ImportResult {
   }
 }
 
-/** Rollback for one import batch: drops the pool rows it brought in, unless a round already froze them. */
+/** Rollback for one for-sale import batch: drops the for-sale rows it brought in, unless a round already froze them. */
 export function deleteByImportTag(tag: string) {
   const changes = getSqlite()
-    .prepare("DELETE FROM pool WHERE import_tag = ? AND name NOT IN (SELECT pool_name FROM domains WHERE pool_name IS NOT NULL)")
+    .prepare("DELETE FROM pool WHERE import_tag = ? AND avail = 'sale' AND name NOT IN (SELECT pool_name FROM domains WHERE pool_name IS NOT NULL)")
     .run(tag).changes;
   bumpData();
   return changes;

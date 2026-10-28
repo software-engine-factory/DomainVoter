@@ -14,7 +14,6 @@ function t(label: string, fn: () => unknown, reps = 3) {
 const db0 = getSqlite();
 if (process.env.CACHE_KB) db0.pragma(`cache_size = -${process.env.CACHE_KB}`);
 if (process.env.MMAP_MB) db0.pragma(`mmap_size = ${Number(process.env.MMAP_MB) * 1048576}`);
-if (process.env.IDX) db0.exec("CREATE INDEX IF NOT EXISTS free_names_len_ord_name_idx ON free_names(name_len, ord, name)");
 t("free len counts", () => freeLengthCounts());
 t("admin/free p1", () => browseFree(parseFreeQuery({})));
 t("admin/free p100", () => browseFree(parseFreeQuery({ page: "100" })));

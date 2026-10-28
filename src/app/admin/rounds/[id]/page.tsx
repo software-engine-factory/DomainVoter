@@ -353,7 +353,7 @@ function Results({
                   </Link>
                 </td>
                 <td dir="ltr" className="px-3 py-2.5 text-end tabular-nums">
-                  {formatMoney(domain.price, domain.currency, fromPool)}
+                  {domain.price != null ? formatMoney(domain.price, domain.currency, fromPool) : null}
                 </td>
                 {fromPool ? (
                   <>

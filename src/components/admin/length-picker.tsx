@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { t } from "@/lib/copy/fa";
 
-export type LengthOption = { length: number; count: number };
+export type LengthOption = { length: number; count: number; free?: number };
 
 /**
  * Segmented 3 / 4 / 5 picker. One length per round (no mixed rounds), so it is a required radio.

@@ -16,7 +16,17 @@ export type PoolFilters = {
   order: "provider" | "name" | "price_asc" | "price_desc" | "random";
   /** Label length (3, 4, 5…). null = any length; new rounds always pick one (no mixed-length rounds). */
   length?: number | null;
+  /** Availability: for sale, free to register, or both. Stored filters from before v14 mean "sale". */
+  avail: PoolAvail;
 };
+
+export const POOL_AVAIL = ["any", "sale", "free"] as const;
+export type PoolAvail = (typeof POOL_AVAIL)[number];
+
+/** Form value → availability. A missing value (older stored round/batch filters) keeps the old for-sale-only rule. */
+export function normalizeAvail(value: unknown): PoolAvail {
+  return value === "any" || value === "free" ? value : "sale";
+}
 
 export function emptyPoolFilters(): PoolFilters {
   return {
@@ -30,6 +40,7 @@ export function emptyPoolFilters(): PoolFilters {
     includeUnpriced: true,
     order: "provider",
     length: null,
+    avail: "any",
   };
 }
 
@@ -65,6 +76,7 @@ export function normalizePoolFilters(input: Record<string, unknown>): { filters:
       ? (input.order as PoolFilters["order"])
       : "provider",
     length: lengthValue(input.length),
+    avail: normalizeAvail(input.avail),
   };
   if (filters.minUsd != null && filters.maxUsd != null && filters.minUsd > filters.maxUsd) {
     return { filters, error: t.pool.err.priceRange };
@@ -100,6 +112,10 @@ export function poolWhere(filters: PoolFilters, alias = "p") {
   if (filters.length != null) {
     clauses.push(`${alias}.name_len = ?`);
     params.push(filters.length);
+  }
+  if (filters.avail !== "any") {
+    clauses.push(`${alias}.avail = ?`);
+    params.push(filters.avail);
   }
   if (filters.sets.length) {
     const join = filters.setMode === "all" ? " AND " : " OR ";
@@ -171,12 +187,14 @@ async function computePoolFacets() {
     s3: number | null;
     s4: number | null;
     s5: number | null;
+    free: number | null;
     lastImport: number | null;
   }>(
       `SELECT COUNT(*) AS total,
               COUNT(lp_price) + SUM(CASE WHEN lp_price IS NULL AND best_price IS NOT NULL THEN 1 ELSE 0 END) AS priced,
               COUNT(price_usd) AS pricedUsd,
               SUM(set_1) AS s1, SUM(set_2) AS s2, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5,
+              SUM(avail = 'free') AS free,
               MAX(imported_at) AS lastImport
        FROM pool`,
   ))!;
@@ -184,11 +202,14 @@ async function computePoolFacets() {
   return { totals, classes, providers, evidence };
 }
 
-export type LengthCount = { length: number; count: number };
+/** `free` = how many of `count` are free to register (avail = 'free'). */
+export type LengthCount = { length: number; count: number; free?: number };
 
-/** Names per label length, for the round-creation length picker (index-only scan of pool_name_len_idx). */
+/** Names per label length (+ the free share), for the length pickers (index-only scan of pool_len_avail_idx). */
 export function poolLengthCounts(): Promise<LengthCount[]> {
-  return cachedAsync("poolLengthCounts", () => reader().all<LengthCount>("SELECT name_len AS length, COUNT(*) AS count FROM pool GROUP BY name_len ORDER BY name_len"));
+  return cachedAsync("poolLengthCounts", () =>
+    reader().all<LengthCount>("SELECT name_len AS length, COUNT(*) AS count, SUM(avail = 'free') AS free FROM pool GROUP BY name_len ORDER BY name_len"),
+  );
 }
 
 /** The length a new round starts on: 4 when present (the original pool), else the biggest group. */

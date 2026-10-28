@@ -2,6 +2,7 @@
 
 import { LengthPicker, type LengthOption } from "@/components/admin/length-picker";
 import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
+import { AvailPicker, availCounts } from "@/components/admin/avail-picker";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
 import { countPoolAction, createPoolRoundAction } from "@/lib/actions/pool";
@@ -22,6 +23,7 @@ function readForm(form: HTMLFormElement) {
     maxUsd: data.get("maxUsd"),
     includeUnpriced: data.get("includeUnpriced") ? "1" : "0",
     length: data.get("length"),
+    avail: data.get("avail"),
   };
 }
 
@@ -71,6 +73,9 @@ export function PoolRoundForm({
   const [step, setStep] = useState(0);
   const [order, setOrder] = useState("random");
   const [seed, setSeed] = useState(() => String(Date.now() % 1_000_000));
+  const [length, setLength] = useState(initialLength);
+  const [avail, setAvail] = useState<"any" | "sale" | "free">("any");
+  const byAvail = lengths.map((l) => ({ ...l, count: availCounts([l], l.length)[avail] }));
 
   function refresh() {
     clearTimeout(timer.current);
@@ -135,7 +140,8 @@ export function PoolRoundForm({
       </ol>
 
       <section className={show(0)} data-step="0">
-        <LengthPicker options={lengths} initial={initialLength} />
+        <AvailPicker counts={availCounts(lengths, length)} value={avail} onChange={setAvail} />
+        <LengthPicker options={byAvail} initial={initialLength} onPick={setLength} />
         <fieldset className="grid gap-2">
           <legend className="mb-2 text-sm font-semibold">{t.pool.sets}</legend>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -165,9 +171,9 @@ export function PoolRoundForm({
             <option value="nameserver">{t.common.nameserver}</option>
           </select>
           <div className="flex items-center gap-2">
-            <input name="minUsd" inputMode="decimal" dir="ltr" placeholder="$ min" aria-label={t.newRound.usdFrom} className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
+            <input name="minUsd" inputMode="decimal" dir="ltr" placeholder="$ min" aria-label={t.newRound.usdFrom} className="h-11 w-0 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
             <span className="text-muted">–</span>
-            <input name="maxUsd" inputMode="decimal" dir="ltr" placeholder="$ max" aria-label={t.newRound.usdTo} className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
+            <input name="maxUsd" inputMode="decimal" dir="ltr" placeholder="$ max" aria-label={t.newRound.usdTo} className="h-11 w-0 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
           </div>
           <label className="flex items-center gap-2">
             <input type="checkbox" name="includeUnpriced" value="1" defaultChecked />

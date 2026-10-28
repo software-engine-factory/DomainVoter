@@ -90,6 +90,12 @@ export const pool = sqliteTable("pool", {
   importTag: text("import_tag"),
   bestCurrency: text("best_currency"),
   importedAt: integer("imported_at").notNull(),
+  /** v14: 'sale' = purchasable, 'free' = not registered yet (reg_price_usd to register). */
+  avail: text("avail", { enum: ["sale", "free"] }).notNull().default("sale"),
+  ord: integer("ord"),
+  regPriceUsd: real("reg_price_usd"),
+  regRegistrar: text("reg_registrar"),
+  cfCheckedAt: integer("cf_checked_at"),
 });
 
 export const picks = sqliteTable("picks", {

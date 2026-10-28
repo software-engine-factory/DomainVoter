@@ -1,12 +1,13 @@
 import { getSqlite } from "@/db";
 import { cachedAsync, cachedCountAsync } from "@/lib/data-cache";
 import { reader } from "@/lib/ro";
+import { createPoolRound, orderedNames } from "@/lib/bulk-fill";
 import { poolLengthCounts, type LengthCount } from "@/lib/pool";
 import { normalizePattern, normalizeQuery, patternActive, PATTERN_MAX } from "@/lib/vote-view";
 import { ACTIVE_SETS, normalizeSetIds } from "@/lib/sets";
 
 /**
- * Admin pool explorer: the 13 exploration filters over the whole for-sale pool.
+ * Admin pool explorer: the exploration filters over the whole pool (for sale + free to register, `av`).
  * Server-side, URL state, paginated. Columns price_source / has_price / name_len come from migration v6.
  */
 type Params = Record<string, string | string[] | undefined>;
@@ -17,6 +18,7 @@ export const NONE = "__none__";
 export const BROWSE_PAGE_SIZE = 50;
 
 export type BrowseQuery = {
+  av: "" | "sale" | "free"; // availability: for sale / free to register ("" = both)
   hp: "" | "yes" | "no"; // 1 has price
   src: string[]; // 2 price source (NONE = no price)
   cur: "" | "usd" | "other" | "none"; // 3 currency
@@ -70,6 +72,7 @@ export function parseBrowse(params: Params): BrowseQuery {
   if (lmin != null && lmax != null && lmin > lmax) [lmin, lmax] = [lmax, lmin];
   const pat = normalizePattern(first(params.pat).slice(0, PATTERN_MAX), exact);
   return {
+    av: pick(first(params.av), ["sale", "free"] as const, "" as never) || "",
     hp: pick(first(params.hp), ["yes", "no"] as const, "" as never) || "",
     src: [...new Set(many(params.src).map((s) => s.toLowerCase().slice(0, 60)))].slice(0, 20),
     cur: pick(first(params.cur), ["usd", "other", "none"] as const, "" as never) || "",
@@ -98,6 +101,7 @@ export function parseBrowse(params: Params): BrowseQuery {
 /** Query → URL params (defaults dropped so links stay short). */
 export function browseToParams(q: BrowseQuery): Record<string, string | number | undefined> {
   return {
+    av: q.av || undefined,
     hp: q.hp || undefined,
     src: q.src.length ? q.src.join(",") : undefined,
     cur: q.cur || undefined,
@@ -139,6 +143,10 @@ const used = "EXISTS (SELECT 1 FROM domains d WHERE d.name = p.name)";
 export function browseWhere(q: BrowseQuery, lengths: LengthCount[] = []) {
   const w: string[] = [];
   const params: Array<string | number> = [];
+  if (q.av) {
+    w.push("p.avail = ?");
+    params.push(q.av);
+  }
   if (q.hp === "yes") w.push("p.has_price = 1");
   if (q.hp === "no") w.push("p.has_price = 0");
   if (q.src.length) {
@@ -253,6 +261,8 @@ export type BrowseRow = {
   views: number;
   votes: number;
   bookmarked: number;
+  avail: "sale" | "free";
+  regPrice: number | null;
 };
 
 const ROW_SELECT = `p.name, coalesce(p.lp_price, p.best_price) AS price, CASE WHEN p.lp_price IS NOT NULL THEN p.lp_currency ELSE coalesce(p.lp_currency, CASE WHEN p.price_usd IS NOT NULL THEN 'USD' END) END AS currency,
@@ -261,7 +271,7 @@ const ROW_SELECT = `p.name, coalesce(p.lp_price, p.best_price) AS price, CASE WH
   (SELECT COUNT(DISTINCT d.round_id) FROM domains d WHERE d.name = p.name) AS rounds,
   (SELECT COUNT(*) FROM domains d JOIN views v ON v.domain_id = d.id WHERE d.name = p.name) AS views,
   ${votesOf} AS votes,
-  EXISTS (SELECT 1 FROM picks k WHERE k.name = p.name) AS bookmarked`;
+  EXISTS (SELECT 1 FROM picks k WHERE k.name = p.name) AS bookmarked, p.avail, p.reg_price_usd AS regPrice`;
 
 /** Pool-only filters can be cached until the data changes; used/round/engagement ones depend on live votes. */
 function countWhere(q: BrowseQuery, where: { sql: string; params: Array<string | number> }) {
@@ -301,33 +311,13 @@ function ensureRank() {
   });
 }
 
-/** Explore → round: the filtered names, in Explore's current order, become a new open round. */
+/** Explore → round: the filtered names, in Explore's current order, become a new open round (written in chunks, see lib/bulk-fill). */
 export async function createRoundFromBrowse(title: string, q: BrowseQuery) {
-  const sqlite = getSqlite();
   const where = await whereOf(q);
   const order = orderSql(q);
   if (q.sort === "random") ensureRank();
-  return sqlite.transaction(() => {
-    const now = Date.now();
-    const id = Number(
-      sqlite
-        .prepare(
-          `INSERT INTO rounds (title, status, parent_round_id, filter_json, sort_mode, created_at, opened_at, source)
-           VALUES (?, 'open', NULL, ?, ?, ?, ?, 'pool')`,
-        )
-        .run(title, JSON.stringify({ explore: browseToParams(q) }), q.sort, now, now).lastInsertRowid,
-    );
-    const inserted = sqlite
-      .prepare(
-        `INSERT INTO domains (round_id, position, name, price, is_premium, source_domain_id, pool_name, currency)
-         SELECT ?, ROW_NUMBER() OVER (ORDER BY ${order.sql}), p.name, COALESCE(p.lp_price, p.best_price), 0, NULL, p.name, p.lp_currency
-         FROM pool p ${where.sql}
-         ORDER BY ${order.sql}`,
-      )
-      .run(id, ...order.params, ...where.params, ...order.params);
-    if (inserted.changes === 0) sqlite.prepare("DELETE FROM rounds WHERE id = ?").run(id);
-    return { id, count: inserted.changes };
-  })();
+  const names = await orderedNames(`SELECT p.name AS name, ROW_NUMBER() OVER (ORDER BY ${order.sql}) AS rn FROM pool p ${where.sql}`, [...order.params, ...where.params]);
+  return createPoolRound({ title, filterJson: JSON.stringify({ explore: browseToParams(q) }), sortMode: q.sort }, names);
 }
 
 /** Total matches only (no rows). */
@@ -397,8 +387,8 @@ async function computeOverview() {
               SUM(set_1) AS s1, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5
        FROM pool GROUP BY price_source ORDER BY price_source IS NULL, total DESC`,
     ),
-    r.get<{ total: number; priced: number; usd: number; lastImport: number | null }>(
-      "SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd, MAX(imported_at) AS lastImport FROM pool",
+    r.get<{ total: number; priced: number; usd: number; free: number; lastImport: number | null }>(
+      "SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd, coalesce(SUM(avail = 'free'), 0) AS free, MAX(imported_at) AS lastImport FROM pool",
     ),
     // Per label length (3/4/5…): same columns as per set, plus the set split.
     r.all<Split & { len: number }>(

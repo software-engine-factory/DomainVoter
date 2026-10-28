@@ -23,11 +23,11 @@ export async function GET(request: Request) {
     const body = new ReadableStream<Uint8Array>({
       async start(controller) {
         try {
-          controller.enqueue(enc.encode("name,price,currency,price_usd,price_source,evidence,parking_provider,ns_class,sale_url,sets,rounds,views,votes,bookmarked"));
+          controller.enqueue(enc.encode("name,price,currency,price_usd,price_source,evidence,parking_provider,ns_class,sale_url,sets,rounds,views,votes,bookmarked,avail,reg_price_usd"));
           for await (const chunk of iterateBrowse(q)) {
             if (!chunk.length) continue;
             const text = chunk
-              .map((r) => [r.name, r.price, r.currency, r.priceUsd, r.source, r.evidence, r.provider, r.nsClass, r.url, r.sets, r.rounds, r.views, r.votes, r.bookmarked].map(cell).join(","))
+              .map((r) => [r.name, r.price, r.currency, r.priceUsd, r.source, r.evidence, r.provider, r.nsClass, r.url, r.sets, r.rounds, r.views, r.votes, r.bookmarked, r.avail, r.regPrice].map(cell).join(","))
               .join("\n");
             controller.enqueue(enc.encode("\n" + text));
           }

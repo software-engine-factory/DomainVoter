@@ -2,6 +2,7 @@
 
 import { LengthPicker, type LengthOption } from "@/components/admin/length-picker";
 import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
+import { AvailPicker, availCounts } from "@/components/admin/avail-picker";
 import { ACTIVE_SETS } from "@/lib/sets";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { buttonClass, fieldBase } from "@/components/ui";
@@ -20,6 +21,9 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users, len
   const [remainderMode, setRemainderMode] = useState<"extra" | "last" | "drop">("drop");
   const [order, setOrder] = useState("random");
   const [seed] = useState(() => String(Date.now() % 1_000_000));
+  const [length, setLength] = useState(initialLength);
+  const [avail, setAvail] = useState<"any" | "sale" | "free">("any");
+  const byAvail = lengths.map((l) => ({ ...l, count: availCounts([l], l.length)[avail] }));
 
   const recount = () => {
     const form = formRef.current;
@@ -38,6 +42,7 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users, len
         cap: data.get("cap"),
         excludeUsed: data.get("excludeUsed"),
         length: data.get("length"),
+        avail: data.get("avail"),
       });
       setBlock(result.count);
     });
@@ -60,7 +65,8 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users, len
       <div className="space-y-4">
         <fieldset className="rounded-xl border border-line p-3 text-sm">
           <legend className="px-1 font-semibold">{t.batch.blockLegend}</legend>
-          <div className="mt-2"><LengthPicker options={lengths} initial={initialLength} /></div>
+          <div className="mt-2"><AvailPicker counts={availCounts(lengths, length)} value={avail} onChange={setAvail} /></div>
+          <div className="mt-3"><LengthPicker options={byAvail} initial={initialLength} onPick={setLength} /></div>
           <div className="mt-3 font-medium">{t.batch.sets}</div>
           <div className="mt-1 flex flex-wrap gap-2">
             {ACTIVE_SETS.map((n) => (

@@ -1,6 +1,8 @@
 import { copyBatchAssignees, setBatchAssignees } from "@/lib/assignees";
 import { getSqlite } from "@/db";
 import { poolWhere, type PoolFilters } from "@/lib/pool";
+import { orderedNames, writeChunks } from "@/lib/bulk-fill";
+import { reader } from "@/lib/ro";
 
 export const BATCH_ORDERS = ["random", "name", "price_asc", "price_desc", "provider", "set"] as const;
 export type BatchOrder = (typeof BATCH_ORDERS)[number];
@@ -41,9 +43,10 @@ function orderSql(order: BatchOrder) {
   }
 }
 
-export function countBlock(filters: PoolFilters, cap: number | null, excludeUsed: boolean) {
+/** Live block size; runs in a reader thread (with free names a count can scan ~2M rows). */
+export async function countBlock(filters: PoolFilters, cap: number | null, excludeUsed: boolean) {
   const where = blockWhere(filters, excludeUsed);
-  const n = (getSqlite().prepare(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`).get(...where.params) as { n: number }).n;
+  const n = (await reader().get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`, where.params))!.n;
   return cap != null && cap > 0 ? Math.min(cap, n) : n;
 }
 
@@ -67,55 +70,63 @@ export type BatchInput = {
   assignees?: number[];
 };
 
-/** Freezes the ordered block, then opens the first `createNow` rounds from it. */
-export function createBatch(input: BatchInput) {
+/**
+ * Freezes the ordered block, then opens the first `createNow` rounds from it. The order is computed in
+ * a reader thread and the block is written in short chunks (lib/bulk-fill), so voters are never held up.
+ */
+export async function createBatch(input: BatchInput) {
   ensureFunctions();
   const sqlite = getSqlite();
   const where = blockWhere(input.filters, input.excludeUsed);
   const order = orderSql(input.order);
   const orderParams = input.order === "random" ? [input.seed] : [];
-  return sqlite.transaction(() => {
-    const now = Date.now();
-    const info = sqlite
-      .prepare(
-        `INSERT INTO round_batches (title, filter_json, order_mode, seed, block_total, per_round, rounds_planned, remainder_mode, created_at, created_by)
-         VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        input.title,
-        JSON.stringify({ ...input.filters, cap: input.cap, excludeUsed: input.excludeUsed }),
-        input.order,
-        input.order === "random" ? input.seed : null,
-        input.plan.perRound,
-        input.plan.rounds,
-        input.plan.remainderMode,
-        now,
-        input.adminId,
-      );
-    const batchId = Number(info.lastInsertRowid);
-    const limit = input.cap != null && input.cap > 0 ? "LIMIT ?" : "";
-    const inserted = sqlite
-      .prepare(
-        `INSERT INTO round_batch_items (batch_id, position, name)
-         SELECT ?, ROW_NUMBER() OVER (ORDER BY ${order}), name FROM (
-           SELECT p.name, p.price_usd, p.dns_ns_class, p.dns_parking_provider, p.set_1, p.set_2, p.set_3, p.set_4, p.set_5
-           FROM pool p ${where.sql} ORDER BY ${order} ${limit}
-         ) p`,
-      )
-      .run(batchId, ...orderParams, ...where.params, ...orderParams, ...(limit ? [input.cap] : []));
-    const total = inserted.changes;
-    if (total === 0) {
+  const capped = input.cap != null && input.cap > 0;
+  const inner = `SELECT p.name, p.price_usd, p.dns_ns_class, p.dns_parking_provider, p.set_1, p.set_2, p.set_3, p.set_4, p.set_5
+                 FROM pool p ${where.sql} ${capped ? `ORDER BY ${order} LIMIT ?` : ""}`;
+  const names = await orderedNames(`SELECT p.name AS name, ROW_NUMBER() OVER (ORDER BY ${order}) AS rn FROM (${inner}) p`, [
+    ...orderParams,
+    ...where.params,
+    ...(capped ? [...orderParams, input.cap] : []),
+  ]);
+  if (!names) return { batchId: 0, total: 0, created: [] as number[] };
+  const info = sqlite
+    .prepare(
+      `INSERT INTO round_batches (title, filter_json, order_mode, seed, block_total, per_round, rounds_planned, remainder_mode, created_at, created_by)
+       VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      input.title,
+      JSON.stringify({ ...input.filters, cap: input.cap, excludeUsed: input.excludeUsed }),
+      input.order,
+      input.order === "random" ? input.seed : null,
+      input.plan.perRound,
+      input.plan.rounds,
+      input.plan.remainderMode,
+      Date.now(),
+      input.adminId,
+    );
+  const batchId = Number(info.lastInsertRowid);
+  let total = 0;
+  try {
+    const insert = sqlite.prepare("INSERT INTO round_batch_items (batch_id, position, name) SELECT ?, ? + j.key + 1, j.value FROM json_each(?) j");
+    total = await writeChunks(names, (json, offset) => insert.run(batchId, offset, json).changes);
+  } catch (error) {
+    sqlite.transaction(() => {
+      sqlite.prepare("DELETE FROM round_batch_items WHERE batch_id = ?").run(batchId);
       sqlite.prepare("DELETE FROM round_batches WHERE id = ?").run(batchId);
-      return { batchId: 0, total: 0, created: [] as number[] };
-    }
-    sqlite.prepare("UPDATE round_batches SET block_total = ? WHERE id = ?").run(total, batchId);
-    setBatchAssignees(batchId, input.assignees ?? []);
-    const plan = planBatch({ ...input.plan, total });
-    const howMany = input.createNow > 0 ? Math.min(input.createNow, plan.sizes.length) : plan.sizes.length;
-    const created: number[] = [];
-    for (let i = 0; i < howMany; i++) created.push(openBatchRound(batchId).roundId);
-    return { batchId, total, created };
-  })();
+    })();
+    throw error;
+  }
+  sqlite.prepare("UPDATE round_batches SET block_total = ? WHERE id = ?").run(total, batchId);
+  setBatchAssignees(batchId, input.assignees ?? []);
+  const plan = planBatch({ ...input.plan, total });
+  const howMany = input.createNow > 0 ? Math.min(input.createNow, plan.sizes.length) : plan.sizes.length;
+  const created: number[] = [];
+  for (let i = 0; i < howMany; i++) {
+    created.push(openBatchRound(batchId).roundId);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  return { batchId, total, created };
 }
 
 /** Opens the next round of a batch from the frozen block. Returns roundId 0 when the block is used up. */

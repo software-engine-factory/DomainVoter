@@ -6,6 +6,7 @@ import { rounds } from "@/db/schema";
 import type { RoundFilters } from "@/lib/filters";
 import { poolOrder, poolWhere, type PoolFilters } from "@/lib/pool";
 import { ensureFunctions } from "@/lib/batches";
+import { createPoolRound, orderedNames } from "@/lib/bulk-fill";
 
 
 export type RoundListItem = {
@@ -277,36 +278,19 @@ export function deriveRound(input: { title: string; parentRoundId: number; filte
   })();
 }
 
-/** Opens a round straight from the pool: one INSERT…SELECT, no rows pass through JS. */
-export function createRoundFromPool(title: string, filters: PoolFilters, seed?: string | null) {
-  const sqlite = getSqlite();
+/**
+ * Opens a round straight from the pool. The order is computed in a reader thread and the rows are
+ * written in short chunks (lib/bulk-fill), so a filter matching millions of names never holds voters up.
+ * The round stays closed (invisible) until it is complete.
+ */
+export async function createRoundFromPool(title: string, filters: PoolFilters, seed?: string | null) {
   const where = poolWhere(filters);
   const seeded = filters.order === "random" && !!seed;
   if (seeded) ensureFunctions();
   const order = seeded ? "dv_seeded_rank(?, p.name), p.name" : poolOrder(filters.order);
   const orderParams = seeded ? [seed] : [];
-  return sqlite.transaction(() => {
-    const now = Date.now();
-    const info = sqlite
-      .prepare(
-        `INSERT INTO rounds (title, status, parent_round_id, filter_json, sort_mode, created_at, opened_at, source)
-         VALUES (?, 'open', NULL, ?, ?, ?, ?, 'pool')`,
-      )
-      .run(title, JSON.stringify(seeded ? { ...filters, seed } : filters), filters.order, now, now);
-    const id = Number(info.lastInsertRowid);
-    const inserted = sqlite
-      .prepare(
-        `INSERT INTO domains (round_id, position, name, price, is_premium, source_domain_id, pool_name, currency)
-         SELECT ?, ROW_NUMBER() OVER (ORDER BY ${order}), p.name, COALESCE(p.lp_price, p.best_price), 0, NULL, p.name, p.lp_currency
-         FROM pool p ${where.sql}
-         ORDER BY ${order}`,
-      )
-      .run(id, ...orderParams, ...where.params, ...orderParams);
-    if (inserted.changes === 0) {
-      sqlite.prepare("DELETE FROM rounds WHERE id = ?").run(id);
-    }
-    return { id, count: inserted.changes };
-  })();
+  const names = await orderedNames(`SELECT p.name AS name, ROW_NUMBER() OVER (ORDER BY ${order}) AS rn FROM pool p ${where.sql}`, [...orderParams, ...where.params]);
+  return createPoolRound({ title, filterJson: JSON.stringify(seeded ? { ...filters, seed } : filters), sortMode: filters.order }, names);
 }
 
 export type AdminRow = {
