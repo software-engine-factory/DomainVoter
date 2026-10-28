@@ -70,8 +70,17 @@ export async function NamesView({ query }: { query: Record<string, string | stri
           </div>
         ) : null}
 
-        {/* 1 has price · 4 USD range */}
+        {/* availability · 1 has price · 4 USD range */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex items-center gap-1" role="radiogroup" aria-label={t.avail.label} data-testid="explore-avail">
+            <span className={groupLabel}>{t.avail.label}</span>
+            {([["", t.avail.any], ["sale", t.avail.sale], ["free", t.avail.free]] as const).map(([v, label]) => (
+              <label key={v} className={chip(q.av === v)}>
+                <input type="radio" name="av" value={v} defaultChecked={q.av === v} className="sr-only" />
+                {label}
+              </label>
+            ))}
+          </div>
           <div className="flex items-center gap-1" role="radiogroup" aria-label={t.browse.hasPrice}>
             <span className={groupLabel}>{t.browse.hasPrice}</span>
             {([["", t.browse.any], ["yes", t.browse.yes], ["no", t.browse.no]] as const).map(([v, label]) => (
@@ -182,11 +191,15 @@ export async function NamesView({ query }: { query: Record<string, string | stri
             <div className="min-w-0 flex-1 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] sm:items-center sm:gap-3">
               <div className="flex items-baseline justify-between gap-2 sm:block">
                 <span dir="ltr" className="break-all font-mono font-semibold">{row.name}</span>
-                <span dir="ltr" className="shrink-0 text-xs tabular-nums sm:hidden">{row.price != null ? formatMoney(row.price, row.currency, true) : "—"}</span>
+                <span dir="ltr" className="shrink-0 text-xs tabular-nums sm:hidden">{row.price != null ? formatMoney(row.price, row.currency, true) : row.regPrice != null ? formatMoney(row.regPrice, "USD", true) : "—"}</span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted sm:mt-0">
-                <span dir="ltr" className="hidden tabular-nums text-ink sm:inline">{row.price != null ? formatMoney(row.price, row.currency, true) : "—"}</span>
-                <span dir={row.source && row.source !== "unknown" ? "ltr" : undefined} className="rounded bg-paper px-1.5 py-0.5 ring-1 ring-line">{sourceLabel(row.source)}</span>
+                <span dir="ltr" className="hidden tabular-nums text-ink sm:inline">{row.price != null ? formatMoney(row.price, row.currency, true) : row.regPrice != null ? formatMoney(row.regPrice, "USD", true) : "—"}</span>
+                {row.avail === "free" ? (
+                  <span className="rounded bg-accent-soft px-1.5 py-0.5 text-ink ring-1 ring-accent/30">{t.avail.freeBadge}</span>
+                ) : (
+                  <span dir={row.source && row.source !== "unknown" ? "ltr" : undefined} className="rounded bg-paper px-1.5 py-0.5 ring-1 ring-line">{sourceLabel(row.source)}</span>
+                )}
               </div>
               <div className="mt-1 truncate text-xs text-muted sm:mt-0" title={row.sets ? row.sets.split(",").map((n) => SET_LABELS[Number(n)]).join("، ") : undefined}>
                 {row.sets ? row.sets.split(",").map((n) => SET_LABELS[Number(n)]).join(" · ") : "—"}

@@ -13,7 +13,7 @@ test("option (b): gap names appended to existing round, core untouched, idempote
   const ins = db.prepare("INSERT INTO pool (name, price_usd, best_price, best_currency, import_tag, imported_at) VALUES (?, 5, 5, ?, ?, 1)");
   for (const n of ["qxaa", "qxab", "qxac", "qxad"]) ins.run(`${n}.com`, "USD", null);
   const f = pool.normalizePoolFilters({ length: "4", order: "random", q: "qx" }).filters;
-  const { id } = createRoundFromPool("supp-core", f, "seed-1");
+  const { id } = await createRoundFromPool("supp-core", f, "seed-1");
   const coreBefore = db.prepare("SELECT id, position, name FROM domains WHERE round_id = ? ORDER BY position").all(id);
   assert.ok(coreBefore.length >= 4);
   const d0 = coreBefore[0].id;
@@ -47,7 +47,7 @@ test("gap names outside the round's set filter: skipped as 'filter' unless match
   const ins = db.prepare("INSERT INTO pool (name, price_usd, set_1, set_4, import_tag, imported_at) VALUES (?, NULL, ?, ?, ?, 1)");
   for (const n of ["wqaa", "wqab"]) ins.run(`${n}.com`, 1, 0, null);
   const f = pool.normalizePoolFilters({ length: "4", sets: ["1"], q: "wq" }).filters;
-  const { id } = createRoundFromPool("supp-sets", f, null);
+  const { id } = await createRoundFromPool("supp-sets", f, null);
   for (const n of ["wqba", "wqbb", "wqbc"]) ins.run(`${n}.com`, 0, 1, "gap-set4");
   const strict = (await supp.planSupplement("gap-set4")).find((p) => p.roundId === id);
   assert.equal(strict.add.length, 0);

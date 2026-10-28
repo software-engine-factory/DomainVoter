@@ -2,6 +2,7 @@
 
 import { LengthPicker, type LengthOption } from "@/components/admin/length-picker";
 import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
+import { AvailPicker, availCounts } from "@/components/admin/avail-picker";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
 import { countPoolAction, createPoolRoundAction } from "@/lib/actions/pool";
@@ -22,6 +23,7 @@ function readForm(form: HTMLFormElement) {
     maxUsd: data.get("maxUsd"),
     includeUnpriced: data.get("includeUnpriced") ? "1" : "0",
     length: data.get("length"),
+    avail: data.get("avail"),
   };
 }
 
@@ -71,6 +73,9 @@ export function PoolRoundForm({
   const [step, setStep] = useState(0);
   const [order, setOrder] = useState("random");
   const [seed, setSeed] = useState(() => String(Date.now() % 1_000_000));
+  const [length, setLength] = useState(initialLength);
+  const [avail, setAvail] = useState<"any" | "sale" | "free">("any");
+  const byAvail = lengths.map((l) => ({ ...l, count: availCounts([l], l.length)[avail] }));
 
   function refresh() {
     clearTimeout(timer.current);
@@ -135,7 +140,8 @@ export function PoolRoundForm({
       </ol>
 
       <section className={show(0)} data-step="0">
-        <LengthPicker options={lengths} initial={initialLength} />
+        <AvailPicker counts={availCounts(lengths, length)} value={avail} onChange={setAvail} />
+        <LengthPicker options={byAvail} initial={initialLength} onPick={setLength} />
         <fieldset className="grid gap-2">
           <legend className="mb-2 text-sm font-semibold">{t.pool.sets}</legend>
           <div className="grid gap-2 sm:grid-cols-2">

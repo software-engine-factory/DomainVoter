@@ -82,7 +82,7 @@ async function counts(roundId: number, tag: string) {
 export type SupplementMatch = "filters" | "length";
 
 function lengthOnly(f: { filters: PoolFilters; seed: string | null } | null) {
-  return f ? { filters: { ...normalizePoolFilters({}).filters, order: f.filters.order }, seed: f.seed } : f;
+  return f ? { filters: { ...normalizePoolFilters({}).filters, order: f.filters.order, avail: f.filters.avail }, seed: f.seed } : f;
 }
 
 async function tagCount(tag: string, length: number | null, excludeRounds: number[]) {
@@ -201,11 +201,11 @@ export function removeSupplement(tag: string) {
   })();
 }
 
-/** Pool import tags with sizes; a GROUP BY over the whole pool, cached until the pool changes. */
+/** Pool import tags with sizes (for-sale rows; free names share tags but only join rounds built with them). Cached until the pool changes. */
 export function importTags() {
   return cachedAsync("importTags", () =>
     reader().all<{ tag: string; n: number; lmin: number; lmax: number }>(
-      "SELECT import_tag AS tag, COUNT(*) AS n, MIN(name_len) AS lmin, MAX(name_len) AS lmax FROM pool WHERE import_tag IS NOT NULL GROUP BY import_tag ORDER BY import_tag DESC",
+      "SELECT import_tag AS tag, COUNT(*) AS n, MIN(name_len) AS lmin, MAX(name_len) AS lmax FROM pool WHERE import_tag IS NOT NULL AND avail = 'sale' GROUP BY import_tag ORDER BY import_tag DESC",
     ),
   );
 }

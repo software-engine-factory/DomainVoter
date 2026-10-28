@@ -19,6 +19,7 @@ function filterInput(input: Record<string, unknown>) {
     maxUsd: input.maxUsd,
     includeUnpriced: input.includeUnpriced,
     length: input.length,
+    avail: input.avail,
   });
 }
 
@@ -32,7 +33,7 @@ export async function countBlockAction(input: Record<string, unknown>) {
   await requireAdmin();
   const { filters, error } = filterInput(input);
   if (error) return { count: 0, error };
-  return { count: countBlock(filters, positive(input.cap), input.excludeUsed === "1") };
+  return { count: await countBlock(filters, positive(input.cap), input.excludeUsed === "1") };
 }
 
 export async function createBatchAction(formData: FormData) {
@@ -50,13 +51,14 @@ export async function createBatchAction(formData: FormData) {
     maxUsd: formData.get("maxUsd"),
     includeUnpriced: formData.get("includeUnpriced") ? "1" : "0",
     length: formData.get("length"),
+    avail: formData.get("avail"),
   });
   if (error) redirect(`${back}?error=${encodeURIComponent(error)}`);
   const order = (BATCH_ORDERS as readonly string[]).includes(String(formData.get("order"))) ? (String(formData.get("order")) as BatchOrder) : "random";
   const rounds = positive(formData.get("rounds")) ?? 1;
   const perRound = positive(formData.get("perRound")) ?? 500;
   const remainder = String(formData.get("remainderMode"));
-  const result = createBatch({
+  const result = await createBatch({
     title,
     filters,
     order,

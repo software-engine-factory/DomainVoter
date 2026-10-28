@@ -85,9 +85,6 @@ export default async function FreeNamesPage({ searchParams }: { searchParams: Pr
               <span className="flex items-center justify-between gap-1">
                 {r.reg_price_usd != null ? <FreePrice price={r.reg_price_usd} /> : <span />}
                 <span className="flex shrink-0 items-center gap-1">
-                  {r.inPool ? (
-                    <span title={t.free.inPoolTip} className="size-2 rounded-full bg-accent" aria-label={t.free.inPool} />
-                  ) : null}
                   {r.shape ? (
                     <span title={t.free.shape} dir="ltr" className="rounded bg-chip px-1 font-mono text-[10px] text-muted">{r.shape}</span>
                   ) : null}

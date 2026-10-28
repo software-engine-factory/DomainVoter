@@ -5,6 +5,7 @@ import { hashSync } from "bcryptjs";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { dataDir as resolveDataDir } from "@/lib/paths";
 import { runMigrations } from "./migrations";
+import { startFreeMove } from "./free-move";
 import * as schema from "./schema";
 
 const globalForDb = globalThis as unknown as {
@@ -92,6 +93,7 @@ function createSqlite() {
 export function getSqlite() {
   if (!globalForDb.sqlite) {
     globalForDb.sqlite = createSqlite();
+    startFreeMove(globalForDb.sqlite);
   }
   return globalForDb.sqlite;
 }

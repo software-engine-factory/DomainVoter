@@ -6,8 +6,9 @@ import { getSqlite } from "@/db";
  * ~1.9M free rows would stall every voter request; these only change when the data does.
  *
  * Stamp = latest finished import (app sync/upload and the ops import/undo CLI all write one)
- * + free_names max rowid (free CSV uploads) + an in-process bump for app write paths that
- * change pool/free rows without an imports row (rollback by tag, free upload).
+ * + whether legacy free_names still holds rows (flips once the v14 mover has drained it into the pool)
+ * + an in-process bump for app write paths that change pool rows without an imports row
+ * (rollback by tag, free upload).
  */
 type State = { bump: number; stamp: string; at: number; gen: number; values: Map<string, unknown>; counts: Map<string, number>; inflight: Map<string, Promise<unknown>> };
 const g = globalThis as unknown as { dvDataCache?: State };
@@ -21,7 +22,7 @@ export function dataStamp() {
   const row = getSqlite()
     .prepare(
       `SELECT (SELECT COALESCE(MAX(id), 0) FROM imports WHERE finished_at IS NOT NULL) AS imp,
-              (SELECT COALESCE(MAX(rowid), 0) FROM free_names) AS free`,
+              EXISTS (SELECT 1 FROM free_names) AS free`,
     )
     .get() as { imp: number; free: number };
   return `${row.imp}.${row.free}.${state.bump}`;

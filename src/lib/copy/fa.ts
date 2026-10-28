@@ -834,8 +834,6 @@ export const t = {
     count: (n: string) => `${n} نام ثبت‌نشده`,
     adminOnly: "فقط مدیر",
     adminOnlyTip: "این فهرست به رأی‌دهنده‌ها نشان داده نمی‌شود",
-    inPool: "در فهرست",
-    inPoolTip: "این نام در فهرست دامنه‌ها هم هست (برای فروش)",
     search: "جست‌وجوی نام…",
     upload: "بارگذاری CSV",
     tag: "برچسب",
@@ -853,6 +851,14 @@ export const t = {
     tabSettingTip: "نام‌های ثبت‌نشده با قیمت ثبت و پیوند ثبت",
     tabOn: "روشن",
     tabOff: "خاموش",
+  },
+  /** Availability filter (for sale / free to register) in the round builders and Explore. */
+  avail: {
+    label: "وضعیت",
+    any: "همه",
+    sale: "فروشی",
+    free: "فقط ثبت‌شدنی",
+    freeBadge: "ثبت‌شدنی",
   },
 } as const;
 
