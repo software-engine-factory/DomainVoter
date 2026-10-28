@@ -2,17 +2,19 @@ import type Database from "better-sqlite3";
 
 /**
  * Migration v14 moved free-to-register names into `pool` (avail = 'free'). The 1.9M existing rows are
- * moved here, after startup, in small name-ordered chunks: one short transaction per chunk and a pause
- * between chunks, so voter requests on the same connection are never held for more than a chunk.
+ * moved here, after startup, in small name-ordered chunks: one short transaction per chunk, then a pause of
+ * at least twice the chunk's own time, so the web process stays free for voters at least 2/3 of the time
+ * even on a busy host, and no request waits behind more than one small chunk.
  * Idempotent and resumable: whatever is left in free_names is moved on the next start. A name already in
  * the pool (for sale) wins; its free copy is dropped.
  */
-const CHUNK = 2000;
+export const FREE_MOVE_CHUNK = 250;
+const CHUNK = FREE_MOVE_CHUNK;
 const PAUSE_MS = 25;
 
 const COLS = "name, set_1, set_2, set_3, set_4, set_5, set4_part, shape, ord, import_tag, imported_at, cf_checked_at, reg_price_usd, reg_registrar";
 
-type Move = { running: boolean; moved: number; chunks: number; maxMs: number; startedAt: number; doneAt: number | null };
+type Move = { running: boolean; moved: number; chunks: number; maxMs: number; lastMs: number; startedAt: number; doneAt: number | null };
 const g = globalThis as unknown as { dvFreeMove?: Move };
 
 export function freeMoveStatus(): Move | undefined {
@@ -46,13 +48,14 @@ function step(chunk: NonNullable<ReturnType<typeof statements>>, lo: string, sta
   state.moved += r.moved;
   state.chunks += 1;
   state.maxMs = Math.max(state.maxMs, ms);
+  state.lastMs = ms;
   return r.top;
 }
 
 /** Synchronous drain (tests, ops scripts). */
 export function moveFreeNamesNow(sqlite: Database.Database) {
   const chunk = statements(sqlite);
-  const state: Move = { running: true, moved: 0, chunks: 0, maxMs: 0, startedAt: Date.now(), doneAt: null };
+  const state: Move = { running: true, moved: 0, chunks: 0, maxMs: 0, lastMs: 0, startedAt: Date.now(), doneAt: null };
   if (chunk) for (let lo: string | null = ""; lo != null; ) lo = step(chunk, lo, state);
   state.running = false;
   state.doneAt = Date.now();
@@ -66,7 +69,7 @@ export function startFreeMove(sqlite: Database.Database) {
   if (!sqlite.prepare("SELECT 1 FROM free_names LIMIT 1").get()) return;
   const chunk = statements(sqlite);
   if (!chunk) return;
-  const state: Move = (g.dvFreeMove = { running: true, moved: 0, chunks: 0, maxMs: 0, startedAt: Date.now(), doneAt: null });
+  const state: Move = (g.dvFreeMove = { running: true, moved: 0, chunks: 0, maxMs: 0, lastMs: 0, startedAt: Date.now(), doneAt: null });
   console.log("[free-move] moving free_names into pool");
   let lo: string | null = "";
   let failures = 0;
@@ -90,7 +93,7 @@ export function startFreeMove(sqlite: Database.Database) {
       console.log(`[free-move] done: ${state.moved} names in ${state.chunks} chunks, ${state.doneAt - state.startedAt} ms, longest chunk ${state.maxMs.toFixed(0)} ms`);
       return;
     }
-    setTimeout(tick, PAUSE_MS).unref();
+    setTimeout(tick, Math.max(PAUSE_MS, Math.round(state.lastMs * 2))).unref();
   };
   setTimeout(tick, 2000).unref();
 }

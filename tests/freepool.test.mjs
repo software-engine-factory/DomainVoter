@@ -11,7 +11,7 @@ const batches = await j.import("@/lib/batches");
 const browse = await j.import("@/lib/pool-browse");
 const free = await j.import("@/lib/free-names");
 const { importFile, deleteByImportTag } = await j.import("@/lib/pool-import");
-const { moveFreeNamesNow } = await j.import("@/db/free-move");
+const { moveFreeNamesNow, FREE_MOVE_CHUNK } = await j.import("@/db/free-move");
 const cache = await j.import("@/lib/data-cache");
 const db = getSqlite();
 
@@ -110,7 +110,7 @@ test("v14 mover drains legacy free_names into pool; sale wins on conflict; idemp
   })();
   const st = moveFreeNamesNow(db);
   assert.equal(st.moved, 4500);
-  assert.equal(st.chunks, 3);
+  assert.equal(st.chunks, Math.ceil(4501 / FREE_MOVE_CHUNK)); // 4500 + the sale conflict row
   assert.equal(db.prepare("SELECT COUNT(*) n FROM free_names").get().n, 0);
   assert.equal(db.prepare("SELECT COUNT(*) n FROM pool WHERE name LIKE 'fpmv%' AND avail = 'free' AND reg_price_usd = 10.44").get().n, 4500);
   assert.equal(db.prepare("SELECT avail FROM pool WHERE name = 'fpzsaac.com'").get().avail, "sale");
