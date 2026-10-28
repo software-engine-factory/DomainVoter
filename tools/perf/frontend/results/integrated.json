@@ -1,0 +1,48 @@
+{
+  "measuredAt": "2026-10-28T15:03:07.281Z",
+  "browser": "145.0.7632.6",
+  "source": "Synthetic 4L 10000-row SQLite fixture, real durable job queue and writer thread, not source replica",
+  "feedbackMs": 14.099999964237213,
+  "acceptedVisibleMs": 40,
+  "firstNonzeroStatusMs": 337,
+  "completedVisibleMs": 600,
+  "creationRequests": 1,
+  "reattachedAfterReload": true,
+  "snapshots": [
+    {
+      "afterSubmitMs": 23,
+      "state": "running",
+      "phase": "selecting",
+      "processed": 0,
+      "total": 0
+    },
+    {
+      "afterSubmitMs": 87,
+      "state": "running",
+      "phase": "selecting",
+      "processed": 0,
+      "total": 0
+    },
+    {
+      "afterSubmitMs": 337,
+      "state": "running",
+      "phase": "materializing",
+      "processed": 5000,
+      "total": 10000
+    },
+    {
+      "afterSubmitMs": 592,
+      "state": "completed",
+      "phase": "done",
+      "processed": 10000,
+      "total": 10000
+    }
+  ],
+  "result": {
+    "count": 10000,
+    "uniqueNames": 10000,
+    "firstPosition": 1,
+    "lastPosition": 10000
+  },
+  "note": "One small correctness sample. Does not establish production throughput, idempotency, or crash recovery."
+}

@@ -1,0 +1,71 @@
+{
+  "measuredAt": "2026-10-28T15:04:12.659Z",
+  "browser": "145.0.7632.6",
+  "observations": [
+    {
+      "name": "latest-response-normal",
+      "verdict": "GREEN",
+      "count": "222 names",
+      "obsoleteDisplayed": false,
+      "mutation": null
+    },
+    {
+      "name": "latest-response-mutated",
+      "verdict": "RED",
+      "count": "222 names",
+      "obsoleteDisplayed": true,
+      "mutation": "Accept every response instead of checking generation"
+    },
+    {
+      "name": "f1-coalesce-submitter",
+      "countRequests": 2,
+      "filterValues": [
+        "1",
+        "3"
+      ],
+      "peakActive": 1,
+      "createMode": "first"
+    },
+    {
+      "name": "f2-coalesce-submitter",
+      "countRequests": 2,
+      "filterValues": [
+        "1",
+        "3"
+      ],
+      "peakActive": 1,
+      "createMode": "first",
+      "unknownTotalIndeterminate": true
+    },
+    {
+      "name": "submission-normal",
+      "verdict": "GREEN",
+      "requests": 1,
+      "mutation": null
+    },
+    {
+      "name": "submission-mutated",
+      "verdict": "RED",
+      "requests": 2,
+      "mutation": "Bypass synchronous busy ref guard"
+    },
+    {
+      "name": "baseline-pool-duplicate",
+      "requests": 2,
+      "note": "Unchanged React form, serial fixture dispatcher. Real Next navigation and transport not measured."
+    },
+    {
+      "name": "baseline-batch-duplicate",
+      "requests": 2,
+      "note": "Unchanged React form, serial fixture dispatcher. Real Next navigation and transport not measured."
+    },
+    {
+      "name": "f2-lost-ack",
+      "postRequests": 2,
+      "distinctKeys": 1,
+      "ticket": "fixture-1",
+      "recoveredAfterReload": true,
+      "note": "Stub idempotency only. No production guarantee."
+    }
+  ]
+}
