@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Alert, Field, buttonClass, fieldClass } from "@/components/ui";
 import { loginAction } from "@/lib/actions/auth";
@@ -39,12 +38,6 @@ export default async function LoginPage({
         </Field>
         <button className={buttonClass()}>{t.nav.login}</button>
       </form>
-      <p className="mt-6 text-sm text-muted">
-        {t.auth.noAccount}{" "}
-        <Link href="/register" className="font-semibold text-ink underline decoration-line underline-offset-4">
-          {t.auth.signUp}
-        </Link>
-      </p>
     </main>
   );
 }

@@ -55,14 +55,9 @@ export function Header({ session, theme, freeTab = false }: { session: SessionUs
                 {t.nav.myBookmarks}
               </NavLink>
             ) : (
-              <>
-                <NavLink href="/login" exact>
-                  {t.nav.login}
-                </NavLink>
-                <NavLink href="/register" exact>
-                  {t.nav.register}
-                </NavLink>
-              </>
+              <NavLink href="/login" exact>
+                {t.nav.login}
+              </NavLink>
             )}
           </nav>
         </div>
