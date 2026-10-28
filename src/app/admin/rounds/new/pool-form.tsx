@@ -171,9 +171,9 @@ export function PoolRoundForm({
             <option value="nameserver">{t.common.nameserver}</option>
           </select>
           <div className="flex items-center gap-2">
-            <input name="minUsd" inputMode="decimal" dir="ltr" placeholder="$ min" aria-label={t.newRound.usdFrom} className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
+            <input name="minUsd" inputMode="decimal" dir="ltr" placeholder="$ min" aria-label={t.newRound.usdFrom} className="h-11 w-0 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
             <span className="text-muted">–</span>
-            <input name="maxUsd" inputMode="decimal" dir="ltr" placeholder="$ max" aria-label={t.newRound.usdTo} className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
+            <input name="maxUsd" inputMode="decimal" dir="ltr" placeholder="$ max" aria-label={t.newRound.usdTo} className="h-11 w-0 min-w-0 flex-1 rounded-lg border border-line bg-paper px-3" />
           </div>
           <label className="flex items-center gap-2">
             <input type="checkbox" name="includeUnpriced" value="1" defaultChecked />
