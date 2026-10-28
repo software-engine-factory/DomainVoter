@@ -1,0 +1,33 @@
+{
+  "at": "2026-10-28T15:07:23.087Z",
+  "syntheticRows": 3000,
+  "admissionRejected": true,
+  "restart": {
+    "terminateCode": 1,
+    "before": {
+      "staged": 3000,
+      "inserted": 200
+    },
+    "after": {
+      "status": "done",
+      "staged": 3000,
+      "inserted": 3000
+    },
+    "roundSizes": [
+      1000,
+      1000,
+      1000
+    ],
+    "visibleOnlyWhenComplete": true
+  },
+  "cancel": {
+    "status": "cancelled",
+    "remainingBatchItems": 0,
+    "remainingRounds": 0
+  },
+  "failure": {
+    "injected": true,
+    "retryResumed": true,
+    "finalCount": 3000
+  }
+}

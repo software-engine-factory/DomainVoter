@@ -1,0 +1,185 @@
+{
+  "at": "2026-10-28T15:17:35.939Z",
+  "rows": [
+    {
+      "mode": "baseline-batch",
+      "length": 4,
+      "runs": 3,
+      "wallSeconds": {
+        "min": 5.8291623999999995,
+        "median": 5.969856100000001,
+        "max": 6.369295199999999
+      },
+      "pingP95Ms": {
+        "min": 344.4766999999997,
+        "median": 668.5965999999994,
+        "max": 943.3572999999997
+      },
+      "pingMaxMs": 1242.0569999999998,
+      "voteP95Ms": {
+        "min": 422.3912,
+        "median": 669.7471000000005,
+        "max": 1019.8002999999999
+      },
+      "voteMaxMs": 1226.5244000000002,
+      "peakRssMiB": 294.77734375,
+      "cpuSeconds": {
+        "min": 3.969,
+        "median": 4.515,
+        "max": 4.719
+      },
+      "webBusyRetries": 0,
+      "workerBusyRetries": 0,
+      "successfulVoteProbes": 168,
+      "count": 120084,
+      "rounds": 13,
+      "orderedNamesSha256": "6b4820bddf3ae3f810e61db4e719527e249c2bb2fbffb9d8b2ab6c96e660ecda",
+      "allConserved": true,
+      "sourceFiles": [
+        "tools/perf/worker/result-baseline-batch-4-800000-r1.json",
+        "tools/perf/worker/result-baseline-batch-4-800000-r2.json",
+        "tools/perf/worker/result-baseline-batch-4-800000-r3.json"
+      ]
+    },
+    {
+      "mode": "worker",
+      "length": 4,
+      "runs": 3,
+      "wallSeconds": {
+        "min": 12.1362611,
+        "median": 12.4901781,
+        "max": 12.7511822
+      },
+      "pingP95Ms": {
+        "min": 4.34939999999915,
+        "median": 5.200699999999415,
+        "max": 32.6893
+      },
+      "pingMaxMs": 392.00160000000005,
+      "voteP95Ms": {
+        "min": 48.14429999999993,
+        "median": 48.55409999999938,
+        "max": 77.96309999999903
+      },
+      "voteMaxMs": 392.2305000000006,
+      "peakRssMiB": 282.4296875,
+      "cpuSeconds": {
+        "min": 7.984,
+        "median": 8.953,
+        "max": 9.077
+      },
+      "webBusyRetries": 312,
+      "workerBusyRetries": 95,
+      "successfulVoteProbes": 345,
+      "count": 120084,
+      "rounds": 13,
+      "orderedNamesSha256": "6b4820bddf3ae3f810e61db4e719527e249c2bb2fbffb9d8b2ab6c96e660ecda",
+      "allConserved": true,
+      "sourceFiles": [
+        "tools/perf/worker/result-worker-4-800000-r1.json",
+        "tools/perf/worker/result-worker-4-800000-r2.json",
+        "tools/perf/worker/result-worker-4-800000-r3.json"
+      ]
+    },
+    {
+      "mode": "baseline-batch",
+      "length": 5,
+      "runs": 1,
+      "wallSeconds": {
+        "min": 65.4566612,
+        "median": 65.4566612,
+        "max": 65.4566612
+      },
+      "pingP95Ms": {
+        "min": 628.0998000000036,
+        "median": 628.0998000000036,
+        "max": 628.0998000000036
+      },
+      "pingMaxMs": 863.8732000000018,
+      "voteP95Ms": {
+        "min": 631.3329999999987,
+        "median": 631.3329999999987,
+        "max": 631.3329999999987
+      },
+      "voteMaxMs": 825.3356000000058,
+      "peakRssMiB": 266.83984375,
+      "cpuSeconds": {
+        "min": 55.25,
+        "median": 55.25,
+        "max": 55.25
+      },
+      "webBusyRetries": 0,
+      "workerBusyRetries": 0,
+      "successfulVoteProbes": 604,
+      "count": 800000,
+      "rounds": 80,
+      "orderedNamesSha256": "d53f3105c9e4f9622ef9a5200f413e9c0c17301bf186344f778d57e6ed0b1a01",
+      "allConserved": true,
+      "sourceFiles": [
+        "tools/perf/worker/result-baseline-batch-5-800000-r1.json"
+      ]
+    },
+    {
+      "mode": "worker",
+      "length": 5,
+      "runs": 1,
+      "wallSeconds": {
+        "min": 116.4785203,
+        "median": 116.4785203,
+        "max": 116.4785203
+      },
+      "pingP95Ms": {
+        "min": 99.71540000000095,
+        "median": 99.71540000000095,
+        "max": 99.71540000000095
+      },
+      "pingMaxMs": 463.92609999999695,
+      "voteP95Ms": {
+        "min": 139.86099999998987,
+        "median": 139.86099999998987,
+        "max": 139.86099999998987
+      },
+      "voteMaxMs": 448.89429999999993,
+      "peakRssMiB": 258.68359375,
+      "cpuSeconds": {
+        "min": 91.969,
+        "median": 91.969,
+        "max": 91.969
+      },
+      "webBusyRetries": 1296,
+      "workerBusyRetries": 223,
+      "successfulVoteProbes": 1074,
+      "count": 800000,
+      "rounds": 80,
+      "orderedNamesSha256": "d53f3105c9e4f9622ef9a5200f413e9c0c17301bf186344f778d57e6ed0b1a01",
+      "allConserved": true,
+      "sourceFiles": [
+        "tools/perf/worker/result-worker-5-800000-r1.json"
+      ]
+    }
+  ],
+  "compatibility": {
+    "runs": 1,
+    "busyTimeoutMs": 5000,
+    "wallSeconds": 124.0255374,
+    "httpPing": {
+      "n": 4010,
+      "p95Ms": 110.40619999999763,
+      "maxMs": 476.6146000000008
+    },
+    "httpVoteShapedWrite": {
+      "n": 1146,
+      "p95Ms": 134.49120000000403,
+      "maxMs": 447.04920000000857
+    },
+    "webBusyRetries": 0,
+    "workerBusyRetries": 182,
+    "writeFailures": 0,
+    "probeErrors": 0,
+    "probeDrain": {
+      "startedCount": 5161,
+      "completedCount": 5161
+    },
+    "sourceFile": "tools/perf/worker/result-worker-5-800000-compatibility.json"
+  }
+}

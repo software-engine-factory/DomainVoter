@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-28T15:07:33.760Z",
+  "attempts": 2,
+  "retriedCodes": [
+    "SQLITE_BUSY_SNAPSHOT"
+  ],
+  "finalValue": 2,
+  "wholeTransactionRetried": true
+}
