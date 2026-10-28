@@ -1,5 +1,6 @@
 // Research-only read worker. All rows stay in ignored scratch files; IPC returns
 // only aggregate metadata. Close the SQLite snapshot before main-thread writes.
+/* eslint-disable @typescript-eslint/no-require-imports -- This CommonJS worker loads the supplied native module path. */
 const { parentPort, workerData } = require("node:worker_threads");
 const fs = require("node:fs");
 const Database = require(workerData.mod);

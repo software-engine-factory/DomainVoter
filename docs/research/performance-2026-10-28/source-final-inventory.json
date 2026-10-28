@@ -1,0 +1,40 @@
+{
+  "bytes": 984096768,
+  "user_version": 14,
+  "journal_mode": "wal",
+  "table_counts": {
+    "pool": 2468782,
+    "free_names": 0,
+    "domains": 7413,
+    "rounds": 11,
+    "round_batches": 2,
+    "round_batch_items": 157167,
+    "votes": 12,
+    "views": 3143,
+    "imports": 8
+  },
+  "pool_availability": [
+    {
+      "avail": "sale",
+      "length": 3,
+      "rows": 3035
+    },
+    {
+      "avail": "sale",
+      "length": 4,
+      "rows": 127497
+    },
+    {
+      "avail": "free",
+      "length": 5,
+      "rows": 1922532
+    },
+    {
+      "avail": "sale",
+      "length": 5,
+      "rows": 415718
+    }
+  ],
+  "sha256": "702cec4e66aa52ed76f94c329a329b2237146ddc0a01232302f898642a411f85",
+  "inventory_ms": 5623.3
+}

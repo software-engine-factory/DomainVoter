@@ -6,6 +6,8 @@ Both current forms can look idle while creation runs. Neither renders submission
 
 No application code changed. The runnable experiment is in [tools/perf/frontend](../../tools/perf/frontend/README.md). No production systems, source replica, keys, or user records were accessed by this frontend workstream.
 
+Consolidation check: the original 600 ms SQLite integration result is retained as `tools/perf/frontend/results/integrated-initial.json`. The main study checkout reran the final combined code successfully: 12.9 ms feedback, 40 ms ticket visibility and 617 ms completed-result visibility, with the same 10,000-row invariants and reload reattachment. The current `integrated.json` records that later run.
+
 ## Findings in application source
 
 | Area | Evidence | Implication |

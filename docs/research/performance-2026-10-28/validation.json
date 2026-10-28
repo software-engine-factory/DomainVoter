@@ -1,0 +1,67 @@
+{
+  "artifact_integrity_pass": true,
+  "source_checksum_unchanged": true,
+  "source_sha256": "702cec4e66aa52ed76f94c329a329b2237146ddc0a01232302f898642a411f85",
+  "ordered_digest_parity": {
+    "4": "6b4820bddf3ae3f810e61db4e719527e249c2bb2fbffb9d8b2ab6c96e660ecda",
+    "5": "d53f3105c9e4f9622ef9a5200f413e9c0c17301bf186344f778d57e6ed0b1a01"
+  },
+  "worker_primary_cases": [
+    {
+      "file": "tools/perf/worker/result-baseline-batch-4-800000-r1.json",
+      "latency_target_pass": false
+    },
+    {
+      "file": "tools/perf/worker/result-baseline-batch-4-800000-r2.json",
+      "latency_target_pass": false
+    },
+    {
+      "file": "tools/perf/worker/result-baseline-batch-4-800000-r3.json",
+      "latency_target_pass": false
+    },
+    {
+      "file": "tools/perf/worker/result-worker-4-800000-r1.json",
+      "latency_target_pass": true
+    },
+    {
+      "file": "tools/perf/worker/result-worker-4-800000-r2.json",
+      "latency_target_pass": true
+    },
+    {
+      "file": "tools/perf/worker/result-worker-4-800000-r3.json",
+      "latency_target_pass": true
+    },
+    {
+      "file": "tools/perf/worker/result-baseline-batch-5-800000-r1.json",
+      "latency_target_pass": false
+    },
+    {
+      "file": "tools/perf/worker/result-worker-5-800000-r1.json",
+      "latency_target_pass": true
+    }
+  ],
+  "worker_existing_timeout_latency_pass": true,
+  "spool_cases": [
+    {
+      "file": "tools/perf/sql/results/4l-sql-all-spool-1.json",
+      "latency_target_pass": true
+    },
+    {
+      "file": "tools/perf/sql/results/5l-sql-all-spool-1.json",
+      "latency_target_pass": false
+    },
+    {
+      "file": "tools/perf/sql/results/5l-sql-giant-spool-1.json",
+      "latency_target_pass": false
+    }
+  ],
+  "frontend_observations": 18,
+  "frontend_median_feedback_ms": {
+    "f1": 13.5,
+    "f2": 13.299999952316284
+  },
+  "mutation_audit_observations": 9,
+  "consolidated_integration_rows": 10000,
+  "consolidated_integration_result_visible_ms": 617,
+  "limits": "Audits recorded evidence only. Does not establish production deployment, power-loss durability, or untested inputs."
+}

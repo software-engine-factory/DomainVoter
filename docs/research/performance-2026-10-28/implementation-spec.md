@@ -4,6 +4,8 @@ Status: proposed for owner selection. This document does not authorize productio
 
 Base application revision: `0506c5e`. The study uses the local schema v14 replica described in `source-inventory.json`. Preserve existing set aliases, selection filters, seeded order, voting rules, assignments, prices and currencies. Do not substitute a different product behavior to obtain a faster benchmark.
 
+Measured recommendation: implement A with F2 after owner selection. B passed its full four-letter control but missed the five-letter latency targets, including the single 800,000-name case. Retain B as a comparison and a source of query/staging ideas, not a verified five-letter production fix. The combined A+B pipeline was not benchmarked.
+
 ## Backend A: durable background jobs
 
 ### Request and state contract
@@ -41,6 +43,8 @@ Apply the contract first to batch creation and round materialization, including 
 ## Backend B: reduce query work and defer optional materialization
 
 Keep SQLite and the current frozen membership schema. Replace nested ranking/window/ordered-aggregation selection with one ordered cursor and sequential positions, preserving the same seed and tie-breaks. Use the existing filter builder and compare exact ordered membership before accepting the change. Inspect query plans for representative set, length, availability, exclusion and price filters; introduce an index only when the measured plan justifies its ongoing write/storage cost.
+
+The final B prototype uses a scratch JSONL spool, closes the selection cursor before replay and writes 250-row transactions with an event-loop yield. The matched 80-round case reached 264 ms ping p95; the single large round reached 448 ms p95 and 1,032 ms maximum. Both miss the proposed gate. Further tuning or a different execution policy needs new measurements before choosing B for large five-letter work.
 
 Stream selection with acknowledgements and bounded buffers. The current read worker's chunk API does not have backpressure, so merely switching to that API is insufficient for a memory bound. Retain a consistent selection snapshot and release it promptly to avoid pinning the WAL indefinitely. The measured cursor variant grew a large WAL, so the next prototype spools ordered data to a scratch file inside a read worker, closes that read cursor, then replays bounded chunks into SQLite. Treat scratch-file space and cleanup as explicit resource requirements.
 
