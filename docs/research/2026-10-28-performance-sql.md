@@ -68,6 +68,7 @@ Small row chunks do not impose a hard time limit on a synchronous SQLite write. 
 | 2026-10-28 15:06 | `node tools/perf/sql/summarize.mjs --require-responsive` | Exit 1 on the observed baseline-all, SQL-all and cursor giant cases. Without the timing gate, the same command exits 0 after cross-variant digest and independent source count checks. |
 | 2026-10-28 15:17 to 15:25 | Three `sql-all --transport=spool --materialize=chunked --chunk=250 --http=true` samples, 4L and 5L at 10000 per round, then 5L at 800000 per round | Each full build preserves membership and passes integrity, HTTP status and drain checks. The 4L control passes responsiveness. Both 5L profiles miss at least one proposed target. No tuning runs followed. |
 | 2026-10-28 15:23 | Inspect installed driver defines and read scratch `PRAGMA synchronous` before/after the same WAL setup | Both values are 1, NORMAL. Correct the proposed FULL label before reporting results. No setting was changed. |
+| 2026-10-28 15:28 | Resolve owned scratch paths, verify exclusive file handles, remove the disposable DB/WAL/SHM | Removed 1132843008 DB bytes, 8553152 WAL bytes and 32768 SHM bytes, 1141428928 aggregate bytes. This aggregate is not WAL peak. All raw timing JSONs and the source replica are retained. See `cleanup-full-replica.json`. |
 
 ## Measured results
 
