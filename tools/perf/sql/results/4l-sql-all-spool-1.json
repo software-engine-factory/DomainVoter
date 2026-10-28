@@ -1,0 +1,143 @@
+{
+  "measuredAt": "2026-10-28T15:18:00.850Z",
+  "metadata": {
+    "nodeVersion": "v24.22.1",
+    "platform": "win32",
+    "arch": "x64",
+    "sourceBytes": 984096768,
+    "userVersion": 14,
+    "sqliteVersion": "3.53.4",
+    "counts": {
+      "pool": 2468782,
+      "domains": 7413,
+      "rounds": 11,
+      "round_batch_items": 157167
+    }
+  },
+  "sqliteSettings": {
+    "cache_size": -16000,
+    "busy_timeout": 5000,
+    "wal_autocheckpoint": 1000,
+    "temp_store": 0
+  },
+  "variant": "sql-all",
+  "input": {
+    "filters": {
+      "classes": [],
+      "providers": [],
+      "sets": [],
+      "setMode": "any",
+      "evidence": "any",
+      "minUsd": null,
+      "maxUsd": null,
+      "includeUnpriced": true,
+      "order": "provider",
+      "length": 4,
+      "avail": "any"
+    },
+    "length": 4,
+    "order": "random",
+    "cap": 800000,
+    "excludeUsed": true,
+    "seed": "perf-2026-10-28",
+    "perRound": 10000,
+    "rounds": 80,
+    "remainderMode": "extra",
+    "createNow": 0,
+    "materialize": "chunked",
+    "transport": "spool",
+    "chunkSize": 250,
+    "yield": "setImmediate"
+  },
+  "wallMs": 12951.1685,
+  "phases": {
+    "spoolMs": 3247.379200000003,
+    "maxSpoolBytes": 2401680,
+    "spoolRows": 240168,
+    "snapshotMs": 1284.3592000000008,
+    "existingReaderQueueUnbounded": false,
+    "maxMaterializationChunkMs": 339.6229999999996,
+    "materializeMs": 11666.1202
+  },
+  "cpuMs": {
+    "user": 3765,
+    "system": 6921
+  },
+  "peakRssBytes": 181403648,
+  "processHighWaterRssBytes": 181403648,
+  "http": {
+    "ping": {
+      "n": 419,
+      "p95Ms": 47.67519999999786,
+      "maxMs": 334.85969999999907
+    },
+    "voteShapedWrite": {
+      "n": 120,
+      "p95Ms": 45.21849999999904,
+      "maxMs": 303.64670000000115
+    },
+    "writerProbe": {
+      "n": 304,
+      "p95Ms": 1.2615000000005239,
+      "maxMs": 39.16359999999986
+    },
+    "writerErrors": [],
+    "errors": [],
+    "statusCounts": {
+      "ping:200": 419,
+      "write:200": 120
+    },
+    "drain": {
+      "startedCount": 548,
+      "completedCount": 548
+    },
+    "writeFailures": 0,
+    "voteCountPreserved": true
+  },
+  "timerGapMs": {
+    "sampleCount": 630,
+    "p95": 43.59280000000035,
+    "max": 339.89570000000094
+  },
+  "pagesAdded": 5170,
+  "walBytes": 6254192,
+  "peakWalBytes": 6254192,
+  "eligibleBeforeBuild": 120084,
+  "expectedSnapshotRows": 120084,
+  "snapshotRows": 120084,
+  "materializedRows": 120084,
+  "insertedItemRows": 240168,
+  "roundRows": 13,
+  "membershipSha256": "6b4820bddf3ae3f810e61db4e719527e249c2bb2fbffb9d8b2ab6c96e660ecda",
+  "assertions": {
+    "positionsContinuous": true,
+    "countMatchesResult": true,
+    "independentSnapshotCountCorrect": true,
+    "materializedCountCorrect": true,
+    "priceNameCurrencyMismatches": 0
+  },
+  "plans": {
+    "baseline": [
+      "CO-ROUTINE (subquery-3)",
+      "CO-ROUTINE (subquery-5)",
+      "CO-ROUTINE p",
+      "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+      "LIST SUBQUERY 1",
+      "SEARCH domains USING COVERING INDEX domains_pool_name_idx (pool_name>?)",
+      "CREATE BLOOM FILTER",
+      "USE TEMP B-TREE FOR ORDER BY",
+      "SCAN p",
+      "USE TEMP B-TREE FOR ORDER BY",
+      "SCAN (subquery-5)",
+      "USE TEMP B-TREE FOR group_concat(ORDER BY)",
+      "SCAN (subquery-3)"
+    ],
+    "direct": [
+      "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+      "LIST SUBQUERY 1",
+      "SEARCH domains USING COVERING INDEX domains_pool_name_idx (pool_name>?)",
+      "CREATE BLOOM FILTER",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ]
+  }
+}
