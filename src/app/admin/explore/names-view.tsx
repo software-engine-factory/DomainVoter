@@ -197,7 +197,7 @@ export async function NamesView({ query }: { query: Record<string, string | stri
                 <span dir="ltr" className="hidden tabular-nums text-ink sm:inline">{row.price != null ? formatMoney(row.price, row.currency, true) : row.regPrice != null ? formatMoney(row.regPrice, "USD", true) : null}</span>
                 {row.avail === "free" ? (
                   <span className="rounded bg-accent-soft px-1.5 py-0.5 text-ink ring-1 ring-accent/30">{t.avail.freeBadge}</span>
-                ) : (
+                ) : row.source == null || row.source === NONE ? null : (
                   <span dir={row.source && row.source !== "unknown" ? "ltr" : undefined} className="rounded bg-paper px-1.5 py-0.5 ring-1 ring-line">{sourceLabel(row.source)}</span>
                 )}
               </div>
