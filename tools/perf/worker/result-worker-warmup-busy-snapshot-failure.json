@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-28T15:07:33.641Z",
+  "configuration": "standard5L800000random80x10000",
+  "job": {
+    "id": 1,
+    "status": "error",
+    "phase": "materializing",
+    "staged": 800000,
+    "inserted": 1000,
+    "total": 800000,
+    "error": "SQLITE_BUSY_SNAPSHOT",
+    "updated_at": 1793199918884
+  },
+  "publishedRounds": 0,
+  "metricsUnavailable": "failed before harness finalization",
+  "cause": "retry only matched base SQLITE_BUSY, not extended SQLITE_BUSY_SNAPSHOT"
+}

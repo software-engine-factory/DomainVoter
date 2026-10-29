@@ -1,0 +1,134 @@
+{
+  "measuredAt": "2026-10-28T15:00:47.317Z",
+  "sourceCommit": "0506c5e",
+  "browser": "145.0.7632.6",
+  "note": "Actual React DOM; unchanged baseline form components; stub actions/HTTP only; no database",
+  "cases": [
+    {
+      "name": "baseline-pool",
+      "titleOnlyCountRequests": 1,
+      "pendingAfter80ms": {
+        "busy": null,
+        "submitDisabled": false
+      },
+      "expectedRequirementFailure": true
+    },
+    {
+      "name": "baseline-batch",
+      "titleOnlyCountRequests": 1,
+      "pendingAfter80ms": {
+        "busy": null,
+        "submitDisabled": false
+      },
+      "expectedRequirementFailure": true
+    },
+    {
+      "name": "baseline-serial-stale",
+      "obsoleteCountCommitted": true,
+      "countRequests": 3,
+      "note": "Batch masks count with ellipsis while counting; stale state commit may remain visually hidden."
+    },
+    {
+      "name": "f1-sample-1",
+      "feedbackMs": 11.100000023841858,
+      "resultVisibleMs": 1870.800000011921,
+      "metadataCountRequests": 0,
+      "rapidFilterCountRequests": 1,
+      "creationRequests": 1
+    },
+    {
+      "name": "f1-sample-2",
+      "feedbackMs": 13.300000011920929,
+      "resultVisibleMs": 1859.199999988079,
+      "metadataCountRequests": 0,
+      "rapidFilterCountRequests": 1,
+      "creationRequests": 1
+    },
+    {
+      "name": "f1-sample-3",
+      "feedbackMs": 13.300000011920929,
+      "resultVisibleMs": 1855.7000000476837,
+      "metadataCountRequests": 0,
+      "rapidFilterCountRequests": 1,
+      "creationRequests": 1
+    },
+    {
+      "name": "f1-parallel-stale",
+      "staleDisplayed": false,
+      "finalCount": "222 names"
+    },
+    {
+      "name": "f1-count-recovery",
+      "retryVisible": true,
+      "recovered": true
+    },
+    {
+      "name": "f2-sample-1",
+      "feedbackMs": 13.200000047683716,
+      "ticketVisibleMs": 54.90000003576279,
+      "metadataCountRequests": 0,
+      "rapidFilterCountRequests": 1,
+      "creationRequests": 1,
+      "resumedWithoutResubmit": true,
+      "maximumObservedSnapshotAgeMs": 508,
+      "statusRequestsIncludingResume": 13
+    },
+    {
+      "name": "f2-sample-2",
+      "feedbackMs": 13.699999988079071,
+      "ticketVisibleMs": 113,
+      "metadataCountRequests": 0,
+      "rapidFilterCountRequests": 1,
+      "creationRequests": 1,
+      "resumedWithoutResubmit": true,
+      "maximumObservedSnapshotAgeMs": 510,
+      "statusRequestsIncludingResume": 13
+    },
+    {
+      "name": "f2-sample-3",
+      "feedbackMs": 14.699999988079071,
+      "ticketVisibleMs": 108.5,
+      "metadataCountRequests": 0,
+      "rapidFilterCountRequests": 1,
+      "creationRequests": 1,
+      "resumedWithoutResubmit": true,
+      "maximumObservedSnapshotAgeMs": 510,
+      "statusRequestsIncludingResume": 13
+    },
+    {
+      "name": "f2-parallel-stale",
+      "staleDisplayed": false,
+      "finalCount": "222 names"
+    },
+    {
+      "name": "f2-count-recovery",
+      "retryVisible": true,
+      "recovered": true
+    },
+    {
+      "name": "f1-reject",
+      "visibleError": "Creation rejected. Edit the title and retry.",
+      "submitDisabled": false
+    },
+    {
+      "name": "f1-lost",
+      "visibleError": "Outcome unknown. Do not submit again until the result is checked.",
+      "submitDisabled": true
+    },
+    {
+      "name": "f2-cancel",
+      "state": "canceled",
+      "creationRequests": 1
+    },
+    {
+      "name": "f2-failjob",
+      "state": "failed",
+      "creationRequests": 1
+    },
+    {
+      "name": "f2-status-error",
+      "state": "completed",
+      "creationRequests": 1
+    }
+  ]
+}

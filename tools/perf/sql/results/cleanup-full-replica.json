@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-28T15:28:25.1866932Z",
+  "exclusiveHandlesVerified": true,
+  "deleted": [
+    {
+      "name": "voting.db",
+      "bytes": 1132843008
+    },
+    {
+      "name": "voting.db-shm",
+      "bytes": 32768
+    },
+    {
+      "name": "voting.db-wal",
+      "bytes": 8553152
+    }
+  ],
+  "aggregateDeletedBytes": 1141428928,
+  "aggregateIsWalPeak": false,
+  "sourceUntouched": true,
+  "rawTimingEvidenceRetained": true
+}

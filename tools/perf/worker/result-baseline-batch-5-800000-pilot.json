@@ -1,0 +1,69 @@
+{
+  "at": "2026-10-28T14:50:51.013Z",
+  "mode": "baseline-batch",
+  "run": "pilot",
+  "input": {
+    "title": "local performance sample",
+    "filters": {
+      "classes": [],
+      "providers": [],
+      "sets": [],
+      "setMode": "any",
+      "evidence": "any",
+      "minUsd": null,
+      "maxUsd": null,
+      "includeUnpriced": true,
+      "order": "name",
+      "length": 5,
+      "avail": "any"
+    },
+    "order": "name",
+    "seed": "perf-fixed",
+    "cap": 800000,
+    "excludeUsed": false,
+    "plan": {
+      "perRound": 800000,
+      "rounds": 1,
+      "remainderMode": "extra"
+    },
+    "createNow": 1,
+    "adminId": 0,
+    "assignees": []
+  },
+  "wallMs": 16960.561700000002,
+  "cpuMs": {
+    "user": 6563,
+    "system": 4062
+  },
+  "peakRssBytes": 294326272,
+  "httpPing": {
+    "n": 559,
+    "p95Ms": 3530.9915999999994,
+    "maxMs": 4354.457600000002
+  },
+  "eventLoop": {
+    "p95Ms": 16.531455,
+    "maxMs": 4387.241983
+  },
+  "writerProbe": {
+    "n": 404,
+    "p95Ms": 0.2724000000007436,
+    "maxMs": 1.5565999999998894
+  },
+  "writerBusyErrors": 0,
+  "count": {
+    "n": 800000,
+    "lo": 1,
+    "hi": 800000,
+    "distinctNames": 800000
+  },
+  "orderErrors": 0,
+  "result": {
+    "batchId": 7,
+    "total": 800000,
+    "created": [
+      24
+    ]
+  },
+  "responsivenessPass": false
+}

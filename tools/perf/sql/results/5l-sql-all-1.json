@@ -1,0 +1,80 @@
+{
+  "measuredAt": "2026-10-28T14:56:46.654Z",
+  "metadata": {
+    "sourceBytes": 984096768,
+    "userVersion": 14,
+    "sqliteVersion": "3.53.4",
+    "counts": {
+      "pool": 2468782,
+      "domains": 7413,
+      "rounds": 11,
+      "round_batch_items": 157167
+    }
+  },
+  "variant": "sql-all",
+  "input": {
+    "length": 5,
+    "order": "random",
+    "cap": 800000,
+    "excludeUsed": true,
+    "seed": "perf-2026-10-28",
+    "perRound": 10000,
+    "createNow": 0
+  },
+  "wallMs": 61699.257,
+  "phases": {
+    "snapshotMs": 19192.479,
+    "existingReaderQueueUnbounded": true,
+    "materializeMs": 42505.7543
+  },
+  "cpuMs": {
+    "user": 19500,
+    "system": 32765
+  },
+  "peakRssBytes": 276291584,
+  "timerGapMs": {
+    "sampleCount": 1331,
+    "p95": 283.59549999999945,
+    "max": 1079.6433000000034
+  },
+  "pagesAdded": 35968,
+  "walBytes": 31155472,
+  "eligibleBeforeBuild": 2338250,
+  "expectedSnapshotRows": 800000,
+  "snapshotRows": 800000,
+  "materializedRows": 800000,
+  "insertedItemRows": 1600000,
+  "roundRows": 80,
+  "membershipSha256": "d53f3105c9e4f9622ef9a5200f413e9c0c17301bf186344f778d57e6ed0b1a01",
+  "assertions": {
+    "positionsContinuous": true,
+    "countMatchesResult": true,
+    "independentSnapshotCountCorrect": true,
+    "materializedCountCorrect": true,
+    "priceNameCurrencyMismatches": 0
+  },
+  "plans": {
+    "baseline": [
+      "CO-ROUTINE (subquery-3)",
+      "CO-ROUTINE (subquery-5)",
+      "CO-ROUTINE p",
+      "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+      "LIST SUBQUERY 1",
+      "SEARCH domains USING COVERING INDEX domains_pool_name_idx (pool_name>?)",
+      "CREATE BLOOM FILTER",
+      "USE TEMP B-TREE FOR ORDER BY",
+      "SCAN p",
+      "USE TEMP B-TREE FOR ORDER BY",
+      "SCAN (subquery-5)",
+      "USE TEMP B-TREE FOR group_concat(ORDER BY)",
+      "SCAN (subquery-3)"
+    ],
+    "direct": [
+      "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+      "LIST SUBQUERY 1",
+      "SEARCH domains USING COVERING INDEX domains_pool_name_idx (pool_name>?)",
+      "CREATE BLOOM FILTER",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ]
+  }
+}

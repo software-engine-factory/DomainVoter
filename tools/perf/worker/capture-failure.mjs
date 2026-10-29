@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import Database from 'better-sqlite3';
+const file=path.resolve(import.meta.dirname,'../../../data/perf-worker/voting.db');
+const db=new Database(file,{readonly:true});
+const job=db.prepare('SELECT id,status,phase,staged,inserted,total,error,updated_at FROM perf_jobs').get();
+if(job?.status!=='error'||job.error!=='SQLITE_BUSY_SNAPSHOT')throw new Error('expected original failed warmup checkpoint');
+const publishedRounds=db.prepare("SELECT COUNT(*) n FROM rounds WHERE batch_id=(SELECT batch_id FROM perf_jobs WHERE id=?) AND status='open'").get(job.id).n;
+const result={at:new Date().toISOString(),configuration:'standard5L800000random80x10000',job,publishedRounds,metricsUnavailable:'failed before harness finalization',cause:'retry only matched base SQLITE_BUSY, not extended SQLITE_BUSY_SNAPSHOT'};
+db.close();fs.writeFileSync(path.join(import.meta.dirname,'result-worker-warmup-busy-snapshot-failure.json'),JSON.stringify(result,null,2)+'\n');
+console.log(JSON.stringify(result));

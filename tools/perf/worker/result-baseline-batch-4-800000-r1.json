@@ -1,0 +1,119 @@
+{
+  "at": "2026-10-28T15:11:53.984Z",
+  "mode": "baseline-batch",
+  "run": "r1",
+  "input": {
+    "title": "local performance sample",
+    "filters": {
+      "classes": [],
+      "providers": [],
+      "sets": [],
+      "setMode": "any",
+      "evidence": "any",
+      "minUsd": null,
+      "maxUsd": null,
+      "includeUnpriced": true,
+      "order": "name",
+      "length": 4,
+      "avail": "any"
+    },
+    "order": "random",
+    "seed": "perf-2026-10-28",
+    "cap": 800000,
+    "excludeUsed": true,
+    "plan": {
+      "perRound": 10000,
+      "rounds": 80,
+      "remainderMode": "extra"
+    },
+    "createNow": 0,
+    "adminId": 0,
+    "assignees": []
+  },
+  "expectedTotal": 120084,
+  "conservationPass": true,
+  "busyTimeoutMs": 5000,
+  "wallMs": 5829.162399999999,
+  "cpuMs": {
+    "user": 2250,
+    "system": 2469
+  },
+  "peakRssBytes": 308744192,
+  "processHighWaterRssBytes": 309096448,
+  "httpPing": {
+    "n": 187,
+    "p95Ms": 344.4766999999997,
+    "maxMs": 617.1941999999999
+  },
+  "httpVoteShapedWrite": {
+    "n": 54,
+    "p95Ms": 422.3912,
+    "maxMs": 632.0039000000002
+  },
+  "probeDrain": {
+    "startedCount": 247,
+    "completedCount": 247
+  },
+  "statusCounts": {
+    "ping:200": 187,
+    "write:200": 54
+  },
+  "probeErrors": [],
+  "busyRetries": 0,
+  "writeFailures": 0,
+  "voteCountPreserved": true,
+  "eventLoop": {
+    "p95Ms": 292.552703,
+    "maxMs": 642.252799
+  },
+  "writerProbe": {
+    "n": 70,
+    "p95Ms": 3.165899999999965,
+    "maxMs": 4.451799999999821
+  },
+  "writerBusyErrors": 0,
+  "count": {
+    "n": 120084,
+    "lo": 1,
+    "hi": 10000,
+    "distinctNames": 120084
+  },
+  "rounds": 13,
+  "roundSizes": [
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    84
+  ],
+  "orderErrors": 0,
+  "orderedNamesSha256": "6b4820bddf3ae3f810e61db4e719527e249c2bb2fbffb9d8b2ab6c96e660ecda",
+  "result": {
+    "batchId": 6,
+    "total": 120084,
+    "created": [
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35
+    ]
+  },
+  "responsivenessPass": false
+}
