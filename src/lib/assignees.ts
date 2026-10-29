@@ -9,8 +9,8 @@ export type AssignableUser = Assignee & { role: "voter" | "admin" };
  * `alias` is the SQL alias of the rounds table; binds one parameter (the user id).
  */
 export function roundVisibleSql(alias = "r") {
-  return `(NOT EXISTS (SELECT 1 FROM round_assignees ra WHERE ra.round_id = ${alias}.id)
-    OR EXISTS (SELECT 1 FROM round_assignees ra WHERE ra.round_id = ${alias}.id AND ra.user_id = ?))`;
+  return `(${alias}.creation_job_id IS NULL AND (NOT EXISTS (SELECT 1 FROM round_assignees ra WHERE ra.round_id = ${alias}.id)
+    OR EXISTS (SELECT 1 FROM round_assignees ra WHERE ra.round_id = ${alias}.id AND ra.user_id = ?)))`;
 }
 
 export function canSeeRound(roundId: number, userId: number) {

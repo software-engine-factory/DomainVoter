@@ -316,6 +316,28 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       DROP INDEX IF EXISTS free_names_len_ord_name_idx;
     `,
   },
+  {
+    version: 15,
+    name: "Persist creation jobs and hide incomplete rounds until publication",
+    sql: `
+      CREATE TABLE creation_jobs (
+        id TEXT PRIMARY KEY, owner_id INTEGER NOT NULL REFERENCES users(id),
+        request_key TEXT NOT NULL, input_hash TEXT NOT NULL, input_json TEXT NOT NULL,
+        state TEXT NOT NULL DEFAULT 'queued', phase TEXT NOT NULL DEFAULT 'selecting',
+        total INTEGER NOT NULL DEFAULT 0, target INTEGER NOT NULL DEFAULT 0, staged INTEGER NOT NULL DEFAULT 0,
+        inserted INTEGER NOT NULL DEFAULT 0, cancel_requested INTEGER NOT NULL DEFAULT 0,
+        batch_id INTEGER, round_id INTEGER, manifest_sha TEXT, result_url TEXT, error TEXT,
+        lease_token TEXT, lease_until INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        UNIQUE(owner_id, request_key)
+      );
+      CREATE UNIQUE INDEX creation_jobs_one_active ON creation_jobs((1))
+        WHERE state IN ('queued', 'running', 'cancelling');
+      ALTER TABLE rounds ADD COLUMN creation_job_id TEXT;
+      ALTER TABLE round_batches ADD COLUMN creation_job_id TEXT;
+      CREATE INDEX rounds_creation_job_idx ON rounds(creation_job_id) WHERE creation_job_id IS NOT NULL;
+    `,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */

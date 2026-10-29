@@ -3,29 +3,16 @@
 import { LengthPicker, type LengthOption } from "@/components/admin/length-picker";
 import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
 import { AvailPicker, availCounts } from "@/components/admin/avail-picker";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import { Alert, buttonClass, fieldClass } from "@/components/ui";
-import { countPoolAction, createPoolRoundAction } from "@/lib/actions/pool";
+import { countPoolAction } from "@/lib/actions/pool";
 import { t } from "@/lib/copy/fa";
+
+import { CreationForm } from "@/components/admin/creation-form";
+import { useFilterCount } from "@/components/admin/use-filter-count";
 
 type Facet = { value: string | null; count: number };
 const NONE = "__none__";
-
-function readForm(form: HTMLFormElement) {
-  const data = new FormData(form);
-  return {
-    classes: data.getAll("classes").map(String),
-    providers: data.getAll("providers").map(String),
-    sets: data.getAll("sets").map(String),
-    setMode: data.get("setMode"),
-    evidence: data.get("evidence"),
-    minUsd: data.get("minUsd"),
-    maxUsd: data.get("maxUsd"),
-    includeUnpriced: data.get("includeUnpriced") ? "1" : "0",
-    length: data.get("length"),
-    avail: data.get("avail"),
-  };
-}
 
 function Checks({ name, facets, label }: { name: string; facets: Facet[]; label: string }) {
   return (
@@ -66,31 +53,13 @@ export function PoolRoundForm({
   users: PickerUser[];
 }) {
   const form = useRef<HTMLFormElement>(null);
-  const [count, setCount] = useState<number>(() => lengths.find((l) => l.length === initialLength)?.count ?? total);
-  const [countError, setCountError] = useState<string>();
-  const [pending, start] = useTransition();
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const { count, countError, pending, refresh } = useFilterCount(form, lengths.find((l) => l.length === initialLength)?.count ?? total, countPoolAction);
   const [step, setStep] = useState(0);
   const [order, setOrder] = useState("random");
   const [seed, setSeed] = useState(() => String(Date.now() % 1_000_000));
   const [length, setLength] = useState(initialLength);
   const [avail, setAvail] = useState<"any" | "sale" | "free">("any");
   const byAvail = lengths.map((l) => ({ ...l, count: availCounts([l], l.length)[avail] }));
-
-  function refresh() {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      if (!form.current) return;
-      const input = readForm(form.current);
-      start(async () => {
-        const result = await countPoolAction(input);
-        setCount(result.count);
-        setCountError(result.error);
-      });
-    }, 250);
-  }
-
-  useEffect(() => () => clearTimeout(timer.current), []);
 
   if (total === 0) {
     return (
@@ -106,9 +75,8 @@ export function PoolRoundForm({
   const chip = "flex items-center justify-between gap-3 rounded-lg border border-line bg-card px-3 py-2.5 has-[:checked]:border-accent has-[:checked]:bg-accent-soft";
 
   return (
-    <form
-      ref={form}
-      action={createPoolRoundAction}
+    <CreationForm kind="pool"
+      formRef={form}
       onChange={refresh}
       onKeyDown={(e) => {
         if (e.key === "Enter" && step < last && (e.target as HTMLElement).tagName === "INPUT") {
@@ -261,6 +229,6 @@ export function PoolRoundForm({
           )}
         </div>
       </div>
-    </form>
+    </CreationForm>
   );
 }

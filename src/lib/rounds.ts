@@ -34,12 +34,13 @@ export type StoredDomain = {
 
 export function getRound(id: number) {
   if (!Number.isInteger(id)) return undefined;
+  if (!getSqlite().prepare("SELECT 1 FROM rounds WHERE id = ? AND creation_job_id IS NULL").get(id)) return undefined;
   return getDb().select().from(rounds).where(eq(rounds.id, id)).get();
 }
 
 /** All rounds (admin). With `visibleTo`, only the rounds that user may see on the voter side. */
 export function listRounds(visibleTo?: number): RoundListItem[] {
-  const visible = visibleTo === undefined ? "" : `WHERE ${roundVisibleSql("r")}`;
+  const visible = visibleTo === undefined ? "WHERE r.creation_job_id IS NULL" : `WHERE ${roundVisibleSql("r")}`;
   return getSqlite()
     .prepare(
       `SELECT r.id, r.title, r.status, r.parent_round_id AS parentRoundId, p.title AS parentTitle,

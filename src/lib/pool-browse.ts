@@ -230,7 +230,7 @@ export function browseWhere(q: BrowseQuery, lengths: LengthCount[] = []) {
 
 const votesOf = "(SELECT COUNT(*) FROM domains d JOIN votes v ON v.domain_id = d.id WHERE d.name = p.name)";
 
-function orderSql(q: BrowseQuery): { sql: string; params: string[] } {
+export function orderSql(q: BrowseQuery): { sql: string; params: string[] } {
   switch (q.sort) {
     case "price_asc":
       return { sql: "p.price_usd IS NULL, p.price_usd ASC, p.name", params: [] };

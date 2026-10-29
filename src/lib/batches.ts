@@ -26,7 +26,7 @@ export function ensureFunctions() {
   getSqlite().function("dv_seeded_rank", { deterministic: true }, (seed: unknown, name: unknown) => seededRank(String(seed), String(name)));
 }
 
-function orderSql(order: BatchOrder) {
+export function orderSql(order: BatchOrder) {
   switch (order) {
     case "name":
       return "p.name ASC";
@@ -50,7 +50,7 @@ export async function countBlock(filters: PoolFilters, cap: number | null, exclu
   return cap != null && cap > 0 ? Math.min(cap, n) : n;
 }
 
-function blockWhere(filters: PoolFilters, excludeUsed: boolean) {
+export function blockWhere(filters: PoolFilters, excludeUsed: boolean) {
   const where = poolWhere(filters);
   if (!excludeUsed) return where;
   const extra = "p.name NOT IN (SELECT pool_name FROM domains WHERE pool_name IS NOT NULL)";
@@ -184,11 +184,11 @@ const BATCH_SELECT = `SELECT b.id, b.title, b.filter_json AS filterJson, b.order
 
 export function getBatch(id: number) {
   if (!Number.isInteger(id)) return undefined;
-  return getSqlite().prepare(`${BATCH_SELECT} WHERE b.id = ?`).get(id) as BatchRow | undefined;
+  return getSqlite().prepare(`${BATCH_SELECT} WHERE b.id = ? AND b.creation_job_id IS NULL`).get(id) as BatchRow | undefined;
 }
 
 export function listBatches() {
-  return getSqlite().prepare(`${BATCH_SELECT} ORDER BY b.id DESC`).all() as BatchRow[];
+  return getSqlite().prepare(`${BATCH_SELECT} WHERE b.creation_job_id IS NULL ORDER BY b.id DESC`).all() as BatchRow[];
 }
 
 export function batchRounds(batchId: number) {

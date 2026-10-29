@@ -1,0 +1,7 @@
+{
+  "mutation": "Drop final partial manifest buffer",
+  "expected": "Correctness suite fails",
+  "exit_code": 1,
+  "detected_source_conservation_failure": true,
+  "live_source_unchanged": true
+}
