@@ -3,6 +3,7 @@ node_modules
 data
 .git
 .worktrees
+.branch-archives
 .gitignore
 *.md
 Dockerfile*
