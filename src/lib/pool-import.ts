@@ -301,7 +301,7 @@ export function importSqliteFile(file: string, source: string): ImportResult {
 /** Rollback for one for-sale import batch: drops the for-sale rows it brought in, unless a round already froze them. */
 export function deleteByImportTag(tag: string) {
   const changes = getSqlite()
-    .prepare("DELETE FROM pool WHERE import_tag = ? AND avail = 'sale' AND name NOT IN (SELECT pool_name FROM domains WHERE pool_name IS NOT NULL)")
+    .prepare("DELETE FROM pool WHERE import_tag = ? AND avail = 'sale' AND name NOT IN (SELECT pool_name FROM domain_catalog WHERE pool_name IS NOT NULL)")
     .run(tag).changes;
   bumpData();
   return changes;

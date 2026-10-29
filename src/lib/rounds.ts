@@ -34,21 +34,25 @@ export type StoredDomain = {
 
 export function getRound(id: number) {
   if (!Number.isInteger(id)) return undefined;
+  if (!getSqlite().prepare("SELECT 1 FROM rounds WHERE id = ? AND creation_job_id IS NULL").get(id)) return undefined;
   return getDb().select().from(rounds).where(eq(rounds.id, id)).get();
 }
 
 /** All rounds (admin). With `visibleTo`, only the rounds that user may see on the voter side. */
 export function listRounds(visibleTo?: number): RoundListItem[] {
-  const visible = visibleTo === undefined ? "" : `WHERE ${roundVisibleSql("r")}`;
+  const visible = visibleTo === undefined ? "WHERE r.creation_job_id IS NULL" : `WHERE ${roundVisibleSql("r")}`;
   return getSqlite()
     .prepare(
       `SELECT r.id, r.title, r.status, r.parent_round_id AS parentRoundId, p.title AS parentTitle,
               r.created_at AS createdAt,
-              (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id) AS domainCount,
+              COALESCE((SELECT end_position-start_position+1 FROM round_domain_ranges WHERE round_id=r.id),0)
+                + (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id AND (d.id > 0 OR NOT EXISTS (SELECT 1 FROM round_domain_ranges WHERE round_id=r.id))) AS domainCount,
               (SELECT COUNT(DISTINCT v.domain_id) FROM views v WHERE v.round_id = r.id) AS viewedCount,
-              (SELECT MIN(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id AND d.segment IS NULL) AS lenMin,
-              (SELECT MAX(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id AND d.segment IS NULL) AS lenMax,
-              (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id AND d.segment IS NOT NULL) AS suppCount,
+              COALESCE((SELECT len_min FROM round_domain_ranges WHERE round_id=r.id),
+                (SELECT MIN(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id AND d.segment IS NULL)) AS lenMin,
+              COALESCE((SELECT len_max FROM round_domain_ranges WHERE round_id=r.id),
+                (SELECT MAX(instr(d.name || '.', '.') - 1) FROM domains d WHERE d.round_id = r.id AND d.segment IS NULL)) AS lenMax,
+              (SELECT COUNT(*) FROM domain_catalog d WHERE d.round_id = r.id AND d.segment IS NOT NULL) AS suppCount,
               (SELECT COUNT(DISTINCT v.domain_id) FROM views v JOIN domains d ON d.id = v.domain_id WHERE v.round_id = r.id AND d.segment IS NOT NULL) AS suppViewed
        FROM rounds r
        LEFT JOIN rounds p ON p.id = r.parent_round_id
@@ -64,17 +68,24 @@ export function listOpenRounds(userId: number): RoundListItem[] {
 
 /** The round's label length (most common one), so the letter-slot filter opens with that many slots. */
 export function roundLabelLength(roundId: number) {
+  const compact = getSqlite().prepare("SELECT label_length AS len FROM round_domain_ranges WHERE round_id=?").get(roundId) as {len: number | null} | undefined;
+  if (compact?.len != null && !getSqlite().prepare("SELECT 1 FROM domains WHERE round_id=? AND segment IS NOT NULL LIMIT 1").get(roundId)) return compact.len;
   const row = getSqlite()
     .prepare(
-      `SELECT instr(name || '.', '.') - 1 AS len, COUNT(*) AS n FROM domains WHERE round_id = ? GROUP BY len ORDER BY n DESC LIMIT 1`,
+      `SELECT instr(name || '.', '.') - 1 AS len, COUNT(*) AS n FROM domain_catalog WHERE round_id = ? GROUP BY len ORDER BY n DESC LIMIT 1`,
     )
     .get(roundId) as { len: number } | undefined;
   return row?.len ?? 4;
 }
 
 export function countDomains(roundId: number) {
+  const compact = getSqlite().prepare("SELECT end_position-start_position+1 AS n FROM round_domain_ranges WHERE round_id=?").get(roundId) as { n: number } | undefined;
+  if (compact) {
+    const extra = getSqlite().prepare("SELECT COUNT(*) AS n FROM domains WHERE round_id=? AND id>0").get(roundId) as { n: number };
+    return compact.n + extra.n;
+  }
   const row = getSqlite()
-    .prepare("SELECT COUNT(*) AS count FROM domains WHERE round_id = ?")
+    .prepare("SELECT COUNT(*) AS count FROM domain_catalog WHERE round_id = ?")
     .get(roundId) as { count: number };
   return row.count;
 }
@@ -83,7 +94,7 @@ export function getVoteCards(roundId: number, start: number, end: number) {
   const rows = getSqlite()
     .prepare(
       `SELECT id, position, name
-       FROM domains
+       FROM domain_catalog
        WHERE round_id = ? AND position >= ? AND position <= ?
        ORDER BY position ASC`,
     )
@@ -238,7 +249,7 @@ function deriveWhere(filters: RoundFilters) {
   return { sql: clauses.join(" AND "), params };
 }
 
-const DERIVE_FROM = `FROM domains d
+const DERIVE_FROM = `FROM domain_catalog d
   LEFT JOIN pool p ON p.name = d.pool_name
   LEFT JOIN (SELECT domain_id, COUNT(*) AS votes FROM votes WHERE round_id = ? GROUP BY domain_id) v ON v.domain_id = d.id`;
 
@@ -332,7 +343,7 @@ const ROW_SELECT = `SELECT d.id, d.position, d.name, d.price, d.currency, d.is_p
        COALESCE(v.votes, 0) AS votes, COALESCE(w.viewers, 0) AS viewers,
        CASE WHEN k.name IS NULL THEN 0 ELSE 1 END AS picked`;
 
-const ROW_FROM = `FROM domains d
+const ROW_FROM = `FROM domain_catalog d
   LEFT JOIN pool p ON p.name = d.pool_name
   LEFT JOIN picks k ON k.name = lower(d.name)
   LEFT JOIN (SELECT domain_id, COUNT(*) AS votes FROM votes WHERE round_id = ? GROUP BY domain_id) v ON v.domain_id = d.id
@@ -415,7 +426,7 @@ export function roundProviderCounts(roundId: number) {
   return getSqlite()
     .prepare(
       `SELECT p.dns_parking_provider AS provider, COUNT(*) AS count, COALESCE(SUM(v.votes), 0) AS votes
-       FROM domains d
+       FROM domain_catalog d
        LEFT JOIN pool p ON p.name = d.pool_name
        LEFT JOIN (SELECT domain_id, COUNT(*) AS votes FROM votes WHERE round_id = ? GROUP BY domain_id) v ON v.domain_id = d.id
        WHERE d.round_id = ?
@@ -462,7 +473,7 @@ export function listPicks() {
        LEFT JOIN pool p ON p.name = k.name
        LEFT JOIN (
          SELECT d.name, COUNT(v.id) AS votes, COUNT(DISTINCT v.user_id) AS voters, COUNT(DISTINCT d.round_id) AS rounds
-         FROM domains d JOIN votes v ON v.domain_id = d.id
+         FROM domain_catalog d JOIN votes v ON v.domain_id = d.id
          WHERE d.name IN (SELECT name FROM picks)
          GROUP BY d.name
        ) t ON t.name = k.name
@@ -547,11 +558,21 @@ export function queryVoteCards(roundId: number, view: VoteView, total = countDom
   const clause = where.join(" AND ");
   const filtered = hasFilters(view);
   const matched = filtered
-    ? (sqlite.prepare(`SELECT COUNT(*) AS n FROM domains d WHERE ${clause}`).get(...params) as { n: number }).n
+    ? (sqlite.prepare(`SELECT COUNT(*) AS n FROM domain_catalog d WHERE ${clause}`).get(...params) as { n: number }).n
     : total === 0 ? 0 : to - from + 1;
   const pages = Math.max(1, Math.ceil(matched / view.size));
   const page = Math.min(Math.max(view.page, 1), pages);
   const offsetRows = (page - 1) * view.size;
+  // The ordinary voter page seeks directly into the shared order. It never scans preceding pages.
+  const compact = !filtered ? sqlite.prepare("SELECT selection_id AS selectionId,start_position AS start,end_position AS end FROM round_domain_ranges WHERE round_id=?").get(roundId) as {selectionId:number;start:number;end:number} | undefined : undefined;
+  if (compact && to <= compact.end - compact.start + 1) {
+    const cards = matched === 0 ? [] : sqlite.prepare(`SELECT -i.id AS id,i.name,
+      COALESCE(p.lp_price,p.best_price,i.price) AS price,COALESCE(p.lp_currency,i.currency) AS currency,p.lp_url AS url
+      FROM selection_items i LEFT JOIN pool p ON p.name=i.name
+      WHERE i.selection_id=? AND i.position>=? AND i.position<=? ORDER BY i.position LIMIT ?`)
+      .all(compact.selectionId,compact.start+from+offsetRows-1,compact.start+to-1,view.size) as VoteCard[];
+    return {cards,matched,page,pages,from,to,offset:offsetRows+1};
+  }
   const cards =
     matched === 0
       ? []
@@ -559,7 +580,7 @@ export function queryVoteCards(roundId: number, view: VoteView, total = countDom
           .prepare(
             `SELECT d.id, d.name, COALESCE(p.lp_price, p.best_price, d.price) AS price,
                     COALESCE(p.lp_currency, d.currency) AS currency, p.lp_url AS url
-             FROM domains d LEFT JOIN pool p ON p.name = d.pool_name
+             FROM domain_catalog d LEFT JOIN pool p ON p.name = d.pool_name
              WHERE ${clause}
              ORDER BY d.position ASC
              LIMIT ? OFFSET ?`,
@@ -584,7 +605,7 @@ export function countNext(roundId: number, rule: Pick<NextRule, "mode" | "n">) {
     return Math.min(voted, rule.n);
   }
   return (
-    sqlite.prepare(`SELECT COUNT(*) AS n FROM domains d JOIN ${VOTES_OF} v ON v.domain_id = d.id WHERE d.round_id = ? AND v.votes >= ?`).get(roundId, roundId, rule.n) as {
+    sqlite.prepare(`SELECT COUNT(*) AS n FROM domain_catalog d JOIN ${VOTES_OF} v ON v.domain_id = d.id WHERE d.round_id = ? AND v.votes >= ?`).get(roundId, roundId, rule.n) as {
       n: number;
     }
   ).n;
@@ -621,7 +642,7 @@ export function createNextRound(parentId: number, title: string, rule: NextRule)
          SELECT ?, ROW_NUMBER() OVER (ORDER BY votes DESC, position ASC), name, price, is_premium, id, pool_name, currency
          FROM (
            SELECT d.id, d.position, d.name, d.price, d.is_premium, d.pool_name, d.currency, v.votes
-           FROM domains d JOIN ${VOTES_OF} v ON v.domain_id = d.id
+           FROM domain_catalog d JOIN ${VOTES_OF} v ON v.domain_id = d.id
            WHERE d.round_id = ? AND ${where}
            ORDER BY ${order} ${limit}
          )
@@ -647,7 +668,7 @@ export function roundFunnel(roundId: number): FunnelStep[] {
   const sqlite = getSqlite();
   const step = sqlite.prepare(
     `SELECT r.id, r.title, r.status, r.parent_round_id AS parentId,
-            (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id) AS count,
+            (SELECT COUNT(*) FROM domain_catalog d WHERE d.round_id = r.id) AS count,
             (SELECT COUNT(DISTINCT domain_id) FROM votes v WHERE v.round_id = r.id) AS voted,
             (SELECT COUNT(*) FROM rounds c WHERE c.parent_round_id = r.id) AS children,
             r.next_rule AS nextRule, r.filter_json AS filterJson
@@ -713,11 +734,11 @@ export function roundVoteSummary(roundId: number, maxUsers = 5, maxNames = 3): V
 export function deleteRound(roundId: number) {
   const sqlite = getSqlite();
   return sqlite.transaction(() => {
-    const row = sqlite.prepare("SELECT batch_id AS batchId FROM rounds WHERE id = ?").get(roundId) as { batchId: number | null } | undefined;
+    const row = sqlite.prepare("SELECT r.batch_id AS batchId,rr.selection_id AS selectionId FROM rounds r LEFT JOIN round_domain_ranges rr ON rr.round_id=r.id WHERE r.id = ?").get(roundId) as { batchId: number | null; selectionId: number | null } | undefined;
     if (!row) return false;
     // Other rounds' names may point at this round's names (carried over); keep them, drop the link.
     sqlite
-      .prepare("UPDATE domains SET source_domain_id = NULL WHERE round_id <> ? AND source_domain_id IN (SELECT id FROM domains WHERE round_id = ?)")
+      .prepare("UPDATE domains SET source_domain_id = NULL WHERE round_id <> ? AND source_domain_id IN (SELECT id FROM domain_catalog WHERE round_id = ?)")
       .run(roundId, roundId);
     sqlite.prepare("UPDATE rounds SET parent_round_id = NULL WHERE parent_round_id = ?").run(roundId);
     sqlite.prepare("DELETE FROM views WHERE round_id = ?").run(roundId);
@@ -725,6 +746,9 @@ export function deleteRound(roundId: number) {
     sqlite.prepare("DELETE FROM pick_provenance WHERE round_id = ?").run(roundId);
     sqlite.prepare("DELETE FROM domains WHERE round_id = ?").run(roundId);
     sqlite.prepare("DELETE FROM rounds WHERE id = ?").run(roundId); // round_assignees cascade
+    if (row.batchId == null && row.selectionId != null) {
+      sqlite.prepare("DELETE FROM domain_selections WHERE id=? AND NOT EXISTS(SELECT 1 FROM round_domain_ranges WHERE selection_id=?)").run(row.selectionId,row.selectionId);
+    }
     if (row.batchId != null) {
       const left = (sqlite.prepare("SELECT COUNT(*) AS n FROM rounds WHERE batch_id = ?").get(row.batchId) as { n: number }).n;
       if (left === 0) {

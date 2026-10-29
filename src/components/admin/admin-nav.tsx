@@ -12,6 +12,7 @@ const GROUPS: NavItem[][] = [
     { href: "/admin", label: t.adminNav.rounds, exact: true, tour: "rounds" },
     { href: "/admin/rounds/new", label: t.nav.newRound, tour: "newRound" },
     { href: "/admin/rounds/batch", label: t.adminNav.batch, tour: "batch" },
+    { href: "/admin/creation-jobs", label: "عملیات ساخت", tour: "creationJobs" },
   ],
   [
     { href: "/admin/pool", label: t.nav.pool, tour: "pool" },

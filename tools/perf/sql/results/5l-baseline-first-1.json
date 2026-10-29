@@ -1,0 +1,73 @@
+{
+  "measuredAt": "2026-10-28T14:55:07.776Z",
+  "metadata": {
+    "sourceBytes": 984096768,
+    "userVersion": 14,
+    "sqliteVersion": "3.53.4",
+    "counts": {
+      "pool": 2468782,
+      "domains": 7413,
+      "rounds": 11,
+      "round_batch_items": 157167
+    }
+  },
+  "variant": "baseline-first",
+  "input": {
+    "length": 5,
+    "order": "random",
+    "cap": 800000,
+    "excludeUsed": true,
+    "seed": "perf-2026-10-28",
+    "perRound": 10000,
+    "createNow": 1
+  },
+  "wallMs": 29028.0114,
+  "phases": {},
+  "cpuMs": {
+    "user": 9625,
+    "system": 11266
+  },
+  "peakRssBytes": 162500608,
+  "timerGapMs": {
+    "sampleCount": 1857,
+    "p95": 16.23529999999846,
+    "max": 189.31199999999808
+  },
+  "pagesAdded": 4851,
+  "walBytes": 5384872,
+  "snapshotRows": 800000,
+  "materializedRows": 10000,
+  "insertedItemRows": 810000,
+  "roundRows": 1,
+  "membershipSha256": "d53f3105c9e4f9622ef9a5200f413e9c0c17301bf186344f778d57e6ed0b1a01",
+  "assertions": {
+    "positionsContinuous": true,
+    "countMatchesResult": true,
+    "materializedCountCorrect": true,
+    "priceNameCurrencyMismatches": 0
+  },
+  "plans": {
+    "baseline": [
+      "CO-ROUTINE (subquery-3)",
+      "CO-ROUTINE (subquery-5)",
+      "CO-ROUTINE p",
+      "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+      "LIST SUBQUERY 1",
+      "SEARCH domains USING COVERING INDEX domains_pool_name_idx (pool_name>?)",
+      "CREATE BLOOM FILTER",
+      "USE TEMP B-TREE FOR ORDER BY",
+      "SCAN p",
+      "USE TEMP B-TREE FOR ORDER BY",
+      "SCAN (subquery-5)",
+      "USE TEMP B-TREE FOR group_concat(ORDER BY)",
+      "SCAN (subquery-3)"
+    ],
+    "direct": [
+      "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+      "LIST SUBQUERY 1",
+      "SEARCH domains USING COVERING INDEX domains_pool_name_idx (pool_name>?)",
+      "CREATE BLOOM FILTER",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ]
+  }
+}

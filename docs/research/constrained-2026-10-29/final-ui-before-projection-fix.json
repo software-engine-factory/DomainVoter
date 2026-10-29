@@ -1,0 +1,27 @@
+{
+  "roundId": 36,
+  "routes": [
+    {
+      "route": "/admin/explore?lmin=5&lmax=5&q=ab",
+      "visibleMs": 12059.547399985604,
+      "rows": 50
+    },
+    {
+      "route": "/admin/explore?pat=_a_b_&exact=1",
+      "visibleMs": 12299.041100020986,
+      "rows": 50
+    },
+    {
+      "route": "/admin/explore?lmin=5&lmax=5&sort=price_asc",
+      "visibleMs": 14799.301199964248,
+      "rows": 50
+    }
+  ],
+  "javascriptErrors": [],
+  "cursorRoundTrip": true,
+  "mobileOverflowPx": 0,
+  "compactVoteRestored": true,
+  "unassignedRound404": true,
+  "anonymousDenied": true,
+  "passed": true
+}

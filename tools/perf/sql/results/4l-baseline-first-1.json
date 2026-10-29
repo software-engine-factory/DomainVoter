@@ -1,0 +1,77 @@
+{
+  "measuredAt": "2026-10-28T14:58:48.363Z",
+  "metadata": {
+    "sourceBytes": 984096768,
+    "userVersion": 14,
+    "sqliteVersion": "3.53.4",
+    "counts": {
+      "pool": 2468782,
+      "domains": 7413,
+      "rounds": 11,
+      "round_batch_items": 157167
+    }
+  },
+  "variant": "baseline-first",
+  "input": {
+    "length": 4,
+    "order": "random",
+    "cap": 800000,
+    "excludeUsed": true,
+    "seed": "perf-2026-10-28",
+    "perRound": 10000,
+    "createNow": 1,
+    "materialize": "synchronous"
+  },
+  "wallMs": 2236.3458,
+  "phases": {},
+  "cpuMs": {
+    "user": 797,
+    "system": 343
+  },
+  "peakRssBytes": 135499776,
+  "timerGapMs": {
+    "sampleCount": 117,
+    "p95": 16.41730000000007,
+    "max": 458.1633999999999
+  },
+  "pagesAdded": 995,
+  "walBytes": 6044072,
+  "eligibleBeforeBuild": 120084,
+  "expectedSnapshotRows": 120084,
+  "snapshotRows": 120084,
+  "materializedRows": 10000,
+  "insertedItemRows": 130084,
+  "roundRows": 1,
+  "membershipSha256": "6b4820bddf3ae3f810e61db4e719527e249c2bb2fbffb9d8b2ab6c96e660ecda",
+  "assertions": {
+    "positionsContinuous": true,
+    "countMatchesResult": true,
+    "independentSnapshotCountCorrect": true,
+    "materializedCountCorrect": true,
+    "priceNameCurrencyMismatches": 0
+  },
+  "plans": {
+    "baseline": [
+      "CO-ROUTINE (subquery-3)",
+      "CO-ROUTINE (subquery-5)",
+      "CO-ROUTINE p",
+      "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+      "LIST SUBQUERY 1",
+      "SEARCH domains USING COVERING INDEX domains_pool_name_idx (pool_name>?)",
+      "CREATE BLOOM FILTER",
+      "USE TEMP B-TREE FOR ORDER BY",
+      "SCAN p",
+      "USE TEMP B-TREE FOR ORDER BY",
+      "SCAN (subquery-5)",
+      "USE TEMP B-TREE FOR group_concat(ORDER BY)",
+      "SCAN (subquery-3)"
+    ],
+    "direct": [
+      "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+      "LIST SUBQUERY 1",
+      "SEARCH domains USING COVERING INDEX domains_pool_name_idx (pool_name>?)",
+      "CREATE BLOOM FILTER",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ]
+  }
+}

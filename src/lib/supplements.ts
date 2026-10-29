@@ -38,7 +38,7 @@ function rounds() {
 
 async function labelLength(roundId: number) {
   const r = await reader().get<{ len: number }>(
-    "SELECT instr(name || '.', '.') - 1 AS len, COUNT(*) n FROM domains WHERE round_id = ? AND segment IS NULL GROUP BY len ORDER BY n DESC LIMIT 1",
+    "SELECT instr(name || '.', '.') - 1 AS len, COUNT(*) n FROM domain_catalog WHERE round_id = ? AND segment IS NULL GROUP BY len ORDER BY n DESC LIMIT 1",
     [roundId],
   );
   return r?.len ?? null;
@@ -61,14 +61,14 @@ function parseFilters(json: string | null): { filters: PoolFilters; seed: string
 /** Candidate names for one filter set, in seeded order, excluding names already in `excludeRounds`. */
 async function candidates(filters: PoolFilters, length: number | null, tag: string, seed: string | null, excludeRounds: number[]) {
   const where = poolWhere({ ...filters, length: length ?? filters.length ?? null });
-  const extra = [`p.import_tag = ?`, `p.name NOT IN (SELECT name FROM domains WHERE round_id IN (${excludeRounds.map(() => "?").join(",") || "NULL"}))`];
+  const extra = [`p.import_tag = ?`, `p.name NOT IN (SELECT name FROM domain_catalog WHERE round_id IN (${excludeRounds.map(() => "?").join(",") || "NULL"}))`];
   const sql = where.sql ? `${where.sql} AND ${extra.join(" AND ")}` : `WHERE ${extra.join(" AND ")}`;
   const order = seed ? "dv_seeded_rank(?, p.name), p.name" : "p.name";
   return (await reader().all<{ name: string }>(`SELECT p.name FROM pool p ${sql} ORDER BY ${order}`, [...where.params, tag, ...excludeRounds, ...(seed ? [seed] : [])])).map((r) => r.name);
 }
 
 async function counts(roundId: number, tag: string) {
-  return (await reader().get<{ core: number | null; existing: number | null }>("SELECT SUM(segment IS NULL) AS core, SUM(segment = ?) AS existing FROM domains WHERE round_id = ?", [
+  return (await reader().get<{ core: number | null; existing: number | null }>("SELECT SUM(segment IS NULL) AS core, SUM(segment = ?) AS existing FROM domain_catalog WHERE round_id = ?", [
     tag,
     roundId,
   ]))!;
@@ -87,7 +87,7 @@ function lengthOnly(f: { filters: PoolFilters; seed: string | null } | null) {
 
 async function tagCount(tag: string, length: number | null, excludeRounds: number[]) {
   const where = poolWhere({ ...normalizePoolFilters({}).filters, length });
-  const extra = [`p.import_tag = ?`, `p.name NOT IN (SELECT name FROM domains WHERE round_id IN (${excludeRounds.map(() => "?").join(",") || "NULL"}))`];
+  const extra = [`p.import_tag = ?`, `p.name NOT IN (SELECT name FROM domain_catalog WHERE round_id IN (${excludeRounds.map(() => "?").join(",") || "NULL"}))`];
   const sql = where.sql ? `${where.sql} AND ${extra.join(" AND ")}` : `WHERE ${extra.join(" AND ")}`;
   return (await reader().get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool p ${sql}`, [...where.params, tag, ...excludeRounds]))!.n;
 }
@@ -174,7 +174,7 @@ export async function applySupplement(tag: string, adminId: number | null, onlyR
     for (const p of plan) {
       // The plan was read off-thread; a concurrent apply may have landed since, so re-check per round here.
       if (done.get(p.roundId, tag)) continue;
-      const max = (sqlite.prepare("SELECT COALESCE(MAX(position), 0) AS m FROM domains WHERE round_id = ?").get(p.roundId) as { m: number }).m;
+      const max = (sqlite.prepare("SELECT COALESCE(MAX(position), 0) AS m FROM domain_catalog WHERE round_id = ?").get(p.roundId) as { m: number }).m;
       p.add.forEach((name, i) => ins.run(p.roundId, max + 1 + i, tag, name));
       sqlite
         .prepare("INSERT INTO round_supplements (round_id, tag, first_position, added, seed, created_at, created_by) VALUES (?, ?, ?, ?, NULL, ?, ?)")
@@ -196,7 +196,7 @@ export function removeSupplement(tag: string) {
            AND id NOT IN (SELECT domain_id FROM votes) AND id NOT IN (SELECT domain_id FROM views)`,
       )
       .run(tag).changes;
-    sqlite.prepare("DELETE FROM round_supplements WHERE tag = ? AND round_id NOT IN (SELECT round_id FROM domains WHERE segment = ?)").run(tag, tag);
+    sqlite.prepare("DELETE FROM round_supplements WHERE tag = ? AND round_id NOT IN (SELECT round_id FROM domain_catalog WHERE segment = ?)").run(tag, tag);
     return removed;
   })();
 }

@@ -1,0 +1,11 @@
+{
+  "materialized": {
+    "n": 800000,
+    "names": 800000,
+    "first": 1,
+    "last": 10000
+  },
+  "round_count": 80,
+  "ordered_sha256": "c2c20e20d55a1639f8c1281624629f3f91ed3edefdbfb8d3a1a0f6d407cd6ded",
+  "votes": 425
+}

@@ -1,0 +1,136 @@
+{
+  "mode": "baseline",
+  "poolRows": 2468782,
+  "sqlite": "3.53.4",
+  "source": "Read-only native SQLite inside capped local app container. First connection sample and warm repeats; host storage cache not purged.",
+  "results": [
+    {
+      "name": "length_count",
+      "milliseconds": [
+        2751.614376,
+        2612.7513179999996,
+        4963.053553,
+        2905.798557,
+        1791.8125799999998
+      ],
+      "p50Ms": 2751.614376,
+      "p95Ms": 4963.053553,
+      "rows": 1,
+      "count": 2338250,
+      "resultHash": "93adb268c5b80cfc9c97da18847d73044ae0f10710c6831de21e600f587f799b",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)"
+      ]
+    },
+    {
+      "name": "substring_count",
+      "milliseconds": [
+        2401.954144000001,
+        3235.5625470000014,
+        2400.062235999998,
+        2547.483802999999,
+        2296.7829710000005
+      ],
+      "p50Ms": 2401.954144000001,
+      "p95Ms": 3235.5625470000014,
+      "rows": 1,
+      "count": 23288,
+      "resultHash": "65e056fe39eb58d48dea3217f40caee8aea9f30f6b9f6a71dbb82c363296514f",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)"
+      ]
+    },
+    {
+      "name": "long_substring_count",
+      "milliseconds": [
+        3580.1369350000023,
+        2163.977138000002,
+        2633.2363419999965,
+        3397.5903550000003,
+        5340.158231000001
+      ],
+      "p50Ms": 3397.5903550000003,
+      "p95Ms": 5340.158231000001,
+      "rows": 1,
+      "count": 377,
+      "resultHash": "58377b7e0d35ca1a14e9474d6209605d1dfe05505e82ce0c46da221894812763",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)"
+      ]
+    },
+    {
+      "name": "position_count",
+      "milliseconds": [
+        5288.021126,
+        5885.233423999998,
+        5573.091837,
+        5915.449479000003,
+        5714.877185000005
+      ],
+      "p50Ms": 5714.877185000005,
+      "p95Ms": 5915.449479000003,
+      "rows": 1,
+      "count": 6040,
+      "resultHash": "f4f8bdeb694f7a89a6a167cbbbb22693af78c87e0c26bb2c68366e22f6035b34",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)"
+      ]
+    },
+    {
+      "name": "substring_page",
+      "milliseconds": [
+        6184.126037000009,
+        6145.254107999994,
+        6123.632791999989,
+        6699.90881600001,
+        6754.445788000012
+      ],
+      "p50Ms": 6184.126037000009,
+      "p95Ms": 6754.445788000012,
+      "rows": 50,
+      "count": null,
+      "resultHash": "e65791895d4a40022c22794e343ddadd2b73b61a5531992a674ab2736ee646e0",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    {
+      "name": "position_page",
+      "milliseconds": [
+        6323.365655000001,
+        5881.235748000006,
+        5709.2108660000085,
+        5011.668212999997,
+        4551.866783000005
+      ],
+      "p50Ms": 5709.2108660000085,
+      "p95Ms": 6323.365655000001,
+      "rows": 50,
+      "count": null,
+      "resultHash": "29554860bdc2485d47d610a3fffec3c1090bd6e6e7dfacd7507f8150bde4d2b5",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    {
+      "name": "capped_count",
+      "milliseconds": [
+        4286.480496000004,
+        4817.512860999996,
+        5439.68187,
+        5611.465510999988,
+        5221.6285269999935
+      ],
+      "p50Ms": 5221.6285269999935,
+      "p95Ms": 5611.465510999988,
+      "rows": 1,
+      "count": 2000,
+      "resultHash": "927139aea19ea8a29421d8f1796c3b5066ec783a43899c23dcbcff89976f7272",
+      "plan": [
+        "SEARCH pool USING INDEX pool_len_avail_idx (name_len=?)"
+      ]
+    }
+  ]
+}

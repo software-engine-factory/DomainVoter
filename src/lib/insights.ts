@@ -57,7 +57,7 @@ export function userRounds(userId: number) {
   return getSqlite()
     .prepare(
       `SELECT r.id, r.title, r.status, r.batch_id AS batchId, r.batch_index AS batchIndex,
-              (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id) AS size,
+              (SELECT COUNT(*) FROM domain_catalog d WHERE d.round_id = r.id) AS size,
               COUNT(w.id) AS views, MIN(w.viewed_at) AS firstSeen, MAX(w.viewed_at) AS lastSeen,
               MIN(dw.position) AS minPos, MAX(dw.position) AS maxPos,
               (SELECT COUNT(*) FROM votes v WHERE v.round_id = r.id AND v.user_id = ?) AS votes

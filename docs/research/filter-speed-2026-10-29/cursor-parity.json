@@ -1,0 +1,18 @@
+{
+  "same_50_names_same_order": true,
+  "row_offset": 1000000,
+  "sqlite": "3.50.4",
+  "milliseconds": {
+    "offset": [
+      227.935,
+      224.238,
+      217.58
+    ],
+    "cursor": [
+      0.157,
+      0.034,
+      0.027
+    ]
+  },
+  "note": "Read-only raw SQLite queries over the existing local preview pool. Cursor boundary fetched outside measurement. Local warm samples, not app or server forecasts."
+}

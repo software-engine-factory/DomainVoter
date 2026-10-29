@@ -1,0 +1,141 @@
+{
+  "source_relative": "../quick-brand/data/forsale/backup-final-2026-10-28/domainvoter-app/voting.db",
+  "bytes": 984096768,
+  "mtime_utc": 1793184791.256564,
+  "user_version": 14,
+  "journal_mode": "wal",
+  "table_counts": {
+    "pool": 2468782,
+    "free_names": 0,
+    "domains": 7413,
+    "rounds": 11,
+    "round_batches": 2,
+    "round_batch_items": 157167,
+    "votes": 12,
+    "views": 3143,
+    "imports": 8
+  },
+  "pool_columns": [
+    "name",
+    "set_1",
+    "set_2",
+    "set_3",
+    "set_4",
+    "set_5",
+    "evidence",
+    "dns_ns_class",
+    "dns_parking_provider",
+    "lp_marketplace",
+    "lp_price",
+    "lp_currency",
+    "lp_url",
+    "best_price",
+    "best_source",
+    "price_usd",
+    "imported_at",
+    "shape",
+    "set4_part",
+    "import_tag",
+    "best_currency",
+    "avail",
+    "ord",
+    "reg_price_usd",
+    "reg_registrar",
+    "cf_checked_at"
+  ],
+  "pool_lengths": [
+    {
+      "length": 3,
+      "rows": 3035
+    },
+    {
+      "length": 4,
+      "rows": 127497
+    },
+    {
+      "length": 5,
+      "rows": 2338250
+    }
+  ],
+  "round_sizes": [
+    {
+      "id": 12,
+      "status": "open",
+      "rows": 692
+    },
+    {
+      "id": 13,
+      "status": "open",
+      "rows": 692
+    },
+    {
+      "id": 14,
+      "status": "open",
+      "rows": 692
+    },
+    {
+      "id": 15,
+      "status": "open",
+      "rows": 691
+    },
+    {
+      "id": 16,
+      "status": "open",
+      "rows": 691
+    },
+    {
+      "id": 17,
+      "status": "open",
+      "rows": 691
+    },
+    {
+      "id": 18,
+      "status": "open",
+      "rows": 691
+    },
+    {
+      "id": 19,
+      "status": "open",
+      "rows": 691
+    },
+    {
+      "id": 20,
+      "status": "open",
+      "rows": 691
+    },
+    {
+      "id": 21,
+      "status": "open",
+      "rows": 691
+    },
+    {
+      "id": 22,
+      "status": "open",
+      "rows": 500
+    }
+  ],
+  "pool_availability": [
+    {
+      "avail": "sale",
+      "length": 3,
+      "rows": 3035
+    },
+    {
+      "avail": "sale",
+      "length": 4,
+      "rows": 127497
+    },
+    {
+      "avail": "free",
+      "length": 5,
+      "rows": 1922532
+    },
+    {
+      "avail": "sale",
+      "length": 5,
+      "rows": 415718
+    }
+  ],
+  "sha256": "702cec4e66aa52ed76f94c329a329b2237146ddc0a01232302f898642a411f85",
+  "inventory_ms": 7324.1
+}

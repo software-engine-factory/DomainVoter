@@ -208,7 +208,9 @@ export type LengthCount = { length: number; count: number; free?: number };
 /** Names per label length (+ the free share), for the length pickers (index-only scan of pool_len_avail_idx). */
 export function poolLengthCounts(): Promise<LengthCount[]> {
   return cachedAsync("poolLengthCounts", () =>
-    reader().all<LengthCount>("SELECT name_len AS length, COUNT(*) AS count, SUM(avail = 'free') AS free FROM pool GROUP BY name_len ORDER BY name_len"),
+    reader().all<LengthCount>(
+      "SELECT name_len AS length, SUM(n) AS count, SUM(CASE WHEN avail = 'free' THEN n ELSE 0 END) AS free FROM pool_length_totals GROUP BY name_len HAVING SUM(n) > 0 ORDER BY name_len",
+    ),
   );
 }
 

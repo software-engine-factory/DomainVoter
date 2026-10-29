@@ -13,8 +13,8 @@ export function getDatasetVersion() {
     .prepare(
       `SELECT
          (SELECT COALESCE(MAX(id), 0) FROM imports WHERE finished_at IS NOT NULL) AS imp,
-         (SELECT COALESCE(MAX(id), 0) FROM rounds) AS rnd,
-         (SELECT COUNT(*) FROM rounds WHERE status = 'closed') AS closed`,
+         (SELECT COALESCE(MAX(id), 0) FROM rounds WHERE creation_job_id IS NULL) AS rnd,
+         (SELECT COUNT(*) FROM rounds WHERE status = 'closed' AND creation_job_id IS NULL) AS closed`,
     )
     .get() as { imp: number; rnd: number; closed: number };
   const salt = process.env.DATASET_VERSION_SALT ?? "";

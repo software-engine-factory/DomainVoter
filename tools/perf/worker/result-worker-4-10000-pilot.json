@@ -1,0 +1,72 @@
+{
+  "at": "2026-10-28T14:51:29.194Z",
+  "mode": "worker",
+  "run": "pilot",
+  "input": {
+    "title": "local performance sample",
+    "filters": {
+      "classes": [],
+      "providers": [],
+      "sets": [],
+      "setMode": "any",
+      "evidence": "any",
+      "minUsd": null,
+      "maxUsd": null,
+      "includeUnpriced": true,
+      "order": "name",
+      "length": 4,
+      "avail": "any"
+    },
+    "order": "name",
+    "seed": "perf-fixed",
+    "cap": 10000,
+    "excludeUsed": false,
+    "plan": {
+      "perRound": 10000,
+      "rounds": 1,
+      "remainderMode": "extra"
+    },
+    "createNow": 1,
+    "adminId": 0,
+    "assignees": []
+  },
+  "wallMs": 888.6854000000001,
+  "cpuMs": {
+    "user": 250,
+    "system": 344
+  },
+  "peakRssBytes": 232480768,
+  "httpPing": {
+    "n": 38,
+    "p95Ms": 3.3999000000000024,
+    "maxMs": 10.341099999999983
+  },
+  "eventLoop": {
+    "p95Ms": 16.556031,
+    "maxMs": 18.923519
+  },
+  "writerProbe": {
+    "n": 28,
+    "p95Ms": 0.5430999999998676,
+    "maxMs": 2.8978000000001884
+  },
+  "writerBusyErrors": 0,
+  "count": {
+    "n": 10000,
+    "lo": 1,
+    "hi": 10000,
+    "distinctNames": 10000
+  },
+  "orderErrors": 0,
+  "result": {
+    "status": "done",
+    "phase": "done",
+    "staged": 10000,
+    "inserted": 10000,
+    "total": 10000,
+    "roundId": 25,
+    "batchId": 8,
+    "jobId": 1
+  },
+  "responsivenessPass": true
+}

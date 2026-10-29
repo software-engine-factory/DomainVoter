@@ -4,18 +4,20 @@ import { LengthPicker, type LengthOption } from "@/components/admin/length-picke
 import { AssigneePicker, type PickerUser } from "@/components/admin/assignee-picker";
 import { AvailPicker, availCounts } from "@/components/admin/avail-picker";
 import { ACTIVE_SETS } from "@/lib/sets";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState } from "react";
 import { buttonClass, fieldBase } from "@/components/ui";
-import { countBlockAction, createBatchAction } from "@/lib/actions/batches";
+import { countBlockAction } from "@/lib/actions/batches";
 import { planBatch } from "@/lib/batch-plan";
 import { t } from "@/lib/copy/fa";
+
+import { CreationForm } from "@/components/admin/creation-form";
+import { useFilterCount } from "@/components/admin/use-filter-count";
 
 type Facet = { value: string | null; count: number };
 
 export function BatchForm({ classes, providers, setLabels, poolTotal, users, lengths, initialLength }: { classes: Facet[]; providers: Facet[]; setLabels: Record<number, string>; poolTotal: number; users: PickerUser[]; lengths: LengthOption[]; initialLength: number | null }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [block, setBlock] = useState(poolTotal);
-  const [counting, startCount] = useTransition();
+  const { count: block, pending: counting, countError, refresh: scheduleRecount } = useFilterCount(formRef, poolTotal, countBlockAction, true);
   const [rounds, setRounds] = useState(5);
   const [perRound, setPerRound] = useState(500);
   const [remainderMode, setRemainderMode] = useState<"extra" | "last" | "drop">("drop");
@@ -25,44 +27,17 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users, len
   const [avail, setAvail] = useState<"any" | "sale" | "free">("any");
   const byAvail = lengths.map((l) => ({ ...l, count: availCounts([l], l.length)[avail] }));
 
-  const recount = () => {
-    const form = formRef.current;
-    if (!form) return;
-    const data = new FormData(form);
-    startCount(async () => {
-      const result = await countBlockAction({
-        classes: data.getAll("classes").map(String),
-        providers: data.getAll("providers").map(String),
-        sets: data.getAll("sets").map(String),
-        setMode: data.get("setMode"),
-        evidence: data.get("evidence"),
-        minUsd: data.get("minUsd"),
-        maxUsd: data.get("maxUsd"),
-        includeUnpriced: data.get("includeUnpriced") ? "1" : "0",
-        cap: data.get("cap"),
-        excludeUsed: data.get("excludeUsed"),
-        length: data.get("length"),
-        avail: data.get("avail"),
-      });
-      setBlock(result.count);
-    });
-  };
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scheduleRecount = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(recount, 250);
-  };
-  useEffect(() => {
-    recount();
-  }, []);
-
-  const plan = useMemo(() => planBatch({ total: block, rounds, perRound, remainderMode }), [block, rounds, perRound, remainderMode]);
+  const plannedRounds = remainderMode === "extra" ? Math.ceil(block / perRound) : Math.min(rounds, Math.ceil(block / perRound));
+  const tooManyRounds = plannedRounds > 2000;
+  const plan = useMemo(() => tooManyRounds ? { total: block, used: 0, remainder: block, placed: 0, sizes: [] as number[] } : planBatch({ total: block, rounds, perRound, remainderMode }), [block, rounds, perRound, remainderMode, tooManyRounds]);
   const field = `${fieldBase} h-9 w-full`;
   const chip = "flex items-center gap-1.5 rounded-lg border border-line px-2 py-1";
 
   return (
-    <form ref={formRef} action={createBatchAction} onChange={scheduleRecount} className="mt-4 grid gap-4 lg:grid-cols-[1fr_20rem]">
+    <CreationForm kind="batch" formRef={formRef} onChange={scheduleRecount} className="mt-4 grid gap-4 lg:grid-cols-[1fr_20rem]">
       <div className="space-y-4">
+        {tooManyRounds ? <p role="alert" className="text-sm text-danger">تعداد دورها از سقف ۲۰۰۰ بیشتر است. اندازهٔ هر دور را افزایش دهید.</p> : null}
+        {countError ? <p role="alert" className="text-sm text-danger">{countError}</p> : null}
         <fieldset className="rounded-xl border border-line p-3 text-sm">
           <legend className="px-1 font-semibold">{t.batch.blockLegend}</legend>
           <div className="mt-2"><AvailPicker counts={availCounts(lengths, length)} value={avail} onChange={setAvail} /></div>
@@ -166,11 +141,11 @@ export function BatchForm({ classes, providers, setLabels, poolTotal, users, len
         <input name="title" required maxLength={70} placeholder={t.batch.titlePlaceholder} className={field} />
         <AssigneePicker users={users} compact />
         <div className="grid gap-2">
-          <button name="createMode" value="all" disabled={!block} className={buttonClass("primary")}>{t.batch.createAll(plan.sizes.length)}</button>
-          <button name="createMode" value="first" disabled={!block} className={buttonClass("secondary")}>{t.batch.createFirst}</button>
+          <button name="createMode" value="all" disabled={!block || tooManyRounds} className={buttonClass("primary")}>{t.batch.createAll(plan.sizes.length)}</button>
+          <button name="createMode" value="first" disabled={!block || tooManyRounds} className={buttonClass("secondary")}>{t.batch.createFirst}</button>
         </div>
         <p className="text-xs text-muted">{t.batch.savedNote}</p>
       </aside>
-    </form>
+    </CreationForm>
   );
 }

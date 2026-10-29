@@ -1,0 +1,136 @@
+{
+  "at": "2026-10-28T15:12:55.672Z",
+  "mode": "worker",
+  "run": "r3",
+  "input": {
+    "title": "local performance sample",
+    "filters": {
+      "classes": [],
+      "providers": [],
+      "sets": [],
+      "setMode": "any",
+      "evidence": "any",
+      "minUsd": null,
+      "maxUsd": null,
+      "includeUnpriced": true,
+      "order": "name",
+      "length": 4,
+      "avail": "any"
+    },
+    "order": "random",
+    "seed": "perf-2026-10-28",
+    "cap": 800000,
+    "excludeUsed": true,
+    "plan": {
+      "perRound": 10000,
+      "rounds": 80,
+      "remainderMode": "extra"
+    },
+    "createNow": 0,
+    "adminId": 0,
+    "assignees": []
+  },
+  "expectedTotal": 120084,
+  "conservationPass": true,
+  "busyTimeoutMs": 0,
+  "wallMs": 12490.1781,
+  "cpuMs": {
+    "user": 2906,
+    "system": 5078
+  },
+  "peakRssBytes": 272007168,
+  "processHighWaterRssBytes": 276627456,
+  "httpPing": {
+    "n": 403,
+    "p95Ms": 4.34939999999915,
+    "maxMs": 49.66370000000097
+  },
+  "httpVoteShapedWrite": {
+    "n": 115,
+    "p95Ms": 48.14429999999993,
+    "maxMs": 62.44079999999849
+  },
+  "probeDrain": {
+    "startedCount": 524,
+    "completedCount": 524
+  },
+  "statusCounts": {
+    "ping:200": 403,
+    "write:200": 115
+  },
+  "probeErrors": [],
+  "busyRetries": 96,
+  "writeFailures": 0,
+  "voteCountPreserved": true,
+  "eventLoop": {
+    "p95Ms": 18.825215,
+    "maxMs": 65.634303
+  },
+  "writerProbe": {
+    "n": 259,
+    "p95Ms": 6.418700000000172,
+    "maxMs": 49.33139999999912
+  },
+  "writerBusyErrors": 142,
+  "count": {
+    "n": 120084,
+    "lo": 1,
+    "hi": 10000,
+    "distinctNames": 120084
+  },
+  "rounds": 13,
+  "roundSizes": [
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    10000,
+    84
+  ],
+  "orderErrors": 0,
+  "orderedNamesSha256": "6b4820bddf3ae3f810e61db4e719527e249c2bb2fbffb9d8b2ab6c96e660ecda",
+  "result": {
+    "status": "done",
+    "phase": "done",
+    "staged": 120084,
+    "inserted": 120084,
+    "total": 120084,
+    "roundId": 23,
+    "batchId": 6,
+    "jobId": 1,
+    "created": [
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35
+    ],
+    "workerTiming": {
+      "done": true,
+      "status": "done",
+      "chunkCount": 242,
+      "chunkMaxMs": 355.8597,
+      "busyRetries": 30,
+      "busyCodes": {
+        "SQLITE_BUSY": 30
+      },
+      "transactionMode": "immediate"
+    }
+  },
+  "responsivenessPass": true
+}

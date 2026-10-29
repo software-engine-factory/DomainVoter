@@ -3,7 +3,8 @@
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb, getSqlite } from "@/db";
-import { domains, rounds, votes } from "@/db/schema";
+import { rounds, votes } from "@/db/schema";
+import { catalogDomain, materializeDomains } from "@/lib/domain-catalog";
 import { getSession } from "@/lib/auth";
 import { canSeeRound } from "@/lib/assignees";
 import { t } from "@/lib/copy/fa";
@@ -13,12 +14,13 @@ export async function toggleVote(domainId: number): Promise<{ voted: boolean; co
   if (!session) return { error: t.vote.err.login };
   if (!Number.isInteger(domainId)) return { error: t.vote.err.notInRound };
 
-  const domain = getDb().select().from(domains).where(eq(domains.id, domainId)).get();
+  const domain = catalogDomain(domainId);
   if (!domain) return { error: t.vote.err.notInRound };
 
   if (!canSeeRound(domain.roundId, session.userId)) return { error: t.vote.err.notInRound };
   const round = getDb().select().from(rounds).where(eq(rounds.id, domain.roundId)).get();
   if (!round || round.status !== "open") return { error: t.vote.err.closed };
+  materializeDomains(domain.roundId, [domainId]);
 
   const existing = getDb()
     .select()
@@ -59,11 +61,12 @@ export async function setVote(domainId: number, want: boolean): Promise<{ voted:
   const session = await getSession();
   if (!session) return { error: t.vote.err.login };
   if (!Number.isInteger(domainId) || typeof want !== "boolean") return { error: t.vote.err.notInRound };
-  const domain = getDb().select().from(domains).where(eq(domains.id, domainId)).get();
+  const domain = catalogDomain(domainId);
   if (!domain) return { error: t.vote.err.notInRound };
   if (!canSeeRound(domain.roundId, session.userId)) return { error: t.vote.err.notInRound };
   const round = getDb().select().from(rounds).where(eq(rounds.id, domain.roundId)).get();
   if (!round || round.status !== "open") return { error: t.vote.err.closed };
+  materializeDomains(domain.roundId, [domainId]);
   const sqlite = getSqlite();
   if (want) {
     sqlite
@@ -103,6 +106,7 @@ export async function recordViews(roundId: number, domainIds: number[]) {
   );
   const now = Date.now();
   const write = sqlite.transaction((domainIdList: number[]) => {
+    materializeDomains(roundId, domainIdList);
     for (const id of domainIdList) insert.run(roundId, session.userId, now, roundId, id);
   });
   write(ids);

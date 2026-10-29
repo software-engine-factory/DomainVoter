@@ -1,0 +1,83 @@
+{
+  "source": "Read-only native full-row Explore projection and authenticated loopback browser probe against domainvoter-local-preview, before migration 18 composite price indexes.",
+  "container": "domainvoter-local-preview",
+  "origin": "http://127.0.0.1:12544",
+  "poolRows": 2468782,
+  "sqlite": "3.53.4",
+  "nativeProjection": {
+    "runs": 3,
+    "rowsReturned": 51,
+    "milliseconds": {
+      "substring": [101.27, 56.94, 59.45],
+      "pattern": [159.18, 155.69, 122.43],
+      "priceAsc": [2282.22, 2506.17, 1520.35]
+    },
+    "plans": {
+      "substring": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=? AND name=?)",
+        "SEARCH pool USING INDEX pool_pos1_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "SEARCH pool USING INDEX pool_pos2_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "SEARCH pool USING INDEX pool_pos3_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "SEARCH pool USING INDEX pool_pos4_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "SEARCH pool USING INDEX pool_len_suffix_idx (name_len=? AND <expr>=?)",
+        "SEARCH d USING INDEX domains_name_idx (name=?)",
+        "SEARCH i USING INDEX selection_items_name_idx (name=?)",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX views_domain_idx (domain_id=?)",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX votes_domain_idx (domain_id=?)",
+        "SEARCH k USING COVERING INDEX sqlite_autoindex_picks_1 (name=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "pattern": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=? AND name=?)",
+        "SEARCH pool USING INDEX pool_pos2_idx (name_len=? AND <expr>=?)",
+        "SEARCH d USING INDEX domains_name_idx (name=?)",
+        "SEARCH i USING INDEX selection_items_name_idx (name=?)",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX views_domain_idx (domain_id=?)",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX votes_domain_idx (domain_id=?)",
+        "SEARCH k USING COVERING INDEX sqlite_autoindex_picks_1 (name=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "priceAsc": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=?)",
+        "SEARCH d USING INDEX domains_name_idx (name=?)",
+        "SEARCH i USING INDEX selection_items_name_idx (name=?)",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX views_domain_idx (domain_id=?)",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX votes_domain_idx (domain_id=?)",
+        "SEARCH k USING COVERING INDEX sqlite_autoindex_picks_1 (name=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    }
+  },
+  "browser": {
+    "status": 200,
+    "firstRowMs": {
+      "substring": [516.8, 434.5],
+      "pattern": [368.2, 894.7],
+      "priceAsc": [1893.7, 1889.6]
+    },
+    "exploreResponseFinishedMs": {
+      "substring": [233.2, 274.6],
+      "pattern": [206.9, 339.5],
+      "priceAsc": [1779.0, 1623.9]
+    },
+    "linkPrefetchRequestsOverEach1_5sObservation": {
+      "substring": [16, 39],
+      "pattern": [27, 56],
+      "priceAsc": [20, 48]
+    },
+    "prefetchResponseObservation": "Sampled admin page responses were generally 6-71ms; shared navigation roots reached about 170ms. No sampled prefetch response approached the 1.6-1.8s Explore response duration."
+  },
+  "diagnosis": "The price query scans the five-character index and builds a temporary ORDER BY B-tree. Its full projection takes 1.5-2.5s natively and the browser first row takes about 1.9s. Substring and pattern native projections finish in 57-159ms; their browser first rows were 0.37-0.90s. Link prefetch traffic was present but sampled responses were short and does not explain the price-specific delay."
+}

@@ -1,0 +1,99 @@
+{
+  "source": "Existing local preview copy, pool unchanged at 2,468,782 rows; read-only raw SQLite queries; two serial samples, not UI timings or server forecasts",
+  "sqlite": "3.50.4",
+  "cases": [
+    {
+      "case": "current_name_first50",
+      "milliseconds": [
+        0.14,
+        0.042
+      ],
+      "rows_returned": 50,
+      "count_value": null,
+      "plan": [
+        "SCAN p"
+      ],
+      "timed_out_3s": false
+    },
+    {
+      "case": "count_all_five",
+      "milliseconds": [
+        1730.665,
+        1809.908
+      ],
+      "rows_returned": 1,
+      "count_value": 2338250,
+      "plan": [
+        "SEARCH pool USING INDEX pool_len_avail_idx (name_len=?)"
+      ],
+      "timed_out_3s": false
+    },
+    {
+      "case": "capped_count_2000",
+      "milliseconds": [
+        1.471,
+        0.945
+      ],
+      "rows_returned": 1,
+      "count_value": 2000,
+      "plan": [
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH pool USING INDEX pool_len_avail_idx (name_len=?)",
+        "SCAN (subquery-1)"
+      ],
+      "timed_out_3s": false
+    },
+    {
+      "case": "current_name_deep_offset",
+      "milliseconds": [
+        229.127,
+        224.49
+      ],
+      "rows_returned": 50,
+      "count_value": null,
+      "plan": [
+        "SCAN p"
+      ],
+      "timed_out_3s": false
+    },
+    {
+      "case": "name_cursor",
+      "milliseconds": [
+        0.14,
+        0.033
+      ],
+      "rows_returned": 50,
+      "count_value": null,
+      "plan": [
+        "SEARCH p USING PRIMARY KEY (name>?)"
+      ],
+      "timed_out_3s": false
+    },
+    {
+      "case": "substring_exact_count",
+      "milliseconds": [
+        2020.591,
+        1911.52
+      ],
+      "rows_returned": 1,
+      "count_value": 23288,
+      "plan": [
+        "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)"
+      ],
+      "timed_out_3s": false
+    },
+    {
+      "case": "position_exact_count",
+      "milliseconds": [
+        1951.451,
+        1794.71
+      ],
+      "rows_returned": 1,
+      "count_value": 6040,
+      "plan": [
+        "SEARCH p USING INDEX pool_len_avail_idx (name_len=?)"
+      ],
+      "timed_out_3s": false
+    }
+  ]
+}
