@@ -1,0 +1,25 @@
+{
+  "schema": 18,
+  "quickCheck": [
+    {
+      "quick_check": "ok"
+    }
+  ],
+  "foreignKeys": [],
+  "pool": 2468782,
+  "summary": 2468782,
+  "checkpoint": [
+    {
+      "busy": 0,
+      "log": 0,
+      "checkpointed": 0
+    }
+  ],
+  "allVotesPreserved": true,
+  "originalBackupSha256": "dbdf047a0906dbc941aca393357fe1a385bc5aacf869f3b38af052a8396b06b1",
+  "originalBackupRechecked": true,
+  "retainedVolume": "dv-speed-final-20261029-perf-data-2cpu",
+  "previewContainer": "domainvoter-local-preview",
+  "previewImage": "sha256:fdcea47855b7f33fa3dc226878b1e4711cac210c35e8425e04a59a76d90dbc49",
+  "dFreeBytesObserved": 52776411136
+}

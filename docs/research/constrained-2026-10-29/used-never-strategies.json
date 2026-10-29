@@ -1,0 +1,97 @@
+{
+  "source": "One read-only native sample per strategy inside domainvoter-local-preview. Every strategy returns the same 51 ordered pool names; values are compared only by SHA-256 hash.",
+  "poolRows": 2468782,
+  "commonResultHash": "e11fcce534313aab88b6f31678cc1e008a5334dc7d0c53eeee8be188ecba5a63",
+  "results": [
+    {
+      "name": "current_not_exists",
+      "ms": 4614.43,
+      "rows": 51,
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "SEARCH i USING INDEX selection_items_name_idx (name=?)",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    {
+      "name": "not_in_union",
+      "ms": 3724.65,
+      "rows": 51,
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=?)",
+        "LIST SUBQUERY 2",
+        "MERGE (UNION)",
+        "LEFT",
+        "SCAN d USING COVERING INDEX domains_name_idx",
+        "RIGHT",
+        "SCAN i USING INDEX selection_items_name_idx",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "CREATE BLOOM FILTER",
+        "CREATE BLOOM FILTER"
+      ]
+    },
+    {
+      "name": "materialized_cte_not_in",
+      "ms": 4176.77,
+      "rows": 51,
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=?)",
+        "LIST SUBQUERY 3",
+        "MATERIALIZE used",
+        "MERGE (UNION)",
+        "LEFT",
+        "SCAN d USING COVERING INDEX domains_name_idx",
+        "RIGHT",
+        "SCAN i USING INDEX selection_items_name_idx",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "SCAN used",
+        "CREATE BLOOM FILTER"
+      ]
+    },
+    {
+      "name": "materialized_cte_left_join",
+      "ms": 4810.97,
+      "rows": 51,
+      "plan": [
+        "MATERIALIZE used",
+        "MERGE (UNION)",
+        "LEFT",
+        "SCAN d USING COVERING INDEX domains_name_idx",
+        "RIGHT",
+        "SCAN i USING INDEX selection_items_name_idx",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=?)",
+        "SEARCH u USING AUTOMATIC COVERING INDEX (name=?) LEFT-JOIN"
+      ]
+    },
+    {
+      "name": "except_union",
+      "ms": 3106.06,
+      "rows": 51,
+      "plan": [
+        "MERGE (EXCEPT)",
+        "LEFT",
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=?)",
+        "RIGHT",
+        "CO-ROUTINE u",
+        "MERGE (UNION)",
+        "LEFT",
+        "SCAN d USING COVERING INDEX domains_name_idx",
+        "RIGHT",
+        "SCAN i USING INDEX selection_items_name_idx",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "SCAN u",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    }
+  ],
+  "note": "The measured EXCEPT query had the same ordered first-page result as current NOT EXISTS and was fastest in this single sample. It still materialized a temp ORDER BY, so it is a promising candidate for further validation rather than a final implementation."
+}

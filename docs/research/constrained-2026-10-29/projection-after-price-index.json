@@ -1,0 +1,94 @@
+{
+  "source": "Read-only native full Explore projection and used-never page inside the local 2 CPU preview container.",
+  "poolRows": 2468782,
+  "sqlite": "3.53.4",
+  "results": [
+    {
+      "name": "price_asc_projection",
+      "ms": [
+        2.35,
+        0.5,
+        1.28,
+        0.47,
+        0.44
+      ],
+      "rows": 51,
+      "hash": "f3a8ae995193e96a7bdc2134bca69d73ac422172e88f5f1b74d445ae2281ef69",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_price_name_idx (name_len=?)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "CO-ROUTINE (subquery-2)",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH d USING INDEX domains_name_idx (name=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "RIGHT",
+        "SEARCH i USING INDEX selection_items_name_idx (name=?)",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-2)",
+        "CORRELATED SCALAR SUBQUERY 4",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX views_domain_idx (domain_id=?)",
+        "CORRELATED SCALAR SUBQUERY 5",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX votes_domain_idx (domain_id=?)",
+        "CORRELATED SCALAR SUBQUERY 6",
+        "SEARCH k USING COVERING INDEX sqlite_autoindex_picks_1 (name=?)"
+      ]
+    },
+    {
+      "name": "used_never_name_page",
+      "ms": [
+        9427.59
+      ],
+      "rows": 51,
+      "hash": "2bc4a7d44e2eed78725efd7fa8de6b05ba47eb3903bf3026a2755e5c6ef002ce",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=?)",
+        "CORRELATED SCALAR SUBQUERY 7",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "CORRELATED SCALAR SUBQUERY 8",
+        "SEARCH i USING INDEX selection_items_name_idx (name=?)",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "CO-ROUTINE (subquery-2)",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH d USING INDEX domains_name_idx (name=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "RIGHT",
+        "SEARCH i USING INDEX selection_items_name_idx (name=?)",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-2)",
+        "CORRELATED SCALAR SUBQUERY 4",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX views_domain_idx (domain_id=?)",
+        "CORRELATED SCALAR SUBQUERY 5",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "SEARCH v USING COVERING INDEX votes_domain_idx (domain_id=?)",
+        "CORRELATED SCALAR SUBQUERY 6",
+        "SEARCH k USING COVERING INDEX sqlite_autoindex_picks_1 (name=?)"
+      ]
+    },
+    {
+      "name": "used_never_name_only_page",
+      "ms": [4763.32],
+      "rows": 51,
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH d USING COVERING INDEX domains_name_idx (name=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "SEARCH i USING INDEX selection_items_name_idx (name=?)",
+        "SEARCH rr USING COVERING INDEX round_domain_ranges_selection_idx (selection_id=? AND start_position<?)",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    }
+  ],
+  "priceOrderDiagnosis": "The outer SEARCH p uses the length-prefixed price index. The two temporary order trees in the full projection plan belong to the correlated rounds UNION subquery, not the outer page ORDER BY."
+}

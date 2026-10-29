@@ -1,0 +1,206 @@
+{
+  "mode": "candidate",
+  "poolRows": 2468782,
+  "sqlite": "3.53.4",
+  "source": "Read-only native SQLite inside capped local app container. First connection sample and warm repeats; host storage cache not purged.",
+  "results": [
+    {
+      "name": "length_count",
+      "milliseconds": [
+        10682.102511,
+        1521.235987,
+        2176.785319999999,
+        3315.1933609999996,
+        2261.317299000002
+      ],
+      "p50Ms": 2261.317299000002,
+      "p95Ms": 10682.102511,
+      "rows": 1,
+      "count": 2338250,
+      "resultHash": "93adb268c5b80cfc9c97da18847d73044ae0f10710c6831de21e600f587f799b",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_suffix_idx (name_len=?)"
+      ]
+    },
+    {
+      "name": "substring_count",
+      "milliseconds": [
+        4376.978383999998,
+        2233.9476740000027,
+        4488.710149999999,
+        2410.2406069999997,
+        2702.6932240000024
+      ],
+      "p50Ms": 2702.6932240000024,
+      "p95Ms": 4488.710149999999,
+      "rows": 1,
+      "count": 23288,
+      "resultHash": "65e056fe39eb58d48dea3217f40caee8aea9f30f6b9f6a71dbb82c363296514f",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=? AND name=?)",
+        "LIST SUBQUERY 6",
+        "MERGE (UNION)",
+        "LEFT",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH pool USING INDEX pool_pos1_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "SEARCH pool USING INDEX pool_pos2_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "MERGE (UNION)",
+        "LEFT",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH pool USING INDEX pool_pos3_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "SEARCH pool USING INDEX pool_pos4_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "SEARCH pool USING INDEX pool_len_suffix_idx (name_len=?)",
+        "LIST SUBQUERY 5",
+        "SCAN pool_suffixes",
+        "CREATE BLOOM FILTER",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    {
+      "name": "long_substring_count",
+      "milliseconds": [
+        2647.181002999998,
+        2670.764443,
+        2612.951154000002,
+        2045.0794500000047,
+        2217.071186999994
+      ],
+      "p50Ms": 2612.951154000002,
+      "p95Ms": 2670.764443,
+      "rows": 1,
+      "count": 377,
+      "resultHash": "58377b7e0d35ca1a14e9474d6209605d1dfe05505e82ce0c46da221894812763",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=? AND name=?)",
+        "LIST SUBQUERY 6",
+        "MERGE (UNION)",
+        "LEFT",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH pool USING INDEX pool_pos1_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "SEARCH pool USING INDEX pool_pos2_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "MERGE (UNION)",
+        "LEFT",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH pool USING INDEX pool_pos3_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "SEARCH pool USING INDEX pool_pos4_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "SEARCH pool USING INDEX pool_len_suffix_idx (name_len=?)",
+        "LIST SUBQUERY 5",
+        "SCAN pool_suffixes",
+        "CREATE BLOOM FILTER",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    {
+      "name": "position_count",
+      "milliseconds": [
+        1025.5145830000038,
+        507.0528209999975,
+        677.4925139999978,
+        664.7233339999948,
+        520.1806020000004
+      ],
+      "p50Ms": 664.7233339999948,
+      "p95Ms": 1025.5145830000038,
+      "rows": 1,
+      "count": 6040,
+      "resultHash": "f4f8bdeb694f7a89a6a167cbbbb22693af78c87e0c26bb2c68366e22f6035b34",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=? AND name=?)",
+        "LIST SUBQUERY 1",
+        "SEARCH pool USING INDEX pool_pos1_idx (name_len=? AND <expr>=? AND <expr>=?)"
+      ]
+    },
+    {
+      "name": "substring_page",
+      "milliseconds": [
+        2161.4198529999994,
+        2460.0655259999985,
+        2098.1455520000018,
+        3145.931187000002,
+        2661.376108000004
+      ],
+      "p50Ms": 2460.0655259999985,
+      "p95Ms": 3145.931187000002,
+      "rows": 50,
+      "count": null,
+      "resultHash": "e65791895d4a40022c22794e343ddadd2b73b61a5531992a674ab2736ee646e0",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=? AND name=?)",
+        "LIST SUBQUERY 6",
+        "MERGE (UNION)",
+        "LEFT",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH pool USING INDEX pool_pos1_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "SEARCH pool USING INDEX pool_pos2_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "MERGE (UNION)",
+        "LEFT",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH pool USING INDEX pool_pos3_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "SEARCH pool USING INDEX pool_pos4_idx (name_len=? AND <expr>=? AND <expr>=?)",
+        "RIGHT",
+        "SEARCH pool USING INDEX pool_len_suffix_idx (name_len=?)",
+        "LIST SUBQUERY 5",
+        "SCAN pool_suffixes",
+        "CREATE BLOOM FILTER",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    {
+      "name": "position_page",
+      "milliseconds": [
+        1448.234497999998,
+        1335.9981870000047,
+        829.2426680000062,
+        465.3987690000067,
+        310.37430199999653
+      ],
+      "p50Ms": 829.2426680000062,
+      "p95Ms": 1448.234497999998,
+      "rows": 50,
+      "count": null,
+      "resultHash": "29554860bdc2485d47d610a3fffec3c1090bd6e6e7dfacd7507f8150bde4d2b5",
+      "plan": [
+        "SEARCH p USING INDEX pool_len_name_idx (name_len=? AND name=?)",
+        "LIST SUBQUERY 1",
+        "SEARCH pool USING INDEX pool_pos1_idx (name_len=? AND <expr>=? AND <expr>=?)"
+      ]
+    },
+    {
+      "name": "capped_count",
+      "milliseconds": [
+        1.4493150000052992,
+        1.851571999999578,
+        7.208431999999448,
+        1.6501919999864185,
+        1.5499550000095041
+      ],
+      "p50Ms": 1.6501919999864185,
+      "p95Ms": 7.208431999999448,
+      "rows": 1,
+      "count": 2000,
+      "resultHash": "927139aea19ea8a29421d8f1796c3b5066ec783a43899c23dcbcff89976f7272",
+      "plan": [
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH pool USING INDEX pool_len_suffix_idx (name_len=?)",
+        "SCAN (subquery-1)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "actions": 106,
+  "p50Ms": 153.99990003788844,
+  "p95Ms": 496.6707000276074,
+  "maxMs": 1269.5485000149347,
+  "errors": [],
+  "javascriptErrors": [],
+  "probeVotesRestored": true,
+  "note": "Real browser clicks await Next server-action response and enabled button. Disposable fixture user only."
+}

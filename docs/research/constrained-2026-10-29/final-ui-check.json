@@ -1,0 +1,155 @@
+{
+  "roundId": 36,
+  "routes": [
+    {
+      "route": "/admin/explore?lmin=5&lmax=5&q=ab",
+      "visibleMs": 518.9000000357628,
+      "warmP50Ms": 249.10000002384186,
+      "warmP95Ms": 295.39999997615814,
+      "samples": [
+        {
+          "browserVisibleMs": 518.9000000357628,
+          "pythonWallMs": 528.975100023672
+        },
+        {
+          "browserVisibleMs": 249.10000002384186,
+          "pythonWallMs": 258.32000002264977
+        },
+        {
+          "browserVisibleMs": 229.39999997615814,
+          "pythonWallMs": 232.36780002480373
+        },
+        {
+          "browserVisibleMs": 265.80000001192093,
+          "pythonWallMs": 268.99480004794896
+        },
+        {
+          "browserVisibleMs": 233.80000001192093,
+          "pythonWallMs": 238.52030001580715
+        },
+        {
+          "browserVisibleMs": 295.39999997615814,
+          "pythonWallMs": 313.92119999509305
+        }
+      ],
+      "rows": 50
+    },
+    {
+      "route": "/admin/explore?pat=_a_b_&exact=1",
+      "visibleMs": 376.19999998807907,
+      "warmP50Ms": 356.5,
+      "warmP95Ms": 363.30000001192093,
+      "samples": [
+        {
+          "browserVisibleMs": 376.19999998807907,
+          "pythonWallMs": 386.9110999512486
+        },
+        {
+          "browserVisibleMs": 353.39999997615814,
+          "pythonWallMs": 365.6446000095457
+        },
+        {
+          "browserVisibleMs": 357.10000002384186,
+          "pythonWallMs": 369.7775999899022
+        },
+        {
+          "browserVisibleMs": 355.9000000357628,
+          "pythonWallMs": 366.30769999464974
+        },
+        {
+          "browserVisibleMs": 356.5,
+          "pythonWallMs": 364.4087999709882
+        },
+        {
+          "browserVisibleMs": 363.30000001192093,
+          "pythonWallMs": 378.6028000176884
+        }
+      ],
+      "rows": 50
+    },
+    {
+      "route": "/admin/explore?lmin=5&lmax=5&sort=price_asc",
+      "visibleMs": 166.80000001192093,
+      "warmP50Ms": 165,
+      "warmP95Ms": 172.80000001192093,
+      "samples": [
+        {
+          "browserVisibleMs": 166.80000001192093,
+          "pythonWallMs": 169.45800004759803
+        },
+        {
+          "browserVisibleMs": 165.60000002384186,
+          "pythonWallMs": 168.24820003239438
+        },
+        {
+          "browserVisibleMs": 162.60000002384186,
+          "pythonWallMs": 165.10129999369383
+        },
+        {
+          "browserVisibleMs": 172.80000001192093,
+          "pythonWallMs": 176.20370001532137
+        },
+        {
+          "browserVisibleMs": 159.5,
+          "pythonWallMs": 161.91730002174154
+        },
+        {
+          "browserVisibleMs": 165,
+          "pythonWallMs": 167.60230000363663
+        }
+      ],
+      "rows": 50
+    }
+  ],
+  "javascriptErrors": [],
+  "timingNote": "Browser navigation start to painted row, one initial browser navigation and five repeat visits. The server cache was already warm for this QA rerun; Python wall time is retained separately.",
+  "cursorRoundTrip": true,
+  "mobileOverflowPx": 0,
+  "voterRenderedCards": 50,
+  "voterFilters": [
+    {
+      "query": "q=ab",
+      "matched": 7217,
+      "p50Ms": 111.025599995628,
+      "p95Ms": 120.61729998094961,
+      "samplesMs": [
+        107.36299998825416,
+        108.21209999267012,
+        111.025599995628,
+        119.89430000539869,
+        120.61729998094961
+      ]
+    },
+    {
+      "query": "pat=_a_b_&exact=1",
+      "matched": 601,
+      "p50Ms": 83.07499997317791,
+      "p95Ms": 85.12120001250878,
+      "samplesMs": [
+        81.51599997654557,
+        82.47889997437596,
+        83.07499997317791,
+        84.79059999808669,
+        85.12120001250878
+      ]
+    },
+    {
+      "query": "page=4000&size=50",
+      "matched": 200000,
+      "p50Ms": 7.254800002556294,
+      "p95Ms": 7.70580000244081,
+      "samplesMs": [
+        6.923999986611307,
+        6.955699995160103,
+        7.254800002556294,
+        7.608499960042536,
+        7.70580000244081
+      ]
+    }
+  ],
+  "compactVoteRestored": true,
+  "unassignedRound404": true,
+  "anonymousDenied": true,
+  "passed": true,
+  "normalLocalhostLoginPassed": true
+}
