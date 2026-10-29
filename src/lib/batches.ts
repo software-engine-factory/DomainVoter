@@ -46,14 +46,21 @@ export function orderSql(order: BatchOrder) {
 /** Live block size; runs in a reader thread (with free names a count can scan ~2M rows). */
 export async function countBlock(filters: PoolFilters, cap: number | null, excludeUsed: boolean) {
   const where = blockWhere(filters, excludeUsed);
-  const n = (await reader().get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`, where.params))!.n;
-  return cap != null && cap > 0 ? Math.min(cap, n) : n;
+  // A capped batch only needs to know whether the selection reaches the cap. Stop the
+  // scan as soon as that many matches have been found instead of counting the whole pool.
+  if (cap != null && cap > 0) {
+    return (await reader().get<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM (SELECT 1 FROM pool p ${where.sql} LIMIT ?)`,
+      [...where.params, cap],
+    ))!.n;
+  }
+  return (await reader().get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`, where.params))!.n;
 }
 
 export function blockWhere(filters: PoolFilters, excludeUsed: boolean) {
   const where = poolWhere(filters);
   if (!excludeUsed) return where;
-  const extra = "p.name NOT IN (SELECT pool_name FROM domains WHERE pool_name IS NOT NULL)";
+  const extra = "p.name NOT IN (SELECT pool_name FROM domain_catalog WHERE pool_name IS NOT NULL)";
   return { sql: where.sql ? `${where.sql} AND ${extra}` : `WHERE ${extra}`, params: where.params };
 }
 
@@ -135,11 +142,13 @@ export function openBatchRound(batchId: number) {
   const batch = getBatch(batchId);
   if (!batch) return { roundId: 0, count: 0 };
   const plan = planBatch({ total: batch.blockTotal, rounds: batch.roundsPlanned, perRound: batch.perRound, remainderMode: batch.remainderMode });
-  const index = batch.roundsCreated; // 0-based
-  if (index >= plan.sizes.length) return { roundId: 0, count: 0 };
+  const opened = new Set((sqlite.prepare("SELECT batch_index AS n FROM rounds WHERE batch_id=?").all(batchId) as {n:number}[]).map(row=>row.n));
+  const index = plan.sizes.findIndex((_,i)=>!opened.has(i+1));
+  if (index < 0) return { roundId: 0, count: 0 };
   const start = plan.sizes.slice(0, index).reduce((a, b) => a + b, 0);
   const size = plan.sizes[index];
   return sqlite.transaction(() => {
+    if (sqlite.prepare("SELECT 1 FROM creation_jobs WHERE state IN ('queued','running','cancelling')").get()) throw new Error("capacity");
     const now = Date.now();
     const title = `${batch.title} · ${index + 1}/${plan.sizes.length}`;
     const info = sqlite
@@ -149,6 +158,31 @@ export function openBatchRound(batchId: number) {
       )
       .run(title, batch.filterJson, batch.orderMode, now, now, batchId, index + 1);
     const roundId = Number(info.lastInsertRowid);
+    const selection = sqlite.prepare("SELECT id FROM domain_selections WHERE batch_id=?").get(batchId) as { id: number } | undefined;
+    if (selection) {
+      // Reserve fresh IDs when opening a range, including after a deleted round. Stale voter pages must never target a new round.
+      const high = (sqlite.prepare("SELECT COALESCE(MAX(id),0) AS n FROM selection_items").get() as {n:number}).n;
+      sqlite.prepare("UPDATE selection_items SET id=id+? WHERE selection_id=? AND position>? AND position<=?")
+        .run(high,selection.id,start,start+size);
+      // UPDATE does not advance SQLite's AUTOINCREMENT high-water mark. Retain it even after this selection is deleted.
+      sqlite.prepare("UPDATE sqlite_sequence SET seq=MAX(seq,(SELECT MAX(id) FROM selection_items)) WHERE name='selection_items'").run();
+      // Later rounds retain their historical contract: price is captured when opened, not when the batch was frozen.
+      const changed = sqlite.prepare(`UPDATE selection_items SET (price,currency)=
+        (SELECT COALESCE(p.lp_price,p.best_price),p.lp_currency FROM pool p WHERE p.name=selection_items.name)
+        WHERE selection_id=? AND position>? AND position<=?
+        AND EXISTS(SELECT 1 FROM pool p WHERE p.name=selection_items.name)`)
+        .run(selection.id,start,start+size).changes;
+      if (changed !== size) throw new Error("source_changed");
+      const stats = sqlite.prepare(`SELECT MIN(instr(name||'.','.')-1) AS lo, MAX(instr(name||'.','.')-1) AS hi
+        FROM selection_items WHERE selection_id=? AND position>? AND position<=?`).get(selection.id,start,start+size) as {lo:number;hi:number};
+      const mode = stats.lo === stats.hi ? stats.lo : (sqlite.prepare(`SELECT instr(name||'.','.')-1 AS len FROM selection_items
+        WHERE selection_id=? AND position>? AND position<=? GROUP BY len ORDER BY COUNT(*) DESC,len LIMIT 1`)
+        .get(selection.id,start,start+size) as {len:number}).len;
+      sqlite.prepare("INSERT INTO round_domain_ranges(round_id,selection_id,start_position,end_position,len_min,len_max,label_length) VALUES (?,?,?,?,?,?,?)")
+        .run(roundId,selection.id,start+1,start+size,stats.lo,stats.hi,mode);
+      copyBatchAssignees(batchId,roundId);
+      return {roundId,count:size};
+    }
     const inserted = sqlite
       .prepare(
         `INSERT INTO domains (round_id, position, name, price, is_premium, source_domain_id, pool_name, currency)
@@ -195,7 +229,8 @@ export function batchRounds(batchId: number) {
   return getSqlite()
     .prepare(
       `SELECT r.id, r.title, r.status, r.batch_index AS batchIndex,
-              (SELECT COUNT(*) FROM domains d WHERE d.round_id = r.id) AS size,
+              COALESCE((SELECT end_position-start_position+1 FROM round_domain_ranges WHERE round_id=r.id),0)
+                + (SELECT COUNT(*) FROM domains d WHERE d.round_id=r.id AND (d.id>0 OR NOT EXISTS(SELECT 1 FROM round_domain_ranges WHERE round_id=r.id))) AS size,
               (SELECT COUNT(DISTINCT domain_id) FROM views v WHERE v.round_id = r.id) AS viewed,
               (SELECT COUNT(*) FROM votes v WHERE v.round_id = r.id) AS votes
        FROM rounds r WHERE r.batch_id = ? ORDER BY r.batch_index`,

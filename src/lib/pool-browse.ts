@@ -1,8 +1,8 @@
 import { getSqlite } from "@/db";
-import { cachedAsync, cachedCountAsync } from "@/lib/data-cache";
+import { cachedAsync, cachedCountAsync, dataStamp } from "@/lib/data-cache";
 import { reader } from "@/lib/ro";
 import { createPoolRound, orderedNames } from "@/lib/bulk-fill";
-import { poolLengthCounts, type LengthCount } from "@/lib/pool";
+import { poolLengthCounts } from "@/lib/pool";
 import { normalizePattern, normalizeQuery, patternActive, PATTERN_MAX } from "@/lib/vote-view";
 import { ACTIVE_SETS, normalizeSetIds } from "@/lib/sets";
 
@@ -16,6 +16,7 @@ export const BROWSE_SORTS = ["name", "price_asc", "price_desc", "votes", "random
 export type BrowseSort = (typeof BROWSE_SORTS)[number];
 export const NONE = "__none__";
 export const BROWSE_PAGE_SIZE = 50;
+const CURSOR_SORTS = new Set<BrowseSort>(["name", "price_asc", "price_desc"]);
 
 export type BrowseQuery = {
   av: "" | "sale" | "free"; // availability: for sale / free to register ("" = both)
@@ -41,6 +42,8 @@ export type BrowseQuery = {
   sort: BrowseSort; // 13 sort
   seed: string;
   page: number;
+  cursor: string;
+  direction: "next" | "prev";
 };
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -95,6 +98,8 @@ export function parseBrowse(params: Params): BrowseQuery {
     sort: pick(first(params.sort), BROWSE_SORTS, "name"),
     seed: first(params.seed).trim().slice(0, 40),
     page: posInt(first(params.page)) ?? 1,
+    cursor: first(params.cursor).slice(0, 253),
+    direction: first(params.direction) === "prev" ? "prev" : "next",
   };
 }
 
@@ -126,6 +131,22 @@ export function browseToParams(q: BrowseQuery): Record<string, string | number |
   };
 }
 
+export function browseCursorFromRow(q: BrowseQuery, row: BrowseRow) {
+  if (q.sort === "name") return row.name;
+  if (q.sort === "price_asc" || q.sort === "price_desc") {
+    return row.priceUsd == null ? `N:${row.name}` : `V:${row.priceUsd}:${row.name}`;
+  }
+  return "";
+}
+
+function priceCursor(value: string) {
+  const [kind, price, ...name] = value.split(":");
+  if (kind === "N") return price ? { price: null, name: [price, ...name].join(":") } : null;
+  if (!name.length) return null;
+  const n = Number(price);
+  return kind === "V" && Number.isFinite(n) ? { price: n, name: name.join(":") } : null;
+}
+
 /** Number of active filters (sort and page excluded). */
 export function activeFilterCount(q: BrowseQuery) {
   const p = browseToParams(q);
@@ -137,10 +158,19 @@ export function activeFilterCount(q: BrowseQuery) {
 }
 
 const likeEscape = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
-const used = "EXISTS (SELECT 1 FROM domains d WHERE d.name = p.name)";
+// Keep correlated membership lookups on the base-table indexes. A correlated aggregate over
+// domain_catalog makes SQLite build an automatic index over the full view on large pools.
+const physicalUsed = "EXISTS (SELECT 1 FROM domains d WHERE d.name = p.name)";
+const virtualUsed = `EXISTS (
+  SELECT 1 FROM selection_items i INDEXED BY selection_items_name_idx
+  JOIN round_domain_ranges rr ON rr.selection_id = i.selection_id
+    AND i.position BETWEEN rr.start_position AND rr.end_position
+  JOIN rounds r ON r.id = rr.round_id AND r.creation_job_id IS NULL
+  WHERE i.name = p.name
+)`;
+const used = `(${physicalUsed} OR ${virtualUsed})`;
 
-/** `lengths` (poolLengthCounts) only steers the plan for length filters; see below. */
-export function browseWhere(q: BrowseQuery, lengths: LengthCount[] = []) {
+export function browseWhere(q: BrowseQuery) {
   const w: string[] = [];
   const params: Array<string | number> = [];
   if (q.av) {
@@ -186,32 +216,61 @@ export function browseWhere(q: BrowseQuery, lengths: LengthCount[] = []) {
   if (q.link === "yes") w.push("(p.lp_url IS NOT NULL) = 1");
   if (q.link === "no") w.push("(p.lp_url IS NOT NULL) = 0");
   if (q.q) {
-    w.push("p.name LIKE ? ESCAPE '\\'");
-    params.push(`%${likeEscape(q.q)}%`);
+    const term = likeEscape(q.q);
+    if (q.q.length >= 2 && /^[a-z0-9-]+$/.test(q.q)) {
+      // Match all five-character label pairs plus suffixes from the compact suffix dictionary.
+      // The original LIKE predicate remains the final oracle and handles any unusual name form.
+      const labelCandidates = Array.from({ length: 4 }, (_, i) => {
+        const pos = i + 1;
+        return `SELECT name FROM pool INDEXED BY pool_pos${pos}_idx WHERE name_len = 5 AND substr(name, ${pos}, 1) = ? AND substr(name, ${pos + 1}, 1) = ? AND name LIKE ? ESCAPE '\\'`;
+      });
+      // Concatenation removes the suffix column's TEXT affinity from the IN value. Without
+      // that, SQLite may apply a cast to the indexed expression and scan the 5-char range.
+      const suffixCandidate = `SELECT name FROM pool INDEXED BY pool_len_suffix_idx WHERE name_len = 5 AND lower(substr(name, instr(name, '.') + 1)) IN (SELECT suffix || '' FROM pool_suffixes WHERE instr(suffix, ?) > 0) AND name LIKE ? ESCAPE '\\'`;
+      const candidates = [...labelCandidates, suffixCandidate];
+      for (let i = 0; i < 4; i++) params.push(q.q[0], q.q[1], `%${term}%`);
+      params.push(q.q, `%${term}%`);
+      const fixedAtFive = (q.lmin === 5 && q.lmax === 5) || (q.exact && q.pat.length === 5);
+      if (!fixedAtFive) {
+        const otherLengthCandidate = (op: "<" | ">") => `SELECT name FROM pool INDEXED BY pool_len_name_idx WHERE name_len ${op} 5 AND name LIKE ? ESCAPE '\\'`;
+        candidates.push(otherLengthCandidate("<"), otherLengthCandidate(">"));
+        params.push(`%${term}%`, `%${term}%`);
+      }
+      w.push(`p.name IN (${candidates.join(" UNION ")}) AND p.name LIKE ? ESCAPE '\\'`);
+      params.push(`%${term}%`);
+    } else {
+      w.push("p.name LIKE ? ESCAPE '\\'");
+      params.push(`%${term}%`);
+    }
   }
   if (q.pat) {
     // The pattern only holds [a-z0-9-_]; "_" is LIKE's any-char. The label must reach the last slot.
-    w.push(q.exact ? "p.name_len = ?" : "p.name_len >= ?", "p.name LIKE ?");
-    params.push(q.pat.length, `${q.pat}%`);
+    w.push(q.exact ? "p.name_len = ?" : "p.name_len >= ?");
+    params.push(q.pat.length);
+    if (q.exact && q.pat.length === 5) {
+      const literalPos = [...q.pat].findIndex((c) => c !== "_") + 1;
+      if (literalPos) {
+        // Match just the first indexed literal, then retain SQLite LIKE as the oracle inside
+        // the candidate scan. Character-class enumeration misses Unicode LIKE matches.
+        const pairPos = Math.min(literalPos, 5);
+        w.push(`p.name IN (SELECT name FROM pool INDEXED BY pool_pos${pairPos}_idx WHERE name_len = 5 AND substr(name, ${literalPos}, 1) = ? AND name LIKE ?)`);
+        params.push(q.pat[literalPos - 1], `${q.pat}%`);
+      }
+    }
+    w.push("p.name LIKE ?");
+    params.push(`${q.pat}%`);
   }
   if (q.lmin != null || q.lmax != null) {
-    // A length filter matching most of the pool (5 letters ≈ 76%) is cheaper as a walk of the
-    // name-ordered table than an index range + sort of every match; "+" keeps SQLite off the
-    // length indexes then (left alone it picks pool_len_price_idx and sorts 400k rows per page).
-    const counts = lengths;
-    const all = counts.reduce((a, c) => a + c.count, 0);
-    const hit = counts.filter((c) => (q.lmin == null || c.length >= q.lmin) && (q.lmax == null || c.length <= q.lmax)).reduce((a, c) => a + c.count, 0);
-    const col = all > 0 && hit / all > 0.3 ? "+p.name_len" : "p.name_len";
     if (q.lmin != null && q.lmin === q.lmax) {
-      w.push(`${col} = ?`);
+      w.push("p.name_len = ?");
       params.push(q.lmin);
     } else {
       if (q.lmin != null) {
-        w.push(`${col} >= ?`);
+        w.push("p.name_len >= ?");
         params.push(q.lmin);
       }
       if (q.lmax != null) {
-        w.push(`${col} <= ?`);
+        w.push("p.name_len <= ?");
         params.push(q.lmax);
       }
     }
@@ -219,8 +278,15 @@ export function browseWhere(q: BrowseQuery, lengths: LengthCount[] = []) {
   if (q.used === "never") w.push(`NOT ${used}`);
   if (q.used === "used") w.push(used);
   if (q.inr != null) {
-    w.push("EXISTS (SELECT 1 FROM domains d WHERE d.name = p.name AND d.round_id = ?)");
-    params.push(q.inr);
+    w.push(`(EXISTS (SELECT 1 FROM domains d WHERE d.name = p.name AND d.round_id = ?)
+      OR EXISTS (
+        SELECT 1 FROM round_domain_ranges rr
+        JOIN rounds r ON r.id = rr.round_id AND r.creation_job_id IS NULL
+        JOIN selection_items i INDEXED BY selection_items_name_idx ON i.selection_id = rr.selection_id
+          AND i.position BETWEEN rr.start_position AND rr.end_position
+        WHERE rr.round_id = ? AND i.name = p.name
+      ))`);
+    params.push(q.inr, q.inr);
   }
   if (q.eng === "seen") w.push("EXISTS (SELECT 1 FROM domains d JOIN views v ON v.domain_id = d.id WHERE d.name = p.name)");
   if (q.eng === "voted") w.push("EXISTS (SELECT 1 FROM domains d JOIN votes v ON v.domain_id = d.id WHERE d.name = p.name)");
@@ -265,38 +331,98 @@ export type BrowseRow = {
   regPrice: number | null;
 };
 
-const ROW_SELECT = `p.name, coalesce(p.lp_price, p.best_price) AS price, CASE WHEN p.lp_price IS NOT NULL THEN p.lp_currency ELSE coalesce(p.lp_currency, CASE WHEN p.price_usd IS NOT NULL THEN 'USD' END) END AS currency,
+export const BROWSE_ROW_SELECT = `p.name, coalesce(p.lp_price, p.best_price) AS price, CASE WHEN p.lp_price IS NOT NULL THEN p.lp_currency ELSE coalesce(p.lp_currency, CASE WHEN p.price_usd IS NOT NULL THEN 'USD' END) END AS currency,
   p.price_usd AS priceUsd, p.price_source AS source, p.evidence, p.dns_parking_provider AS provider, p.dns_ns_class AS nsClass, p.lp_url AS url,
   rtrim((CASE WHEN p.set_1 = 1 THEN '1,' ELSE '' END) || (CASE WHEN p.set_3 = 1 THEN '3,' ELSE '' END) || (CASE WHEN p.set_4 = 1 THEN '4,' ELSE '' END) || (CASE WHEN p.set_5 = 1 THEN '5,' ELSE '' END), ',') AS sets,
-  (SELECT COUNT(DISTINCT d.round_id) FROM domains d WHERE d.name = p.name) AS rounds,
+  (SELECT COUNT(*) FROM (
+    SELECT d.round_id AS round_id FROM domains d WHERE d.name = p.name
+    UNION
+    SELECT rr.round_id AS round_id
+    FROM selection_items i INDEXED BY selection_items_name_idx
+    JOIN round_domain_ranges rr ON rr.selection_id = i.selection_id
+      AND i.position BETWEEN rr.start_position AND rr.end_position
+    JOIN rounds r ON r.id = rr.round_id AND r.creation_job_id IS NULL
+    WHERE i.name = p.name
+  )) AS rounds,
   (SELECT COUNT(*) FROM domains d JOIN views v ON v.domain_id = d.id WHERE d.name = p.name) AS views,
   ${votesOf} AS votes,
   EXISTS (SELECT 1 FROM picks k WHERE k.name = p.name) AS bookmarked, p.avail, p.reg_price_usd AS regPrice`;
 
-/** Pool-only filters can be cached until the data changes; used/round/engagement ones depend on live votes. */
+/** Pool aggregates follow the dataset stamp; membership also follows catalog revision. Engagement stays live. */
+export function browseCountSql(q: BrowseQuery): { sql: string; params: Array<string | number> } | null {
+  const otherFilters = q.hp || q.src.length || q.cur || q.min != null || q.max != null || q.sets.length || q.ev || q.cls || q.prov || q.link || q.q || q.pat || q.used || q.inr != null || q.eng;
+  if (otherFilters) return null;
+  const where: string[] = [];
+  const params: Array<string | number> = [];
+  if (q.lmin != null) { where.push("name_len >= ?"); params.push(q.lmin); }
+  if (q.lmax != null) { where.push("name_len <= ?"); params.push(q.lmax); }
+  if (q.av) { where.push("avail = ?"); params.push(q.av); }
+  return { sql: `SELECT coalesce(SUM(n), 0) AS n FROM pool_length_totals${where.length ? ` WHERE ${where.join(" AND ")}` : ""}`, params };
+}
+
 function countWhere(q: BrowseQuery, where: { sql: string; params: Array<string | number> }) {
   const run = async () => (await reader().get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool p ${where.sql}`, where.params))!.n;
-  return q.used || q.inr != null || q.eng ? run() : cachedCountAsync("pool", where.sql, where.params, run);
+  const summary = browseCountSql(q);
+  if (summary) return reader().get<{ n: number }>(summary.sql, summary.params).then((row) => row!.n);
+  if (q.eng) return run();
+  if (q.used || q.inr != null) {
+    return reader().get<{ n: number }>("SELECT n FROM catalog_revision WHERE id = 1").then((revision) =>
+      cachedCountAsync(`pool-${dataStamp()}-catalog-${revision!.n}`, where.sql, where.params, run),
+    );
+  }
+  return cachedCountAsync("pool", where.sql, where.params, run);
 }
 
-async function whereOf(q: BrowseQuery) {
-  return browseWhere(q, q.lmin != null || q.lmax != null ? await poolLengthCounts() : []);
+function whereOf(q: BrowseQuery) {
+  return browseWhere(q);
 }
 
-/** One Explore page; COUNT and rows (ORDER BY votes / random / LIKE are full scans) run off the main thread. */
-export async function browsePool(q: BrowseQuery, pageSize = BROWSE_PAGE_SIZE) {
+/** One Explore page. The UI can omit the optional exact total so it streams without waiting for COUNT. */
+export async function browsePool(q: BrowseQuery, pageSize = BROWSE_PAGE_SIZE, includeTotal = true) {
   const where = await whereOf(q);
-  const total = await countWhere(q, where);
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-  const page = Math.min(q.page, pages);
+  const totalPromise = includeTotal ? countWhere(q, where) : null;
+  const page = q.page;
+  const pages = totalPromise ? Math.max(1, Math.ceil((await totalPromise) / pageSize)) : null;
+  const resolvedPage = pages == null ? page : Math.min(page, pages);
   const order = orderSql(q);
-  const rows = await reader().all<BrowseRow>(`SELECT ${ROW_SELECT} FROM pool p ${where.sql} ORDER BY ${order.sql} LIMIT ? OFFSET ?`, [
-    ...where.params,
-    ...order.params,
-    pageSize,
-    (page - 1) * pageSize,
-  ]);
-  return { total, page, pages, rows };
+  const parsedPrice = q.sort === "price_asc" || q.sort === "price_desc" ? priceCursor(q.cursor) : null;
+  const useCursor = CURSOR_SORTS.has(q.sort) && Boolean(q.cursor) && (q.sort === "name" || parsedPrice != null);
+  let cursorPredicate = "", cursorValues: Array<string | number> = [], cursorOrder = order.sql;
+  if (useCursor && q.sort === "name") {
+    cursorPredicate = `p.name ${q.direction === "prev" ? "<" : ">"} ?`;
+    cursorValues = [q.cursor];
+    if (q.direction === "prev") cursorOrder = "p.name DESC";
+  } else if (useCursor && parsedPrice) {
+    const asc = q.sort === "price_asc";
+    const cmp = asc ? ">" : "<", backCmp = asc ? "<" : ">";
+    if (parsedPrice.price == null) {
+      cursorPredicate = q.direction === "prev"
+        ? `(p.price_usd IS NOT NULL OR (p.price_usd IS NULL AND p.name < ?))`
+        : `(p.price_usd IS NULL AND p.name > ?)`;
+      cursorValues = [parsedPrice.name];
+    } else if (q.direction === "prev") {
+      cursorPredicate = `(p.price_usd IS NOT NULL AND (p.price_usd ${backCmp} ? OR (p.price_usd = ? AND p.name < ?)))`;
+      cursorValues = [parsedPrice.price, parsedPrice.price, parsedPrice.name];
+    } else {
+      cursorPredicate = `(p.price_usd IS NULL OR (p.price_usd IS NOT NULL AND (p.price_usd ${cmp} ? OR (p.price_usd = ? AND p.name > ?))))`;
+      cursorValues = [parsedPrice.price, parsedPrice.price, parsedPrice.name];
+    }
+    if (q.direction === "prev") {
+      cursorOrder = parsedPrice.price == null
+        ? `p.price_usd IS NULL DESC, p.price_usd ${asc ? "DESC" : "ASC"}, p.name DESC`
+        : `p.price_usd ${asc ? "DESC" : "ASC"}, p.name DESC`;
+    }
+  }
+  const cursorWhere = useCursor ? `${where.sql ? `${where.sql} AND` : "WHERE"} ${cursorPredicate}` : where.sql;
+  const cursorParams = useCursor ? [...where.params, ...cursorValues] : where.params;
+  const fetched = await reader().all<BrowseRow>(
+    `SELECT ${BROWSE_ROW_SELECT} FROM pool p ${cursorWhere} ORDER BY ${cursorOrder} LIMIT ?${useCursor ? "" : " OFFSET ?"}`,
+    [...cursorParams, ...order.params, pageSize + 1, ...(!useCursor ? [(resolvedPage - 1) * pageSize] : [])],
+  );
+  const hasMore = fetched.length > pageSize;
+  let rows = fetched.slice(0, pageSize);
+  if (useCursor && q.direction === "prev") rows = rows.reverse();
+  return { total: totalPromise ? await totalPromise : null, pages, page: resolvedPage, rows, hasMore, hasPrevious: resolvedPage > 1, cursorMode: CURSOR_SORTS.has(q.sort) };
 }
 
 function ensureRank() {
@@ -329,7 +455,7 @@ export async function countBrowse(q: BrowseQuery) {
 export async function* iterateBrowse(q: BrowseQuery): AsyncGenerator<BrowseRow[]> {
   const where = await whereOf(q);
   const order = orderSql(q);
-  yield* reader().chunks<BrowseRow>(`SELECT ${ROW_SELECT} FROM pool p ${where.sql} ORDER BY ${order.sql}`, [...where.params, ...order.params]);
+  yield* reader().chunks<BrowseRow>(`SELECT ${BROWSE_ROW_SELECT} FROM pool p ${where.sql} ORDER BY ${order.sql}`, [...where.params, ...order.params]);
 }
 
 export type Facet = { value: string | null; count: number };

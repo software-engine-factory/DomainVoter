@@ -4,11 +4,22 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createJiti } from 'jiti';
+import { spawnSync } from 'node:child_process';
 
 const root = path.resolve(import.meta.dirname, '../..');
-process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'dv-perf-tests-'));
+if (process.env.DV_PERF_TEST_CHILD !== '1') {
+  const testDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'dv-perf-tests-'));
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], {
+    stdio: 'inherit',
+    env: { ...process.env, DATA_DIR: testDirectory, DV_PERF_TEST_CHILD: '1' },
+  });
+  // Windows releases SQLite/reader handles when the child exits.
+  fs.rmSync(testDirectory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  if (child.error) throw child.error;
+  process.exit(child.status ?? 1);
+}
 process.env.DV_FREE_MOVE = 'off';
 globalThis.__dvJiti = createJiti(import.meta.url, {
   alias: { '@': path.join(root, 'src') },

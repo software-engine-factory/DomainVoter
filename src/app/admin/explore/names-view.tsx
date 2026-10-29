@@ -1,13 +1,13 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { ACTIVE_SETS } from "@/lib/sets";
 import { BookmarkButton } from "@/components/admin/bookmark-button";
-import { Pager } from "@/components/admin/pager";
 import { PatternSlots } from "@/components/admin/pattern-slots";
 import { buttonClass, fieldBase } from "@/components/ui";
 import { formatMoney, withParams } from "@/lib/format";
 import { roundOptions } from "@/lib/insights";
-import { activeFilterCount, browseFacets, browsePool, browseToParams, NONE, parseBrowse } from "@/lib/pool-browse";
+import { activeFilterCount, browseCursorFromRow, browseFacets, browsePool, browseToParams, countBrowse, NONE, parseBrowse } from "@/lib/pool-browse";
 import { SET_LABELS } from "@/lib/pool";
 import { t } from "@/lib/copy/fa";
 
@@ -22,12 +22,13 @@ const groupLabel = "shrink-0 text-xs font-semibold text-muted";
 export async function NamesView({ query }: { query: Record<string, string | string[] | undefined> }) {
   const q = parseBrowse(query);
   const params = browseToParams(q);
-  const [result, facets] = await Promise.all([browsePool(q), browseFacets()]);
+  const result = await browsePool(q, undefined, false);
+  const countPromise = countBrowse(q);
+  const facetsPromise = browseFacets();
   const rounds = roundOptions();
   const active = activeFilterCount(q);
   const back = withParams("/admin/explore", { ...params, page: result.page });
   const moreCount = [q.cur, q.ev, q.cls, q.prov, q.link, q.lmin, q.lmax, q.used, q.inr, q.eng].filter((v) => v != null && v !== "").length;
-  const sourceLabel = (v: string | null) => (v == null || v === NONE ? t.browse.noPrice : v === "unknown" ? t.browse.unknownSource : v);
 
   return (
     <>
@@ -48,27 +49,7 @@ export async function NamesView({ query }: { query: Record<string, string | stri
         </div>
 
         {/* 10 length: one tap per label length (sets lmin = lmax); counts are whole-pool */}
-        {facets.lengths.length > 1 ? (
-          <div className="flex flex-wrap items-center gap-1.5" data-testid="explore-lengths">
-            <span className={groupLabel}>{t.len.picker}</span>
-            {(() => {
-              const exactLen = q.lmin != null && q.lmin === q.lmax ? q.lmin : null;
-              return (
-                <>
-                  <Link href={withParams("/admin/explore", { ...params, lmin: undefined, lmax: undefined })} className={chip(q.lmin == null && q.lmax == null)}>
-                    {t.len.all}
-                  </Link>
-                  {facets.lengths.map((l) => (
-                    <Link key={l.length} href={withParams("/admin/explore", { ...params, lmin: l.length, lmax: l.length })} className={chip(exactLen === l.length)} title={t.len.roundLength(l.length)}>
-                      {t.len.letters(l.length)}
-                      <span className="tabular-nums opacity-70">{fa(l.count)}</span>
-                    </Link>
-                  ))}
-                </>
-              );
-            })()}
-          </div>
-        ) : null}
+        <Suspense fallback={null}><LengthFilters q={q} params={params} facets={facetsPromise} /></Suspense>
 
         {/* availability · 1 has price · 4 USD range */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -99,19 +80,7 @@ export async function NamesView({ query }: { query: Record<string, string | stri
         </div>
 
         {/* 2 price source */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className={groupLabel}>{t.browse.source}</span>
-          {facets.sources.map((s) => {
-            const value = s.value ?? NONE;
-            return (
-              <label key={value} className={chip(q.src.includes(value))}>
-                <input type="checkbox" name="src" value={value} defaultChecked={q.src.includes(value)} className="sr-only" />
-                <span dir={s.value ? "ltr" : undefined}>{sourceLabel(s.value)}</span>
-                <span className="tabular-nums opacity-70">{fa(s.count)}</span>
-              </label>
-            );
-          })}
-        </div>
+        <Suspense fallback={<span className="text-xs text-muted">{t.browse.source}</span>}><SourceFilters q={q} facets={facetsPromise} /></Suspense>
 
         {/* 5 sets */}
         <div className="flex flex-wrap items-center gap-1.5">
@@ -141,8 +110,7 @@ export async function NamesView({ query }: { query: Record<string, string | stri
             <Select name="cur" label={t.browse.currency} value={q.cur} options={[["usd", t.browse.curUsd], ["other", t.browse.curOther], ["none", t.browse.curNone]]} />
             <Select name="ev" label={t.browse.evidence} value={q.ev} options={[["sale_page", t.browse.salePage], ["nameserver", t.browse.nameserver]]} />
             <Select name="link" label={t.browse.link} value={q.link} options={[["yes", t.browse.yes], ["no", t.browse.no]]} />
-            <Select name="prov" label={t.browse.parking} value={q.prov} options={facets.providers.map((p) => [p.value ?? NONE, `${p.value ?? t.browse.none} (${fa(p.count)})`])} />
-            <Select name="cls" label={t.browse.nsClass} value={q.cls} options={facets.classes.map((p) => [p.value ?? NONE, `${p.value ?? t.browse.none} (${fa(p.count)})`])} />
+            <Suspense fallback={null}><ProviderFilters q={q} facets={facetsPromise} /></Suspense>
             <label className="grid gap-1 text-xs text-muted">
               {t.browse.length}
               <span className="flex items-center gap-1">
@@ -175,9 +143,11 @@ export async function NamesView({ query }: { query: Record<string, string | stri
               {t.browse.clear} ({fa(active)})
             </Link>
           ) : null}
-          <span className="ms-auto text-sm font-semibold tabular-nums">{t.browse.count(fa(result.total))}</span>
+          <Suspense fallback={<span className="ms-auto text-sm font-semibold tabular-nums text-muted">{t.browse.count("…")}</span>}>
+            <BrowseCount count={countPromise} />
+          </Suspense>
           <a href={withParams("/admin/explore/export", params)} className={buttonClass("ghost", "sm")}>CSV</a>
-          {result.total > 0 ? (
+          {(result.total ?? result.rows.length) > 0 || result.hasMore ? (
             <Link href={withParams("/admin/rounds/new", { mode: "explore", ...params })} className={buttonClass("primary", "sm")} data-testid="explore-to-round">
               {t.w4.toRound}
             </Link>
@@ -218,9 +188,78 @@ export async function NamesView({ query }: { query: Record<string, string | stri
         ))}
         {result.rows.length === 0 ? <li className="px-3 py-10 text-center text-muted">{t.browse.empty}</li> : null}
       </ul>
-      <Pager path="/admin/explore" params={params} page={result.page} pages={result.pages} />
+      {result.page > 1 || result.hasMore ? (
+        <div className="mt-3 flex items-center justify-center gap-2 text-sm">
+          {result.page > 1 ? (
+            <Link className={buttonClass("ghost", "sm")} href={withParams("/admin/explore", result.cursorMode && result.rows[0]
+              ? { ...params, page: result.page - 1, cursor: browseCursorFromRow(q, result.rows[0]), direction: "prev" }
+              : { ...params, page: result.page - 1, cursor: undefined, direction: undefined })}>{t.pager.prev}</Link>
+          ) : null}
+          <span className="tabular-nums text-muted">صفحهٔ {fa(result.page)}</span>
+          {result.hasMore ? (
+            <Link className={buttonClass("ghost", "sm")} href={withParams("/admin/explore", result.cursorMode && result.rows.at(-1)
+              ? { ...params, page: result.page + 1, cursor: browseCursorFromRow(q, result.rows.at(-1)!), direction: "next" }
+              : { ...params, page: result.page + 1, cursor: undefined, direction: undefined })}>{t.pager.next}</Link>
+          ) : null}
+        </div>
+      ) : null}
     </>
   );
+}
+
+async function BrowseCount({ count }: { count: Promise<number> }) {
+  const total = await count;
+  return <span className="ms-auto text-sm font-semibold tabular-nums">{t.browse.count(fa(total))}</span>;
+}
+
+type BrowseFacetsData = Awaited<ReturnType<typeof browseFacets>>;
+
+async function LengthFilters({ q, params, facets }: { q: ReturnType<typeof parseBrowse>; params: Record<string, string | number | undefined>; facets: Promise<BrowseFacetsData> }) {
+  const data = await facets;
+  if (data.lengths.length < 2) return null;
+  const exactLen = q.lmin != null && q.lmin === q.lmax ? q.lmin : null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" data-testid="explore-lengths">
+      <span className={groupLabel}>{t.len.picker}</span>
+      <Link href={withParams("/admin/explore", { ...params, lmin: undefined, lmax: undefined })} className={chip(q.lmin == null && q.lmax == null)}>{t.len.all}</Link>
+      {data.lengths.map((l) => (
+        <Link key={l.length} href={withParams("/admin/explore", { ...params, lmin: l.length, lmax: l.length })} className={chip(exactLen === l.length)} title={t.len.roundLength(l.length)}>
+          {t.len.letters(l.length)} <span className="tabular-nums opacity-70">{fa(l.count)}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+async function SourceFilters({ q, facets }: { q: ReturnType<typeof parseBrowse>; facets: Promise<BrowseFacetsData> }) {
+  const data = await facets;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className={groupLabel}>{t.browse.source}</span>
+      {data.sources.map((s) => {
+        const value = s.value ?? NONE;
+        return (
+          <label key={value} className={chip(q.src.includes(value))}>
+            <input type="checkbox" name="src" value={value} defaultChecked={q.src.includes(value)} className="sr-only" />
+            <span dir={s.value ? "ltr" : undefined}>{sourceLabel(s.value)}</span>
+            <span className="tabular-nums opacity-70">{fa(s.count)}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+async function ProviderFilters({ q, facets }: { q: ReturnType<typeof parseBrowse>; facets: Promise<BrowseFacetsData> }) {
+  const data = await facets;
+  return <>
+    <Select name="prov" label={t.browse.parking} value={q.prov} options={data.providers.map((p) => [p.value ?? NONE, `${p.value ?? t.browse.none} (${fa(p.count)})`])} />
+    <Select name="cls" label={t.browse.nsClass} value={q.cls} options={data.classes.map((p) => [p.value ?? NONE, `${p.value ?? t.browse.none} (${fa(p.count)})`])} />
+  </>;
+}
+
+function sourceLabel(value: string | null) {
+  return value == null || value === NONE ? t.browse.noPrice : value === "unknown" ? t.browse.unknownSource : value;
 }
 
 function Select({ name, label, value, options, anyLabel }: { name: string; label: string; value: string; options: Array<readonly [string, string]>; anyLabel?: string }) {

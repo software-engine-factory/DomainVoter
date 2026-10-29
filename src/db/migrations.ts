@@ -338,6 +338,147 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       CREATE INDEX rounds_creation_job_idx ON rounds(creation_job_id) WHERE creation_job_id IS NOT NULL;
     `,
   },
+  {
+    version: 16,
+    name: "Indexed filtering and compact shared round selections",
+    sql: `
+      CREATE INDEX pool_len_name_idx ON pool(name_len, name);
+      CREATE INDEX pool_pos1_idx ON pool(name_len, substr(name,1,1), substr(name,2,1), name);
+      CREATE INDEX pool_pos2_idx ON pool(name_len, substr(name,2,1), substr(name,3,1), name);
+      CREATE INDEX pool_pos3_idx ON pool(name_len, substr(name,3,1), substr(name,4,1), name);
+      CREATE INDEX pool_pos4_idx ON pool(name_len, substr(name,4,1), substr(name,5,1), name);
+      CREATE INDEX pool_pos5_idx ON pool(name_len, substr(name,5,1), substr(name,6,1), name);
+      CREATE INDEX pool_price_name_idx ON pool(price_usd IS NULL, price_usd, name);
+      CREATE INDEX pool_price_desc_name_idx ON pool(price_usd IS NULL, price_usd DESC, name);
+      CREATE INDEX pool_len_suffix_idx ON pool(name_len, lower(substr(name,instr(name,'.')+1)), name);
+      -- Keeping old suffixes is harmless: candidates still join the current pool. Avoid an O(N) suffix scan per search.
+      CREATE TABLE pool_suffixes(suffix TEXT PRIMARY KEY) WITHOUT ROWID;
+      INSERT INTO pool_suffixes SELECT DISTINCT lower(substr(name,instr(name,'.')+1)) FROM pool;
+      CREATE TRIGGER pool_suffix_insert AFTER INSERT ON pool BEGIN
+        INSERT OR IGNORE INTO pool_suffixes VALUES(lower(substr(NEW.name,instr(NEW.name,'.')+1)));
+      END;
+      CREATE TRIGGER pool_suffix_update AFTER UPDATE OF name ON pool BEGIN
+        INSERT OR IGNORE INTO pool_suffixes VALUES(lower(substr(NEW.name,instr(NEW.name,'.')+1)));
+      END;
+      DROP INDEX IF EXISTS domains_round_name_idx;
+
+      CREATE TABLE domain_selections (
+        id INTEGER PRIMARY KEY,
+        creation_job_id TEXT UNIQUE,
+        batch_id INTEGER UNIQUE REFERENCES round_batches(id) ON DELETE CASCADE
+      );
+      CREATE TABLE selection_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        selection_id INTEGER NOT NULL REFERENCES domain_selections(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL CHECK(position > 0),
+        name TEXT NOT NULL,
+        price REAL,
+        currency TEXT,
+        UNIQUE(selection_id, position)
+      );
+      CREATE INDEX selection_items_name_idx ON selection_items(name);
+      CREATE INDEX selection_items_virtual_id_idx ON selection_items((-id));
+      CREATE TABLE round_domain_ranges (
+        round_id INTEGER PRIMARY KEY REFERENCES rounds(id) ON DELETE CASCADE,
+        selection_id INTEGER NOT NULL REFERENCES domain_selections(id) ON DELETE CASCADE,
+        start_position INTEGER NOT NULL CHECK(start_position > 0),
+        end_position INTEGER NOT NULL CHECK(end_position >= start_position),
+        len_min INTEGER, len_max INTEGER, label_length INTEGER
+      );
+      CREATE INDEX round_domain_ranges_selection_idx ON round_domain_ranges(selection_id, start_position, end_position);
+      CREATE TRIGGER round_ranges_no_overlap_insert BEFORE INSERT ON round_domain_ranges
+        WHEN EXISTS (SELECT 1 FROM round_domain_ranges rr WHERE rr.selection_id=NEW.selection_id
+          AND NEW.start_position<=rr.end_position AND rr.start_position<=NEW.end_position)
+      BEGIN SELECT RAISE(ABORT,'selection_range_overlap'); END;
+      CREATE TRIGGER round_ranges_no_overlap_update BEFORE UPDATE ON round_domain_ranges
+        WHEN EXISTS (SELECT 1 FROM round_domain_ranges rr WHERE rr.round_id<>OLD.round_id AND rr.selection_id=NEW.selection_id
+          AND NEW.start_position<=rr.end_position AND rr.start_position<=NEW.end_position)
+      BEGIN SELECT RAISE(ABORT,'selection_range_overlap'); END;
+
+      CREATE VIEW domain_catalog AS
+        SELECT id, round_id, position, name, price, is_premium, source_domain_id, pool_name, currency, segment FROM domains
+        UNION ALL
+        SELECT -i.id, rr.round_id, i.position - rr.start_position + 1, i.name, i.price, 0, NULL, i.name, i.currency, NULL
+        FROM round_domain_ranges rr
+        JOIN rounds r ON r.id = rr.round_id AND r.creation_job_id IS NULL
+        JOIN selection_items i ON i.selection_id = rr.selection_id
+          AND i.position BETWEEN rr.start_position AND rr.end_position
+        WHERE NOT EXISTS (SELECT 1 FROM domains hydrated WHERE hydrated.id = -i.id);
+
+      -- A derived row may point at a virtual parent. Materialize only that parent to retain the existing FK.
+      CREATE TRIGGER domains_materialize_source BEFORE INSERT ON domains
+        WHEN NEW.source_domain_id < 0 AND NOT EXISTS (SELECT 1 FROM domains WHERE id = NEW.source_domain_id)
+      BEGIN
+        INSERT INTO domains(id, round_id, position, name, price, is_premium, source_domain_id, pool_name, currency, segment)
+          SELECT id, round_id, position, name, price, is_premium, source_domain_id, pool_name, currency, segment
+          FROM domain_catalog WHERE id = NEW.source_domain_id;
+      END;
+    `,
+  },
+  {
+    version: 17,
+    name: "Maintain pool totals and invalidate membership counts on catalog changes",
+    sql: `
+      CREATE TABLE pool_length_totals (
+        name_len INTEGER NOT NULL, avail TEXT NOT NULL, n INTEGER NOT NULL,
+        PRIMARY KEY(name_len, avail)
+      ) WITHOUT ROWID;
+      INSERT INTO pool_length_totals SELECT name_len, avail, COUNT(*) FROM pool GROUP BY name_len, avail;
+      CREATE TRIGGER pool_totals_insert AFTER INSERT ON pool BEGIN
+        INSERT INTO pool_length_totals VALUES(NEW.name_len, NEW.avail, 1)
+          ON CONFLICT(name_len,avail) DO UPDATE SET n=n+1;
+      END;
+      CREATE TRIGGER pool_totals_delete AFTER DELETE ON pool BEGIN
+        UPDATE pool_length_totals SET n=n-1 WHERE name_len=OLD.name_len AND avail=OLD.avail;
+      END;
+      CREATE TRIGGER pool_totals_update AFTER UPDATE OF name,avail ON pool
+        WHEN OLD.name_len<>NEW.name_len OR OLD.avail<>NEW.avail BEGIN
+        UPDATE pool_length_totals SET n=n-1 WHERE name_len=OLD.name_len AND avail=OLD.avail;
+        INSERT INTO pool_length_totals VALUES(NEW.name_len, NEW.avail, 1)
+          ON CONFLICT(name_len,avail) DO UPDATE SET n=n+1;
+      END;
+
+      CREATE TABLE catalog_revision(id INTEGER PRIMARY KEY CHECK(id=1), n INTEGER NOT NULL);
+      INSERT INTO catalog_revision VALUES(1,0);
+      CREATE TRIGGER catalog_domain_insert AFTER INSERT ON domains WHEN NEW.id>0 BEGIN
+        UPDATE catalog_revision SET n=n+1 WHERE id=1;
+      END;
+      CREATE TRIGGER catalog_domain_delete AFTER DELETE ON domains WHEN OLD.id>0 BEGIN
+        UPDATE catalog_revision SET n=n+1 WHERE id=1;
+      END;
+      CREATE TRIGGER catalog_domain_update AFTER UPDATE OF name,pool_name,round_id ON domains
+        WHEN OLD.name IS NOT NEW.name OR OLD.pool_name IS NOT NEW.pool_name OR OLD.round_id IS NOT NEW.round_id BEGIN
+        UPDATE catalog_revision SET n=n+1 WHERE id=1;
+      END;
+      CREATE TRIGGER catalog_round_insert AFTER INSERT ON rounds BEGIN
+        UPDATE catalog_revision SET n=n+1 WHERE id=1;
+      END;
+      CREATE TRIGGER catalog_round_delete AFTER DELETE ON rounds BEGIN
+        UPDATE catalog_revision SET n=n+1 WHERE id=1;
+      END;
+      CREATE TRIGGER catalog_round_publish AFTER UPDATE OF creation_job_id ON rounds
+        WHEN OLD.creation_job_id IS NOT NEW.creation_job_id BEGIN
+        UPDATE catalog_revision SET n=n+1 WHERE id=1;
+      END;
+      CREATE TRIGGER catalog_range_insert AFTER INSERT ON round_domain_ranges BEGIN
+        UPDATE catalog_revision SET n=n+1 WHERE id=1;
+      END;
+      CREATE TRIGGER catalog_range_delete AFTER DELETE ON round_domain_ranges BEGIN
+        UPDATE catalog_revision SET n=n+1 WHERE id=1;
+      END;
+      CREATE TRIGGER catalog_range_update AFTER UPDATE ON round_domain_ranges BEGIN
+        UPDATE catalog_revision SET n=n+1 WHERE id=1;
+      END;
+    `,
+  },
+  {
+    version: 18,
+    name: "Seek price-ordered pages within one label length",
+    sql: `
+      CREATE INDEX pool_len_price_name_idx ON pool(name_len, price_usd IS NULL, price_usd, name);
+      CREATE INDEX pool_len_price_desc_name_idx ON pool(name_len, price_usd IS NULL, price_usd DESC, name);
+    `,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */

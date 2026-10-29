@@ -16,7 +16,7 @@ export function creationInput(form: FormData, kind: string): CreationInput {
   const title = String(form.get("title") ?? "").trim();
   if (!title || title.length > (kind === "batch" ? 70 : 80)) throw new Error("invalid_title");
   const seed = String(form.get("seed") ?? "").trim().slice(0, 40) || "preview";
-  const base = { title, seed, assignees: parseAssigneeIds(form), createFirst: form.get("createMode") === "first" };
+  const base = { storageVersion: 2 as const, title, seed, assignees: parseAssigneeIds(form), createFirst: form.get("createMode") === "first" };
   const singlePlan = { rounds: 1, perRound: 3_000_000, remainderMode: "drop" as const };
   if (kind === "explore") {
     const params: Record<string, string[]> = {};

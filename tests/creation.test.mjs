@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash, randomUUID } from 'node:crypto';
 const j = globalThis.__dvJiti;
 const { getSqlite } = await j.import('@/db');
 const jobs = await j.import('@/lib/creation-jobs');
@@ -33,7 +34,7 @@ async function until(id, predicate, timeout = 20_000) {
   assert.fail('job timeout: ' + id);
 }
 function membership(job) {
-  return db.prepare('SELECT d.name,d.position,d.price,d.currency,r.batch_index FROM domains d JOIN rounds r ON r.id=d.round_id WHERE r.batch_id=? ORDER BY r.batch_index,d.position').all(job.batch_id);
+  return db.prepare('SELECT d.name,d.position,d.price,d.currency,r.batch_index FROM domain_catalog d JOIN rounds r ON r.id=d.round_id WHERE r.batch_id=? ORDER BY r.batch_index,d.position').all(job.batch_id);
 }
 
 test('job replay, one writer, exact partial chunk, prices and assignments', async () => {
@@ -52,6 +53,8 @@ test('job replay, one writer, exact partial chunk, prices and assignments', asyn
   assert.equal(new Set(rows.map(r => r.name)).size, 2005);
   assert.deepEqual([1, 2, 3].map(n => rows.filter(r => r.batch_index === n).length), [1000, 1000, 5]);
   assert.ok(rows.every((r, i) => r.position === i % 1000 + 1 && r.currency === 'USD'));
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM domains d JOIN rounds r ON r.id=d.round_id WHERE r.batch_id=?').get(done.batch_id).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM round_domain_ranges g JOIN rounds r ON r.id=g.round_id WHERE r.batch_id=?').get(done.batch_id).n, 3);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM round_assignees a JOIN rounds r ON r.id=a.round_id WHERE r.batch_id=? AND a.user_id=?').get(done.batch_id, admin).n, 3);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM votes').get().n, before);
 });
@@ -81,6 +84,7 @@ test('partial rounds stay hidden and cancellation preserves existing rows', asyn
   jobs.changeCreationJob(id, admin, 'cancel');
   await until(id, r => r.state === 'cancelled');
   assert.equal(db.prepare('SELECT COUNT(*) n FROM domains').get().n, before);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM domain_selections WHERE creation_job_id=?').get(id).n, 0);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM round_batch_items WHERE batch_id=?').get(partial.batch_id).n, 0);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM rounds WHERE creation_job_id=?').get(id).n, 0);
 });
@@ -98,6 +102,37 @@ test('worker termination resumes committed rows without duplicate names or posit
   assert.equal(rows.length, 10005);
   assert.equal(new Set(rows.map(r => r.name)).size, 10005);
   assert.deepEqual(rows.map(r => r.name), db.prepare('SELECT name FROM pool WHERE dns_ns_class=? ORDER BY name').all(prefix).map(r => r.name));
+});
+
+test('pre-compact jobs resume and cancel with their original storage worker', async () => {
+  function insertLegacyJob(input, key) {
+    delete input.storageVersion;
+    const json = JSON.stringify(input), id = randomUUID(), now = Date.now();
+    db.prepare('INSERT INTO creation_jobs(id,owner_id,request_key,input_hash,input_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?)')
+      .run(id, admin, key, createHash('sha256').update(json).digest('hex'), json, now, now);
+    jobs.startCreationJob(id);
+    return id;
+  }
+
+  const resumeId = insertLegacyJob(creationInput(form('name', 2005), 'batch'), 'legacy-resume-key');
+  await until(resumeId, r => r.staged >= 1000 && r.state === 'running');
+  const worker = globalThis.dvCreationWorkers.get(resumeId);
+  assert.ok(worker);
+  await worker.terminate();
+  jobs.startCreationJob(resumeId);
+  const resumed = await until(resumeId, r => r.state === 'completed');
+  const resumedRows = db.prepare('SELECT d.name,d.position,r.batch_index FROM domains d JOIN rounds r ON r.id=d.round_id WHERE r.batch_id=? ORDER BY r.batch_index,d.position').all(resumed.batch_id);
+  assert.equal(resumedRows.length, 2005);
+  assert.deepEqual(resumedRows.map(r => r.name), db.prepare('SELECT name FROM pool WHERE dns_ns_class=? ORDER BY name LIMIT 2005').all(prefix).map(r => r.name));
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM domain_selections WHERE creation_job_id=?').get(resumeId).n, 0);
+
+  const beforeDomains = db.prepare('SELECT COUNT(*) n FROM domains').get().n;
+  const cancelId = insertLegacyJob(creationInput(form('name', 10005), 'batch'), 'legacy-cancel-key');
+  const partial = await until(cancelId, r => r.inserted > 0 && r.state === 'running');
+  jobs.changeCreationJob(cancelId, admin, 'cancel');
+  await until(cancelId, r => r.state === 'cancelled');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM domains').get().n, beforeDomains);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM round_batch_items WHERE batch_id=?').get(partial.batch_id).n, 0);
 });
 
 test('empty selection fails explicitly without publishing a round', async () => {
@@ -119,7 +154,7 @@ test('pool job publishes one filtered round without a synthetic batch', async ()
   const expected = db.prepare('SELECT name FROM pool WHERE dns_ns_class=? AND price_usd=16 ORDER BY name').all(prefix).map(r => r.name);
   const id = jobs.acceptCreationJob(admin, 'single-pool-creation-key', creationInput(f, 'pool'));
   const done = await until(id, r => r.state === 'completed');
-  const rows = db.prepare('SELECT name,position FROM domains WHERE round_id=? ORDER BY position').all(done.round_id);
+  const rows = db.prepare('SELECT name,position FROM domain_catalog WHERE round_id=? ORDER BY position').all(done.round_id);
   assert.deepEqual(rows.map(r => r.name), expected);
   assert.ok(rows.every((r, i) => r.position === i + 1));
   assert.equal(done.batch_id, null);
@@ -131,5 +166,5 @@ test('explore job preserves substring and length filters', async () => {
   const expected = db.prepare("SELECT name FROM pool WHERE name LIKE '%jaaa%' AND name_len=5 ORDER BY name").all().map(r => r.name);
   const id = jobs.acceptCreationJob(admin, 'explore-creation-key', creationInput(f, 'explore'));
   const done = await until(id, r => r.state === 'completed');
-  assert.deepEqual(db.prepare('SELECT name FROM domains WHERE round_id=? ORDER BY position').all(done.round_id).map(r => r.name), expected);
+  assert.deepEqual(db.prepare('SELECT name FROM domain_catalog WHERE round_id=? ORDER BY position').all(done.round_id).map(r => r.name), expected);
 });

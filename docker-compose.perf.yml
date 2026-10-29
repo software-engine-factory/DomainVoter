@@ -1,0 +1,81 @@
+# Local-only resource enclosure. App, SQLite and its creation worker share one
+# container cgroup, so the cap applies to their combined resource use.
+services:
+  app-perf-1cpu:
+    profiles: [perf-1cpu]
+    network_mode: bridge
+    image: ${PERF_IMAGE:-domainvoter-perf:20261029}
+    ports: ["127.0.0.1:12543:3000"]
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      DATA_DIR: /app/data
+      DV_FREE_MOVE: "off"
+      DV_RO_WORKERS: "1"
+    volumes:
+      - type: volume
+        source: perf-data-1cpu
+        target: /app/data
+      - type: bind
+        source: ${PERF_SOURCE_DIR:?Set PERF_SOURCE_DIR to a directory containing an offline voting.db copy}
+        target: /perf-source
+        read_only: true
+      - type: bind
+        source: ./tools/perf/constrained
+        target: /perf
+        read_only: true
+    cpus: 1.0
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 128
+    command: ["sh", "-ec", "test -r /perf-source/voting.db; src=$$(sha256sum /perf-source/voting.db | cut -d' ' -f1); if [ -e /app/data/.perf-seeded ]; then seeded=$$(cat /app/data/.perf-seeded); test \"$$seeded\" = \"$$src\"; else test ! -e /perf-source/voting.db-wal; test ! -e /perf-source/voting.db-shm; cp /perf-source/voting.db /app/data/voting.db; dst=$$(sha256sum /app/data/voting.db | cut -d' ' -f1); test \"$$src\" = \"$$dst\"; printf '%s' \"$$src\" > /app/data/.perf-seeded; fi; exec node server.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  app-perf-2cpu:
+    profiles: [perf-2cpu]
+    network_mode: bridge
+    image: ${PERF_IMAGE:-domainvoter-perf:20261029}
+    ports: ["127.0.0.1:12544:3000"]
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      DATA_DIR: /app/data
+      DV_FREE_MOVE: "off"
+      DV_RO_WORKERS: "1"
+    volumes:
+      - type: volume
+        source: perf-data-2cpu
+        target: /app/data
+      - type: bind
+        source: ${PERF_SOURCE_DIR:?Set PERF_SOURCE_DIR to a directory containing an offline voting.db copy}
+        target: /perf-source
+        read_only: true
+      - type: bind
+        source: ./tools/perf/constrained
+        target: /perf
+        read_only: true
+    cpus: 2.0
+    mem_limit: 2g
+    memswap_limit: 2g
+    pids_limit: 128
+    command: ["sh", "-ec", "test -r /perf-source/voting.db; src=$$(sha256sum /perf-source/voting.db | cut -d' ' -f1); if [ -e /app/data/.perf-seeded ]; then seeded=$$(cat /app/data/.perf-seeded); test \"$$seeded\" = \"$$src\"; else test ! -e /perf-source/voting.db-wal; test ! -e /perf-source/voting.db-shm; cp /perf-source/voting.db /app/data/voting.db; dst=$$(sha256sum /app/data/voting.db | cut -d' ' -f1); test \"$$src\" = \"$$dst\"; printf '%s' \"$$src\" > /app/data/.perf-seeded; fi; exec node server.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+
+volumes:
+  perf-data-1cpu:
+    name: ${PERF_VOLUME_PREFIX:-domainvoter}-perf-data-1cpu
+  perf-data-2cpu:
+    name: ${PERF_VOLUME_PREFIX:-domainvoter}-perf-data-2cpu

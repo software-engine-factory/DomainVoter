@@ -5,6 +5,7 @@ import { getSqlite } from "@/db";
 import { dataDir } from "@/lib/paths";
 
 export type CreationInput = {
+  storageVersion: 2;
   kind: "batch" | "pool" | "explore";
   title: string;
   selectionSql: string;
@@ -42,12 +43,16 @@ export function getCreationJob(id: string, owner: number) {
 /** Acceptance never scans the pool. The database index admits one heavy writer across callers. */
 export function acceptCreationJob(owner: number, key: string, input: CreationInput) {
   const db = getSqlite();
-  const json = JSON.stringify(input);
+  // Every newly accepted ticket uses the compact selection storage contract, including callers
+  // that supply a legacy-shaped input in tests or internal code.
+  const json = JSON.stringify({ ...input, storageVersion: 2 });
   const hash = createHash("sha256").update(json).digest("hex");
+  // A matching request key from before storage versioning must still replay its original ticket.
+  const legacyHash = createHash("sha256").update(JSON.stringify({ ...input, storageVersion: undefined })).digest("hex");
   const result = db.transaction(() => {
     const previous = db.prepare("SELECT id, input_hash FROM creation_jobs WHERE owner_id = ? AND request_key = ?").get(owner, key) as { id: string; input_hash: string } | undefined;
     if (previous) {
-      if (previous.input_hash !== hash) throw new Error("idempotency_conflict");
+      if (previous.input_hash !== hash && previous.input_hash !== legacyHash) throw new Error("idempotency_conflict");
       return previous.id;
     }
     if (db.prepare("SELECT 1 FROM creation_jobs WHERE state IN ('queued','running','cancelling')").get()) throw new Error("capacity");
@@ -64,12 +69,17 @@ export function acceptCreationJob(owner: number, key: string, input: CreationInp
 export function startCreationJob(id: string) {
   if (workers.has(id)) return;
   const db = getSqlite();
+  const row = db.prepare("SELECT input_json FROM creation_jobs WHERE id=?").get(id) as { input_json: string } | undefined;
+  if (!row) return;
+  let storageVersion = 1;
+  try { storageVersion = JSON.parse(row.input_json).storageVersion ?? 1; } catch { /* Preserve pre-version jobs with the legacy worker. */ }
   const token = randomUUID();
   const claimed = db.prepare("UPDATE creation_jobs SET lease_token=?, lease_until=?, state=CASE WHEN cancel_requested=1 THEN 'cancelling' ELSE 'running' END WHERE id=? AND state IN ('queued','running','cancelling') AND lease_until < ?")
     .run(token, Date.now() + 30_000, id, Date.now()).changes;
   if (!claimed) return;
   try {
-    const worker = new Worker(path.join(/* turbopackIgnore: true */ process.cwd(), "src/lib/creation-worker.cjs"), {
+    const workerFile = storageVersion === 2 ? "creation-worker.cjs" : "creation-worker-legacy.cjs";
+    const worker = new Worker(path.join(/* turbopackIgnore: true */ process.cwd(), "src/lib", workerFile), {
       workerData: { filename: path.join(dataDir(), "voting.db"), directory: path.join(dataDir(), "creation-jobs"), id, token },
     });
     workers.set(id, worker);
