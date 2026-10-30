@@ -75,6 +75,10 @@ export const pool = sqliteTable("pool", {
   set3: integer("set_3").notNull(),
   set4: integer("set_4").notNull(),
   set5: integer("set_5").notNull(),
+  /** v19 name-screening sets (5-letter names only): 6 passed, 7 rejected, 8 offensive word. */
+  set6: integer("set_6").notNull().default(0),
+  set7: integer("set_7").notNull().default(0),
+  set8: integer("set_8").notNull().default(0),
   evidence: text("evidence"),
   dnsNsClass: text("dns_ns_class"),
   dnsParkingProvider: text("dns_parking_provider"),

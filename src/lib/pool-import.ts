@@ -13,6 +13,10 @@ export const POOL_COLUMNS = [
   "set_3",
   "set_4",
   "set_5",
+  // name-screening sets (v19): optional; a file without them leaves existing values alone
+  "set_6",
+  "set_7",
+  "set_8",
   "evidence",
   "dns_ns_class",
   "dns_parking_provider",
@@ -79,6 +83,12 @@ function setFlag(row: Raw, n: number) {
   return flag(key ? row[key] : undefined);
 }
 
+/** Like setFlag, but null when the file has no such column (sets 6-8 are optional; see upsertStatement). */
+function optionalSetFlag(row: Raw, n: number) {
+  const present = row[`set_${n}`] !== undefined || Object.keys(row).some((k) => k.toLowerCase().startsWith(`set_${n}_`));
+  return present ? setFlag(row, n) : null;
+}
+
 function normalizePart(value: unknown) {
   const out = text(value)?.toLowerCase() ?? null;
   return out === "main" || out === "vowel_edge" || out === "y_vowel" ? out : null;
@@ -107,6 +117,9 @@ export function normalizeRow(row: Raw, now: number) {
     set_3: setFlag(row, 3),
     set_4: setFlag(row, 4),
     set_5: setFlag(row, 5),
+    set_6: optionalSetFlag(row, 6),
+    set_7: optionalSetFlag(row, 7),
+    set_8: optionalSetFlag(row, 8),
     evidence: evidence === "sale_page" || evidence === "nameserver" ? evidence : null,
     dns_ns_class: text(row.dns_ns_class)?.toLowerCase() ?? null,
     dns_parking_provider: text(row.dns_parking_provider)?.toLowerCase() ?? null,
@@ -129,15 +142,19 @@ export function normalizeRow(row: Raw, now: number) {
 
 function upsertStatement() {
   return getSqlite().prepare(`
-    INSERT INTO pool (name, set_1, set_2, set_3, set_4, set_5, evidence, dns_ns_class, dns_parking_provider,
+    INSERT INTO pool (name, set_1, set_2, set_3, set_4, set_5, set_6, set_7, set_8, evidence, dns_ns_class, dns_parking_provider,
                       lp_marketplace, lp_price, lp_currency, lp_url, best_price, best_source, price_usd, imported_at,
                       shape, set4_part, import_tag, best_currency)
-    VALUES (@name, @set_1, @set_2, @set_3, @set_4, @set_5, @evidence, @dns_ns_class, @dns_parking_provider,
+    VALUES (@name, @set_1, @set_2, @set_3, @set_4, @set_5, coalesce(@set_6, 0), coalesce(@set_7, 0), coalesce(@set_8, 0), @evidence, @dns_ns_class, @dns_parking_provider,
             @lp_marketplace, @lp_price, @lp_currency, @lp_url, @best_price, @best_source, @price_usd, @imported_at,
             @shape, @set4_part, @import_tag, @best_currency)
     ON CONFLICT(name) DO UPDATE SET
       set_1 = excluded.set_1, set_2 = excluded.set_2, set_3 = excluded.set_3,
       set_4 = excluded.set_4, set_5 = excluded.set_5, evidence = excluded.evidence,
+      -- sets 6-8 come from the separate name screening; a file without those columns keeps them
+      set_6 = CASE WHEN @set_6 IS NULL THEN pool.set_6 ELSE excluded.set_6 END,
+      set_7 = CASE WHEN @set_7 IS NULL THEN pool.set_7 ELSE excluded.set_7 END,
+      set_8 = CASE WHEN @set_8 IS NULL THEN pool.set_8 ELSE excluded.set_8 END,
       dns_ns_class = excluded.dns_ns_class, dns_parking_provider = excluded.dns_parking_provider,
       lp_marketplace = excluded.lp_marketplace, lp_price = excluded.lp_price, lp_currency = excluded.lp_currency,
       lp_url = excluded.lp_url, best_price = excluded.best_price, best_source = excluded.best_source,

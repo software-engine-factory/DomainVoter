@@ -2,7 +2,7 @@ import { getSqlite } from "@/db";
 import { cachedAsync, cachedCountAsync } from "@/lib/data-cache";
 import { reader } from "@/lib/ro";
 import { t } from "@/lib/copy/fa";
-import { normalizeSetIds } from "@/lib/sets";
+import { normalizeSetIds, setSumsSql } from "@/lib/sets";
 
 export type PoolFilters = {
   classes: string[];
@@ -187,13 +187,16 @@ async function computePoolFacets() {
     s3: number | null;
     s4: number | null;
     s5: number | null;
+    s6: number | null;
+    s7: number | null;
+    s8: number | null;
     free: number | null;
     lastImport: number | null;
   }>(
       `SELECT COUNT(*) AS total,
               COUNT(lp_price) + SUM(CASE WHEN lp_price IS NULL AND best_price IS NOT NULL THEN 1 ELSE 0 END) AS priced,
               COUNT(price_usd) AS pricedUsd,
-              SUM(set_1) AS s1, SUM(set_2) AS s2, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5,
+              SUM(set_2) AS s2, ${setSumsSql()},
               SUM(avail = 'free') AS free,
               MAX(imported_at) AS lastImport
        FROM pool`,

@@ -5,6 +5,7 @@ import { normalizeRow } from "@/lib/pool-import";
 import { bumpData, cachedCountAsync } from "@/lib/data-cache";
 import { poolLengthCounts } from "@/lib/pool";
 import { inlineReader, reader, type Reader } from "@/lib/ro";
+import { ACTIVE_SETS, setListSql } from "@/lib/sets";
 
 /**
  * Free-to-register .com names (registrable at reg_price_usd). Since migration v14 they are pool rows
@@ -19,10 +20,10 @@ export type FreeQuery = { len: number | null; set: number | null; q: string; pag
 export const FREE_PAGE = 60;
 export const VOTER_FREE_PAGE = 120;
 
-/** Rows per transaction, and rows per multi-row INSERT statement (14 params each, well under SQLite's 32766). */
+/** Rows per transaction, and rows per multi-row INSERT statement (17 params each, well under SQLite's 32766). */
 const BATCH = 10000;
 const CHUNK = 500;
-const COLS = ["name", "set_1", "set_2", "set_3", "set_4", "set_5", "set4_part", "shape", "ord", "import_tag", "imported_at", "cf_checked_at", "reg_price_usd", "reg_registrar"] as const;
+const COLS = ["name", "set_1", "set_2", "set_3", "set_4", "set_5", "set_6", "set_7", "set_8", "set4_part", "shape", "ord", "import_tag", "imported_at", "cf_checked_at", "reg_price_usd", "reg_registrar"] as const;
 
 function num(v: unknown) {
   const s = String(v ?? "").trim();
@@ -64,17 +65,21 @@ function int(v: unknown) {
 export function importFreeCsv(file: string, tag: string | null): Promise<{ read: number; upserted: number; skipped: number; error?: string }> {
   const sqlite = getSqlite();
   const now = Date.now();
+  // Sets 6-8 come from the separate name screening: a file without those columns keeps the stored values.
+  let screened = false;
   const upsertSql = (n: number) =>
     `INSERT INTO pool (${COLS.join(", ")}, avail) VALUES ${Array(n).fill(`(${COLS.map(() => "?").join(",")},'free')`).join(",")}
     ON CONFLICT(name) DO UPDATE SET set_1 = excluded.set_1, set_2 = excluded.set_2, set_3 = excluded.set_3, set_4 = excluded.set_4, set_5 = excluded.set_5,
+      ${screened ? "set_6 = excluded.set_6, set_7 = excluded.set_7, set_8 = excluded.set_8," : ""}
       set4_part = excluded.set4_part, shape = excluded.shape, ord = excluded.ord, import_tag = coalesce(pool.import_tag, excluded.import_tag), imported_at = excluded.imported_at,
       cf_checked_at = coalesce(excluded.cf_checked_at, pool.cf_checked_at),
       reg_price_usd = coalesce(excluded.reg_price_usd, pool.reg_price_usd), reg_registrar = coalesce(excluded.reg_registrar, pool.reg_registrar)
     WHERE pool.avail = 'free'`;
-  const full = sqlite.prepare(upsertSql(CHUNK));
+  let full: ReturnType<typeof sqlite.prepare> | undefined;
   const flush = sqlite.transaction((rows: unknown[][]) => {
     let i = 0;
     let changed = 0;
+    full ??= sqlite.prepare(upsertSql(CHUNK));
     for (; i + CHUNK <= rows.length; i += CHUNK) changed += full.run(rows.slice(i, i + CHUNK).flat()).changes;
     if (i < rows.length) changed += sqlite.prepare(upsertSql(rows.length - i)).run(rows.slice(i).flat()).changes;
     stats.upserted += changed;
@@ -95,6 +100,7 @@ export function importFreeCsv(file: string, tag: string | null): Promise<{ read:
           parser.abort();
           return;
         }
+        if (stats.read === 1) screened = !!res.meta.fields?.some((f) => /^set_[678](_|$)/.test(f));
         const row = isRegistrable(res.data) ? normalizeRow(res.data, now) : null;
         if (!row) {
           stats.skipped += 1;
@@ -103,7 +109,7 @@ export function importFreeCsv(file: string, tag: string | null): Promise<{ read:
         const d = res.data;
         const price = num(d.reg_price_usd);
         buf.push([
-          row.name, row.set_1, row.set_2, row.set_3, row.set_4, row.set_5, row.set4_part ?? null, row.shape ?? null, int(d.ord),
+          row.name, row.set_1, row.set_2, row.set_3, row.set_4, row.set_5, row.set_6 ?? 0, row.set_7 ?? 0, row.set_8 ?? 0, row.set4_part ?? null, row.shape ?? null, int(d.ord),
           tag ?? row.import_tag ?? null, now, when(d.cf_checked_at),
           price != null && price >= 0 && price < 1e5 ? Math.round(price * 100) / 100 : null,
           String(d.reg_registrar ?? "").trim().toLowerCase().slice(0, 40) || null,
@@ -131,7 +137,7 @@ export function parseFreeQuery(p: Record<string, string | string[] | undefined>)
   const set = int(one("set"));
   return {
     len: len && len > 0 && len < 64 ? len : null,
-    set: set && [1, 2, 3, 4, 5].includes(set) ? set : null,
+    set: set && [2, ...ACTIVE_SETS].includes(set) ? set : null,
     q: one("q").trim().toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 63),
     page: Math.max(1, int(one("page")) ?? 1),
   };
@@ -183,7 +189,7 @@ export async function browseFree(q: FreeQuery) {
   const rows = await pageRows<FreeRow>(
     q.set != null || q.q ? reader() : inlineReader(),
     `f.name, f.name_len AS len, f.set4_part, f.shape, f.ord, f.cf_checked_at, f.reg_price_usd, f.reg_registrar,
-       rtrim((CASE WHEN f.set_1 = 1 THEN '1,' ELSE '' END) || (CASE WHEN f.set_3 = 1 THEN '3,' ELSE '' END) || (CASE WHEN f.set_4 = 1 THEN '4,' ELSE '' END) || (CASE WHEN f.set_5 = 1 THEN '5,' ELSE '' END), ',') AS sets`,
+       ${setListSql("f")} AS sets`,
     w,
     total,
     page,

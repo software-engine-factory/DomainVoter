@@ -4,7 +4,7 @@ import { reader } from "@/lib/ro";
 import { createPoolRound, orderedNames } from "@/lib/bulk-fill";
 import { poolLengthCounts } from "@/lib/pool";
 import { normalizePattern, normalizeQuery, patternActive, PATTERN_MAX } from "@/lib/vote-view";
-import { ACTIVE_SETS, normalizeSetIds } from "@/lib/sets";
+import { ACTIVE_SETS, normalizeSetIds, SCREENING_SETS, setListSql, setSumsSql } from "@/lib/sets";
 
 /**
  * Admin pool explorer: the exploration filters over the whole pool (for sale + free to register, `av`).
@@ -333,7 +333,7 @@ export type BrowseRow = {
 
 export const BROWSE_ROW_SELECT = `p.name, coalesce(p.lp_price, p.best_price) AS price, CASE WHEN p.lp_price IS NOT NULL THEN p.lp_currency ELSE coalesce(p.lp_currency, CASE WHEN p.price_usd IS NOT NULL THEN 'USD' END) END AS currency,
   p.price_usd AS priceUsd, p.price_source AS source, p.evidence, p.dns_parking_provider AS provider, p.dns_ns_class AS nsClass, p.lp_url AS url,
-  rtrim((CASE WHEN p.set_1 = 1 THEN '1,' ELSE '' END) || (CASE WHEN p.set_3 = 1 THEN '3,' ELSE '' END) || (CASE WHEN p.set_4 = 1 THEN '4,' ELSE '' END) || (CASE WHEN p.set_5 = 1 THEN '5,' ELSE '' END), ',') AS sets,
+  ${setListSql("p")} AS sets,
   (SELECT COUNT(*) FROM (
     SELECT d.round_id AS round_id FROM domains d WHERE d.name = p.name
     UNION
@@ -492,14 +492,16 @@ export function poolOverview() {
   return cachedAsync("poolOverview", computeOverview);
 }
 
-type Split = { total: number; priced: number; usd: number; s1: number; s3: number; s4: number; s5: number };
+type Split = { total: number; priced: number; usd: number } & Record<`s${number}`, number | null>;
 
 async function computeOverview() {
   const r = reader();
   const bySet: OverviewRow[] = await Promise.all(
     ACTIVE_SETS.map(async (n) => {
-      // Sets overlap (1∩3 is large), so also count names found in no other shown set.
-      const others = ACTIVE_SETS.filter((m) => m !== n).map((m) => `set_${m} = 0`).join(" AND ");
+      // Sets overlap (1∩3 is large), so also count names found in no other shown set of the same family
+      // (the screening sets 6-8 cut across 1-5 by design).
+      const family = (m: number) => SCREENING_SETS.includes(m);
+      const others = ACTIVE_SETS.filter((m) => m !== n && family(m) === family(n)).map((m) => `set_${m} = 0`).join(" AND ");
       const [row, only] = await Promise.all([
         r.get<{ total: number; priced: number; usd: number }>(`SELECT COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd FROM pool WHERE set_${n} = 1`),
         r.get<{ n: number }>(`SELECT COUNT(*) AS n FROM pool WHERE set_${n} = 1 AND ${others}`),
@@ -510,7 +512,7 @@ async function computeOverview() {
   const [sources, totals, lengths, overlap] = await Promise.all([
     r.all<Split & { key: string | null }>(
       `SELECT price_source AS key, COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd,
-              SUM(set_1) AS s1, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5
+              ${setSumsSql()}
        FROM pool GROUP BY price_source ORDER BY price_source IS NULL, total DESC`,
     ),
     r.get<{ total: number; priced: number; usd: number; free: number; lastImport: number | null }>(
@@ -519,7 +521,7 @@ async function computeOverview() {
     // Per label length (3/4/5…): same columns as per set, plus the set split.
     r.all<Split & { len: number }>(
       `SELECT name_len AS len, COUNT(*) AS total, coalesce(SUM(has_price), 0) AS priced, COUNT(price_usd) AS usd,
-              SUM(set_1) AS s1, SUM(set_3) AS s3, SUM(set_4) AS s4, SUM(set_5) AS s5
+              ${setSumsSql()}
        FROM pool GROUP BY name_len ORDER BY name_len`,
     ),
     r.get<{ n: number }>("SELECT COUNT(*) AS n FROM pool WHERE set_1 = 1 AND set_3 = 1"),
@@ -531,7 +533,7 @@ async function computeOverview() {
       priced: x.priced,
       usd: x.usd,
       median: x.key == null ? null : await median("price_source = ?", [x.key], x.usd),
-      perSet: [x.s1, x.s3, x.s4, x.s5].map((v) => v ?? 0),
+      perSet: ACTIVE_SETS.map((n) => x[`s${n}`] ?? 0),
     })),
   );
   const byLength: OverviewRow[] = await Promise.all(
@@ -541,7 +543,7 @@ async function computeOverview() {
       priced: x.priced,
       usd: x.usd,
       median: await median("name_len = ?", [x.len], x.usd),
-      perSet: [x.s1, x.s3, x.s4, x.s5].map((v) => v ?? 0),
+      perSet: ACTIVE_SETS.map((n) => x[`s${n}`] ?? 0),
     })),
   );
   return { bySet, bySource, byLength, totals: totals!, overlap13: overlap!.n };

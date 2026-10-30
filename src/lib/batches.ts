@@ -3,6 +3,7 @@ import { getSqlite } from "@/db";
 import { poolWhere, type PoolFilters } from "@/lib/pool";
 import { orderedNames, writeChunks } from "@/lib/bulk-fill";
 import { reader } from "@/lib/ro";
+import { ACTIVE_SETS } from "@/lib/sets";
 
 export const BATCH_ORDERS = ["random", "name", "price_asc", "price_desc", "provider", "set"] as const;
 export type BatchOrder = (typeof BATCH_ORDERS)[number];
@@ -37,7 +38,7 @@ export function orderSql(order: BatchOrder) {
     case "provider":
       return "p.dns_ns_class IS NULL, p.dns_ns_class, p.dns_parking_provider IS NULL, p.dns_parking_provider, p.name";
     case "set":
-      return "p.set_1 DESC, p.set_3 DESC, p.set_4 DESC, p.set_5 DESC, p.name";
+      return `${ACTIVE_SETS.map((n) => `p.set_${n} DESC`).join(", ")}, p.name`;
     default:
       return "dv_seeded_rank(?, p.name), p.name";
   }
@@ -88,7 +89,7 @@ export async function createBatch(input: BatchInput) {
   const order = orderSql(input.order);
   const orderParams = input.order === "random" ? [input.seed] : [];
   const capped = input.cap != null && input.cap > 0;
-  const inner = `SELECT p.name, p.price_usd, p.dns_ns_class, p.dns_parking_provider, p.set_1, p.set_2, p.set_3, p.set_4, p.set_5
+  const inner = `SELECT p.name, p.price_usd, p.dns_ns_class, p.dns_parking_provider, p.set_1, p.set_2, p.set_3, p.set_4, p.set_5, p.set_6, p.set_7, p.set_8
                  FROM pool p ${where.sql} ${capped ? `ORDER BY ${order} LIMIT ?` : ""}`;
   const names = await orderedNames(`SELECT p.name AS name, ROW_NUMBER() OVER (ORDER BY ${order}) AS rn FROM (${inner}) p`, [
     ...orderParams,

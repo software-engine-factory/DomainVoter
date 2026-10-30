@@ -1,5 +1,5 @@
 import { getSqlite } from "@/db";
-import { normalizeSetIds } from "@/lib/sets";
+import { normalizeSetIds, setSumsSql } from "@/lib/sets";
 
 /** Day buckets follow the team's clock (Tbilisi, UTC+4) unless STATS_TZ_OFFSET_MINUTES says otherwise. */
 export const TZ_OFFSET_MS = Number(process.env.STATS_TZ_OFFSET_MINUTES ?? 240) * 60_000;
@@ -89,7 +89,7 @@ export function userSetCoverage(userId: number) {
   return getSqlite()
     .prepare(
       `SELECT COUNT(*) AS viewed,
-              SUM(p.set_1) AS s1, SUM(p.set_3) AS s3, SUM(p.set_4) AS s4, SUM(p.set_5) AS s5,
+              ${setSumsSql("p")},
               SUM(CASE WHEN p.evidence = 'sale_page' THEN 1 ELSE 0 END) AS salePage,
               SUM(CASE WHEN p.evidence = 'nameserver' THEN 1 ELSE 0 END) AS nameserver
        FROM views w JOIN domains d ON d.id = w.domain_id LEFT JOIN pool p ON p.name = d.pool_name

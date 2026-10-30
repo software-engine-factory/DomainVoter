@@ -479,6 +479,22 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       CREATE INDEX pool_len_price_desc_name_idx ON pool(name_len, price_usd IS NULL, price_usd DESC, name);
     `,
   },
+  {
+    version: 19,
+    name: "Name-screening sets: 6 passed, 7 rejected, 8 offensive word (5-letter names only, mutually exclusive)",
+    sql: `
+      ALTER TABLE pool ADD COLUMN set_6 INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE pool ADD COLUMN set_7 INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE pool ADD COLUMN set_8 INTEGER NOT NULL DEFAULT 0;
+      CREATE INDEX IF NOT EXISTS pool_len_set6_idx ON pool(name_len, avail) WHERE set_6 = 1;
+      CREATE INDEX IF NOT EXISTS pool_len_set7_idx ON pool(name_len, avail) WHERE set_7 = 1;
+      CREATE INDEX IF NOT EXISTS pool_len_set8_idx ON pool(name_len, avail) WHERE set_8 = 1;
+      -- free_names is drained into pool by lib/free-move with an explicit column list; keep the two in step.
+      ALTER TABLE free_names ADD COLUMN set_6 INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE free_names ADD COLUMN set_7 INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE free_names ADD COLUMN set_8 INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */

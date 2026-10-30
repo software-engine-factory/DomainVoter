@@ -12,7 +12,7 @@ export const FREE_MOVE_CHUNK = 250;
 const CHUNK = FREE_MOVE_CHUNK;
 const PAUSE_MS = 25;
 
-const COLS = "name, set_1, set_2, set_3, set_4, set_5, set4_part, shape, ord, import_tag, imported_at, cf_checked_at, reg_price_usd, reg_registrar";
+const COLS = "name, set_1, set_2, set_3, set_4, set_5, set_6, set_7, set_8, set4_part, shape, ord, import_tag, imported_at, cf_checked_at, reg_price_usd, reg_registrar";
 
 type Move = { running: boolean; moved: number; chunks: number; maxMs: number; lastMs: number; startedAt: number; doneAt: number | null };
 const g = globalThis as unknown as { dvFreeMove?: Move };
