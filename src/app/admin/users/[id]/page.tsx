@@ -49,7 +49,6 @@ export default async function UserPage({
       <Link href="/admin/users" className="text-sm text-muted">{t.user.back}</Link>
       <div className="mt-1 flex flex-wrap items-baseline gap-3">
         <h1 className="font-display text-3xl sm:text-4xl">{user.username}</h1>
-        {user.login !== user.username ? <span dir="ltr" className="text-sm text-muted">{user.login}</span> : null}
         <span className="text-xs text-muted">{t.user.memberSince(formatWhen(user.createdAt), formatWhen(stat?.lastSeen ?? null))}</span>
       </div>
 

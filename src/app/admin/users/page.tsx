@@ -19,7 +19,7 @@ export default async function UsersPage() {
           <li key={u.id}>
             <Link href={`/admin/users/${u.id}`} className="block rounded-xl border border-line bg-card p-3 hover:border-ink">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="font-semibold">{u.username}{u.login !== u.username ? <span dir="ltr" className="ms-1 text-xs font-normal text-muted">{u.login}</span> : null}</span>
+                <span className="font-semibold">{u.username}</span>
                 <span className="text-xs text-muted">{u.lastSeen ? t.users.last(formatWhen(u.lastSeen)) : t.users.neverSeen}</span>
               </div>
               <dl className="mt-2 grid grid-cols-4 gap-1 text-center text-xs">
