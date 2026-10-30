@@ -2,6 +2,8 @@
 
 Status: planning only, 2026-10-30. No production tests, deployment, remote branch deletion or push is authorized by this document. The local branch archive and merge into `dev` are the only Git changes being carried out now.
 
+The prepared cutover for the performance release, with rehearsal numbers, is in [the cutover runbook](cutover-runbook.md).
+
 ## Release flow
 
 ```text
