@@ -2,7 +2,7 @@
 
 Status: prepared 2026-10-30, not executed. Production has not been changed. Each step marked **go** needs K's explicit go.
 
-Release: the `dev` head. All commands below assume `SHA=$(git rev-parse dev)` in the local shell. The image was built at `3d78163` and retagged to that head; later commits touch only `docs/` and `ops/release/cutover.sh`. Neither reaches the runtime stage of the image (checked: no ops or docs files in the built image; `git diff --name-only 3d78163 dev` lists the changes). It fast-forwards `main` from `8b37129`, the commit production runs now. Migrations 15 to 18 apply to production schema v14.
+Release: the `dev` head. All commands below assume `SHA=$(git rev-parse dev)` in the local shell. The image was built at `d73b339` (performance release plus the name-screening collections, pool sets 6 to 8, and the voter progress bars) and is retagged to that head; later commits touch only `docs/` and `ops/release/`, which do not reach the runtime stage of the image (`git diff --name-only d73b339 dev` lists them). It fast-forwards `main` from `8b37129`, the commit production runs now. Migrations 15 to 19 apply to production schema v14.
 
 ## How downtime stays short
 
@@ -20,7 +20,7 @@ Release: the `dev` head. All commands below assume `SHA=$(git rev-parse dev)` in
 | Running | `isawmwwcmnfj28hyo3irrvt0:8b3712971cd8…`, image `sha256:5a0310c1…`, healthy |
 | Coolify health check | off. No CPU or memory limits set |
 | Volume | `isawmwwcmnfj28hyo3irrvt0-dvote-data` at `/app/data`: `voting.db` 1.15 GB, `voting.db-wal` 4.2 GB, `session.secret`, `forsale/` |
-| Schema | v14, `schema_migrations` 1 to 14, so no collision with 15 to 18. `free_names` is empty, so the legacy mover has nothing to do |
+| Schema | v14, `schema_migrations` 1 to 14, so no collision with 15 to 19. `free_names` is empty, so the legacy mover has nothing to do |
 | Host | 6 CPU, 11 GiB RAM, 80 GB free on `/` |
 | Other writers | No cron or timer writes DomainVoter. Ops imports run by hand from `~/dvote-import` |
 
@@ -30,7 +30,8 @@ Source: `D:/K Studio/backups/dvote/2026-10-29_1827-prod-live/voting.db`, sha256 
 
 | Check | Result |
 | --- | --- |
-| `migrate.cjs check` before | v14, pending 15 to 18, exit 3 |
+| `migrate.cjs check` before | v14, pending 15 to 19, exit 3 |
+| Release `d73b339`, `--cpus=2 --memory=2g` (2026-10-30) | `migrate.cjs apply --quick-check` 30.0 s (migrations 25.5 s, `quick_check` 2.9 s `ok`, data preserved); `screen-apply.cjs` 24.8 s, 2,338,250 names: 566,120 prefiltered, 1,770,404 rejected, 1,726 banned, 0 not in pool; replay 10.6 s, changes nothing; healthy in 1.8 s, `/`, `/login`, `/vote`, `/admin/explore`, `/admin/rounds/new` 200; old image `8b37129` on the v19 database healthy in 1.6 s, same pages 200. Signed in: admin round form shows the three collections with counts, voter list shows own progress, a vote with the server stopped shows the Persian "server unreachable" message. At `--cpus=4` the two steps take the same time (SQLite uses one core). 53 tests pass |
 | `migrate.cjs apply --quick-check` | exit 0, 31 s wall: migrations 25.4 s, preserved-data hashing 0.5 s each side, `quick_check` 4.0 s `ok` |
 | Preserved data | users 16, rounds 10, domains 120,584, votes 691, views 72,545, batch items 120,584, pool 2,468,782; all hashes unchanged |
 | Replay | applies nothing, 3 s |
@@ -39,18 +40,20 @@ Source: `D:/K Studio/backups/dvote/2026-10-29_1827-prod-live/voting.db`, sha256 
 | New image on the migrated DB | healthy in 1.9 s; same pages 200; no errors logged |
 | Test suite (Linux builder stage of the image) | 48 pass, 0 fail |
 
-Uncapped on Windows the same migration took 34.8 s. Expected downtime on Contabo A: about 10 s to stop, 10 to 30 s for the final backup, 30 to 40 s to migrate and check, and about 15 s for Coolify to start the container. **Roughly 1 to 2 minutes**, plus whatever WAL recovery adds (see below). Unauthenticated pages only; signed-in voting was not exercised against the old image.
+Expected downtime on Contabo A for `d73b339`, from the measured steps: about 10 s to stop, 10 to 30 s for the final backup, 30 to 45 s to migrate and check, 25 to 40 s for the screening sets, about 15 s for Coolify to start the container. **About 1.5 to 2.5 minutes**, plus whatever folding the 4.2 GB WAL adds (unmeasured, see below). The upper ends allow for Contabo's cores being slower than the rehearsal PC. Running the screening after reopening (`cutover.sh screen`) instead would take 25 to 40 s off the window.
 
 ## Staging (no production effect, can be done any time before go)
 
 ```sh
 # 0. Rebuild the ignored bundle if missing, and tag the rehearsed image with the release head
 npx -y esbuild@0.28.1 scripts/ops/migrate.ts --bundle --platform=node --format=cjs --alias:@=./src   --external:better-sqlite3 --external:bcryptjs --outfile=ops/release/migrate.cjs
-docker tag isawmwwcmnfj28hyo3irrvt0:3d78163607224c790e9c52c4334017833190aa6e isawmwwcmnfj28hyo3irrvt0:$SHA
+npx -y esbuild@0.28.1 scripts/ops/screen-apply.ts --bundle --platform=node --format=cjs --external:better-sqlite3 --outfile=ops/release/screen-apply.cjs
+bun scripts/screen/export-categories.ts   # ops/release/screen-categories.tsv.gz, needs research/name-screening/out/open (see its README)
+docker tag isawmwwcmnfj28hyo3irrvt0:d73b3391b9e2b14f2feebd3c388f76eb81202c20 isawmwwcmnfj28hyo3irrvt0:$SHA
 # 1. Ship the rehearsed image and the scripts to Contabo A (load only, nothing restarts)
 docker save isawmwwcmnfj28hyo3irrvt0:$SHA | gzip | ssh contabo 'gunzip | sudo -n docker load'
 ssh contabo 'mkdir -p ~/dvote-release'
-scp ops/release/migrate.cjs contabo:dvote-release/
+scp ops/release/migrate.cjs ops/release/screen-apply.cjs ops/release/screen-categories.tsv.gz contabo:dvote-release/
 git show $SHA:ops/release/cutover.sh | ssh contabo 'cat > ~/dvote-release/cutover.sh && chmod +x ~/dvote-release/cutover.sh'
 # 2. Read-only preflight
 ssh contabo "~/dvote-release/cutover.sh preflight $SHA"
@@ -65,12 +68,14 @@ ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy off'   # go: Cool
 git push factory $SHA:main                                    # go: shared branch, fast-forward, deploys nothing
 ssh contabo "CONFIRM=yes ~/dvote-release/cutover.sh go $SHA"  # go: online backup, then the downtime window
 ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy on'   # restore the previous setting
-# copy the final backup off the host (the script prints its folder, ~/dvote-backups/<ts>-pre-perf-release)
-B=<folder from the log>; L="D:/K Studio/backups/dvote/$(basename $B)"; mkdir -p "$L"
-scp "contabo:$B/voting.db" "contabo:$B/voting.db.sha256" "contabo:$B/meta.json" "$L/" && (cd "$L" && sha256sum -c voting.db.sha256)
+ops/release/fetch-backup.sh   # on the PC: copies the newest ~/dvote-backups/*-pre-perf-release to D:/K Studio/backups/dvote/ and checks sha256
 ```
 
-`go` does, in order: preflight, Coolify stop, a final backup of the stopped database, `migrate.cjs apply --quick-check` in a throwaway container of the new image, Coolify deploy, a wait for `/health` 200, then `migrate.cjs check` on the live volume. Logs go to `~/dvote-release/logs/`.
+`go` does, in order: preflight, Coolify stop, a final backup of the stopped database, `migrate.cjs apply --quick-check` in a throwaway container of the new image, `screen-apply.cjs` (fills the new collections, pool sets 6 to 8), Coolify deploy, a wait for `/health` 200, then `migrate.cjs check` on the live volume. Logs go to `~/dvote-release/logs/`.
+
+The throwaway migration and screening containers run with `--cpus=4`, 70% of the host's 6 cores (`CPUS=` overrides). They exit when done, so no limit stays on the host; the app container keeps its current settings (no limits). If the screening step fails, the release continues with empty collections and `CONFIRM=yes cutover.sh screen $SHA` reapplies them later; it only writes pool.set_6..set_8 and is safe to repeat while the app is up.
+
+The migration's `wal_checkpoint(TRUNCATE)` folds the 4.2 GB `voting.db-wal` into the database and shrinks the file to zero. It holds committed writes, not a history, so nothing is lost; the backup taken just before already contains them.
 
 The backup is taken after the stop, so it holds every committed vote, including writes still in the WAL (tested with a database left by a killed process). It runs `sqlite3 .backup` as the volume owner, then `quick_check`, sha256 and row counts, into `~/dvote-backups/<ts>-pre-perf-release/` in the layout `import-forsale.sh restore` expects. Locally this took 11 s for the 1.15 GB database. If it fails, the script starts the old app again before anything is migrated.
 

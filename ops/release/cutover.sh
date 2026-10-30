@@ -2,7 +2,8 @@
 # Performance release cutover on Contabo A (Coolify app isawmwwcmnfj28hyo3irrvt0). Runbook: docs/deployment/cutover-runbook.md
 #   cutover.sh preflight SHA                 read-only: running app, prebuilt image, Coolify settings, disk, other writers
 #   CONFIRM=yes cutover.sh autodeploy on|off  Coolify "auto deploy on push" (off before pushing main, on again after)
-#   CONFIRM=yes cutover.sh go SHA            stop -> final backup -> migrate (new image) -> deploy prebuilt image -> verify
+#   CONFIRM=yes cutover.sh go SHA            stop -> final backup -> migrate (new image) -> screening sets -> deploy prebuilt image -> verify
+#   CONFIRM=yes cutover.sh screen SHA        (re)apply the name-screening sets 6-8 only; safe to repeat, app may be up
 #   CONFIRM=yes cutover.sh reopen-old        migration failed: start the previous deployment again (DB is compatible)
 # Never runs two app versions on the volume at once. Downtime = stop .. new container healthy.
 set -euo pipefail
@@ -20,8 +21,12 @@ container() { sudo -n docker ps --filter "name=$APP" --format '{{.Names}}' | hea
 health() { curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$URL/health" || true; }
 autodeploy_state() { api "$API/applications/$APP" | python3 -c 'import json,sys; print(json.load(sys.stdin)["settings"]["is_auto_deploy_enabled"])'; }
 # Same throwaway-container pattern as ops/import-forsale: the NEW image's node + better-sqlite3, app uid, no network.
-migrate() { sudo -n docker run --rm --network none -u "$(sudo -n stat -c %u:%g "$VOL/voting.db")" -e NODE_PATH=/app/node_modules -v "$VOL:/app/data" \
+# Release tools may use up to 70% of the host's cores (4 of 6); the containers exit after, so nothing stays capped.
+CPUS=${CPUS:-4}
+migrate() { sudo -n docker run --rm --network none --cpus="$CPUS" -u "$(sudo -n stat -c %u:%g "$VOL/voting.db")" -e NODE_PATH=/app/node_modules -v "$VOL:/app/data" \
   -v "$HERE/migrate.cjs:/tool/migrate.cjs:ro" --entrypoint node "$APP:$SHA" /tool/migrate.cjs "$@" --db /app/data/voting.db; }
+# Name-screening collections (pool.set_6..8, migration 19). Data only; failure does not block the release.
+screen_apply() { sudo -n docker run --rm --network none --cpus="$CPUS" -u "$(sudo -n stat -c %u:%g "$VOL/voting.db")" -e NODE_PATH=/app/node_modules -v "$VOL:/app/data" \n  -v "$HERE/screen-apply.cjs:/tool/screen-apply.cjs:ro" -v "$HERE/screen-categories.tsv.gz:/tool/screen-categories.tsv.gz:ro" \n  --entrypoint node "$APP:$SHA" /tool/screen-apply.cjs --db /app/data/voting.db --file /tool/screen-categories.tsv.gz "$@"; }
 
 # App stopped, so nothing writes: this backup holds every committed vote. Opened read-write as the file owner so SQLite
 # can recover the WAL index after the stop; it only folds committed WAL frames into voting.db, as the migration would.
@@ -41,6 +46,7 @@ preflight() {
   [ -n "$c" ] && [ "$img" = "$APP:$SHA" ] && { say "FAIL release image is already running"; ok=0; }
   sudo -n docker image inspect "$APP:$SHA" >/dev/null 2>&1 && say "release image $APP:$SHA present" || { say "FAIL release image $APP:$SHA not loaded"; ok=0; }
   [ -f "$HERE/migrate.cjs" ] && say "migrate.cjs $(sha256sum "$HERE/migrate.cjs" | cut -c1-16)" || { say "FAIL $HERE/migrate.cjs missing"; ok=0; }
+  for f in screen-apply.cjs screen-categories.tsv.gz; do [ -f "$HERE/$f" ] && say "$f $(sha256sum "$HERE/$f" | cut -c1-16)" || { say "FAIL $HERE/$f missing"; ok=0; }; done
   say "coolify auto-deploy $(autodeploy_state)"
   say "volume $(sudo -n du -sh "$VOL" | cut -f1), free on / $(df -h / | awk 'NR==2{print $4}')"
   local w; w=$(pgrep -af 'import-forsale|migrate.cjs' | grep -v pgrep || true)
@@ -65,7 +71,9 @@ case "${1:-}" in
     if ! migrate apply --quick-check | tee "$LOG/migrate-$TS.json"; then
       say "FAIL migration (see $LOG/migrate-$TS.json). App is DOWN. Decide: CONFIRM=yes $0 reopen-old, or restore the backup"; exit 1
     fi
-    say "migrated after $(( $(date +%s) - T0 ))s; deploying prebuilt $APP:$SHA"
+    say "migrated after $(( $(date +%s) - T0 ))s; applying screening sets"
+    screen_apply > "$LOG/screen-$TS.json" && say "screening sets $(cat "$LOG/screen-$TS.json")" || say "WARN screening sets failed (see $LOG/screen-$TS.json); release continues, rerun: CONFIRM=yes $0 screen $SHA"
+    say "screening done after $(( $(date +%s) - T0 ))s; deploying prebuilt $APP:$SHA"
     D=$(api "$API/deploy?uuid=$APP&force=false" | python3 -c 'import json,sys; print(json.load(sys.stdin)["deployments"][0]["deployment_uuid"])')
     say "deployment $D"
     for i in $(seq 1 180); do
@@ -78,8 +86,9 @@ case "${1:-}" in
     say "DOWNTIME END after $(( $(date +%s) - T0 ))s: health $h, running $(sudo -n docker inspect -f '{{.Config.Image}}' "$(container)")"
     migrate check > "$LOG/check-$TS.json" && say "schema check ok" || say "FAIL schema check, see $LOG/check-$TS.json"
     say "next: CONFIRM=yes $0 autodeploy on, then copy $HOME/dvote-backups/$TS-pre-perf-release off the host";;
+  screen) need_confirm; SHA=${2:?SHA}; screen_apply | tee "$LOG/screen-$TS.json";;
   reopen-old) need_confirm
     api "$API/applications/$APP/start" -o /dev/null -w "start %{http_code}\n"
     for i in $(seq 1 120); do h=$(health); [ "$h" = 200 ] && break; sleep 2; done; say "reopened previous deployment, health $h";;
-  *) sed -n '2,8p' "$0"; exit 1;;
+  *) sed -n '2,9p' "$0"; exit 1;;
 esac
