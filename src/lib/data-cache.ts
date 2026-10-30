@@ -11,7 +11,7 @@ import { getSqlite } from "@/db";
  * (rollback by tag, free upload).
  */
 type State = { bump: number; stamp: string; at: number; gen: number; values: Map<string, unknown>; counts: Map<string, number>; inflight: Map<string, Promise<unknown>> };
-const g = globalThis as unknown as { dvDataCache?: State };
+const g = globalThis as unknown as { dvDataCache?: State; dvDataCacheListeners?: Set<() => void> };
 const state = (g.dvDataCache ??= { bump: 0, stamp: "", at: 0, gen: 0, values: new Map(), counts: new Map(), inflight: new Map() });
 state.gen ??= 0;
 state.inflight ??= new Map();
@@ -31,8 +31,10 @@ export function dataStamp() {
 function sync() {
   const stamp = dataStamp();
   if (stamp !== state.stamp) {
+    const changed = state.stamp !== "";
     state.stamp = stamp;
     clear();
+    if (changed) notify();
   }
 }
 
@@ -40,6 +42,24 @@ function sync() {
 export function bumpData() {
   state.bump += 1;
   clear();
+  notify();
+}
+
+const listeners = (g.dvDataCacheListeners ??= new Set());
+
+/** Runs `fn` after the cached data is dropped because the pool changed (lib/warm refills it). */
+export function onDataCleared(fn: () => void) {
+  listeners.add(fn);
+}
+
+function notify() {
+  for (const fn of listeners) {
+    try {
+      fn();
+    } catch (err) {
+      console.error("[data-cache] listener failed", err);
+    }
+  }
 }
 
 function clear() {

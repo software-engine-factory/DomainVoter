@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { countMatchesAction, deriveRoundAction } from "@/lib/actions/rounds";
 import { Alert, Field, buttonClass, fieldClass } from "@/components/ui";
+import { SubmitButton } from "@/components/pending";
 import { t } from "@/lib/copy/fa";
 
 export function DeriveForm({ roundId, defaultTitle, serverError }: { roundId: number; defaultTitle: string; serverError?: string }) {
@@ -77,9 +78,9 @@ export function DeriveForm({ roundId, defaultTitle, serverError }: { roundId: nu
         {count == null ? t.derive.counting : t.derive.matches(count)}
       </p>
       <div>
-        <button className={buttonClass()} disabled={blocked}>
+        <SubmitButton pendingLabel={t.pending.creating} className={buttonClass()} disabled={blocked}>
           {t.derive.submit}
-        </button>
+        </SubmitButton>
       </div>
     </form>
   );

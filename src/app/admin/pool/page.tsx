@@ -9,6 +9,7 @@ import { formatPrice, formatWhen, one, withParams } from "@/lib/format";
 import { defaultImportPath } from "@/lib/paths";
 import { recentImports, SET_LABELS } from "@/lib/pool";
 import { NONE, poolOverview, setSamples } from "@/lib/pool-browse";
+import { SubmitButton } from "@/components/pending";
 import { t } from "@/lib/copy/fa";
 
 export const metadata: Metadata = { title: t.nav.pool };
@@ -178,12 +179,12 @@ export default async function PoolPage({
           <form action={syncPoolAction} className="grid content-start gap-2">
             <h3 className="flex items-center gap-2 font-semibold">{t.pool.syncTitle}<InfoTip>{t.overview.syncTip}</InfoTip></h3>
             <input name="path" dir="ltr" defaultValue={defaultImportPath()} className={`${fieldClass} font-mono`} />
-            <button className={`${buttonClass("primary", "sm")} justify-self-start`}>{t.pool.syncButton}</button>
+            <SubmitButton pendingLabel={t.pending.importing} className={`${buttonClass("primary", "sm")} justify-self-start`}>{t.pool.syncButton}</SubmitButton>
           </form>
           <form action={uploadPoolAction} className="grid content-start gap-2">
             <h3 className="flex items-center gap-2 font-semibold">{t.pool.uploadTitle}<InfoTip>{t.overview.uploadTip}</InfoTip></h3>
             <input type="file" name="file" accept=".csv,.db,.sqlite,.sqlite3" className="block w-full text-sm" />
-            <button className={`${buttonClass("secondary", "sm")} justify-self-start`}>{t.pool.uploadButton}</button>
+            <SubmitButton pendingLabel={t.pending.importing} className={`${buttonClass("secondary", "sm")} justify-self-start`}>{t.pool.uploadButton}</SubmitButton>
           </form>
         </div>
         {imports.length ? (

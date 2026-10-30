@@ -5,6 +5,7 @@ import { guessColumn, mapRows, readCsv } from "@/lib/csv";
 import { formatPrice } from "@/lib/format";
 import { Alert, Badge, Field, buttonClass, fieldClass } from "@/components/ui";
 import { createRoundAction } from "@/lib/actions/rounds";
+import { SubmitButton } from "@/components/pending";
 import { t } from "@/lib/copy/fa";
 
 export function UploadForm({ error }: { error?: string }) {
@@ -219,9 +220,9 @@ export function UploadForm({ error }: { error?: string }) {
       ) : null}
 
       <div>
-        <button className={buttonClass()} disabled={Boolean(readError || mapped?.error)}>
+        <SubmitButton pendingLabel={t.pending.creating} className={buttonClass()} disabled={Boolean(readError || mapped?.error)}>
           {t.newRound.openVoting}
-        </button>
+        </SubmitButton>
       </div>
     </form>
   );

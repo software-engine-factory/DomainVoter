@@ -42,6 +42,13 @@ export const t = {
     haveAccount: "قبلاً ثبت‌نام کرده‌اید؟",
     signIn: "وارد شوید",
   },
+  pending: {
+    loading: "در حال بارگذاری…",
+    working: "در حال انجام…",
+    updating: "در حال به‌روزرسانی…",
+    importing: "در حال وارد کردن… ممکن است چند دقیقه طول بکشد",
+    creating: "در حال ساخت…",
+  },
   common: {
     open: "باز",
     closed: "بسته",

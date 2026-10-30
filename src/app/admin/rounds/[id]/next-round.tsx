@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { countNextAction, nextRoundAction } from "@/lib/actions/rounds";
 import { buttonClass } from "@/components/ui";
+import { SubmitButton } from "@/components/pending";
 import { t } from "@/lib/copy/fa";
 
 /** One-click "next round from votes": threshold (≥ N votes, or top N), optional carry-over of assignees. */
@@ -67,9 +68,9 @@ export function NextRound({ roundId, title, hasAssignees }: { roundId: number; t
         ) : (
           <span />
         )}
-        <button className={buttonClass()} disabled={!count}>
+        <SubmitButton pendingLabel={t.pending.creating} className={buttonClass()} disabled={!count}>
           {count === 0 ? c.none : c.create(count ?? 0)}
-        </button>
+        </SubmitButton>
       </div>
     </form>
   );

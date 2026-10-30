@@ -5,6 +5,7 @@ import { Alert, Badge, buttonClass } from "@/components/ui";
 import { applySupplementAction, removeSupplementAction } from "@/lib/actions/supplements";
 import { importTags, planSupplement } from "@/lib/supplements";
 import { one, withParams } from "@/lib/format";
+import { SubmitButton } from "@/components/pending";
 import { t } from "@/lib/copy/fa";
 
 export const metadata: Metadata = { title: t.supp.title };
@@ -80,13 +81,13 @@ export default async function SupplementPage({ searchParams }: { searchParams: P
               {appended ? (
                 <form action={removeSupplementAction}>
                   <input type="hidden" name="tag" value={tag} />
-                  <button className={buttonClass("ghost", "sm")}>{t.supp.undo}</button>
+                  <SubmitButton className={buttonClass("ghost", "sm")}>{t.supp.undo}</SubmitButton>
                 </form>
               ) : null}
               <form action={applySupplementAction}>
                 <input type="hidden" name="tag" value={tag} />
                 <input type="hidden" name="match" value={match} />
-                <button className={buttonClass("primary", "sm")} disabled={!adding}>{t.supp.apply}</button>
+                <SubmitButton className={buttonClass("primary", "sm")} disabled={!adding}>{t.supp.apply}</SubmitButton>
               </form>
             </div>
           </div>

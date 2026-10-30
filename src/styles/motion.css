@@ -41,6 +41,19 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Pending navigation / submit: a thin accent bar, fixed size so nothing shifts, shown only if the wait is noticeable. */
+@keyframes busy-in { to { opacity: 1; } }
+@keyframes busy-slide {
+  from { inset-inline-start: -45%; }
+  to { inset-inline-start: 100%; }
+}
+.busy-bar { position: absolute; inset-inline: 0; height: 2px; overflow: hidden; border-radius: 9999px; opacity: 0; pointer-events: none; }
+.busy-bar::after { content: ""; position: absolute; inset-block: 0; width: 45%; border-radius: inherit; background: var(--accent); }
+.busy-link { inset-inline: 0.5rem; bottom: 1px; }
+.busy-form { top: 0; inset-inline: 0.75rem; }
+.busy-bar.is-busy { animation: busy-in 160ms ease 120ms forwards; }
+.busy-bar.is-busy::after { animation: busy-slide 1.1s var(--ease-out) infinite; }
+
 .page-enter { animation: page-in var(--dur-slow) var(--ease-out) both; }
 .pop-in { animation: pop-in var(--dur) var(--ease-out) both; transform-origin: top; }
 .stagger-in { animation: tile-in var(--dur-slow) var(--ease-out) both; }

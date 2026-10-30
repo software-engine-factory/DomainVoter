@@ -159,7 +159,7 @@ export function workerReader(count = 2): Reader {
       });
       slot.worker.postMessage({ id, op, sql, params: [...params], size: extra.size });
     });
-  return {
+  const threaded: Reader = {
     async all<T>(sql: string, params: Params = []) {
       if (!pick()) return fallback.all<T>(sql, params);
       return (await send("all", sql, params)) as T[];
@@ -205,9 +205,20 @@ export function workerReader(count = 2): Reader {
       }
     },
   };
+  (threaded as ThreadedMark)[THREADED] = true;
+  return threaded;
 }
 
+// A plain property rather than a module-level set: instrumentation and routes can load separate copies of this module.
+const THREADED = Symbol.for("dv.reader.threaded");
+type ThreadedMark = Reader & { [THREADED]?: boolean };
+
 const g = globalThis as unknown as { dvReader?: Reader };
+
+/** True when `reader()` runs in worker threads, so long reads do not block the main thread. */
+export function readerThreaded() {
+  return (reader() as ThreadedMark)[THREADED] === true;
+}
 
 /** Workers in production (DV_RO_WORKERS=0 turns them off), inline elsewhere unless DV_RO_WORKERS>0. */
 export function reader(): Reader {

@@ -8,6 +8,7 @@ import { browseFree, freeLengthCounts, parseFreeQuery } from "@/lib/free-names";
 import { one, withParams } from "@/lib/format";
 import { SET_LABELS } from "@/lib/pool";
 import { ACTIVE_SETS } from "@/lib/sets";
+import { SubmitButton } from "@/components/pending";
 import { t } from "@/lib/copy/fa";
 import { FreePrice, RegisterMenu } from "@/components/register-menu";
 
@@ -41,7 +42,7 @@ export default async function FreeNamesPage({ searchParams }: { searchParams: Pr
         <form action={uploadFreeAction} className="flex flex-wrap items-center gap-2">
           <input type="file" name="file" accept=".csv" required className="max-w-48 text-xs" />
           <input name="tag" placeholder={t.free.tag} dir="ltr" className={`${fieldClass} h-9 w-36 text-sm`} />
-          <button className={buttonClass("secondary", "sm")}>{t.free.upload}</button>
+          <SubmitButton pendingLabel={t.pending.importing} className={buttonClass("secondary", "sm")}>{t.free.upload}</SubmitButton>
         </form>
       </div>
 

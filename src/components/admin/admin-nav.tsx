@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LinkPending } from "@/components/pending";
 import { t } from "@/lib/copy/fa";
 
 type NavItem = { href: string; label: string; tour: string; exact?: boolean };
@@ -29,7 +30,7 @@ const GROUPS: NavItem[][] = [
 ];
 
 const chip =
-  "press shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-[13px] leading-6 transition-colors duration-200 sm:px-2.5 sm:text-sm xl:px-3";
+  "press relative shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-[13px] leading-6 transition-colors duration-200 sm:px-2.5 sm:text-sm xl:px-3";
 
 /** Admin-only sub navigation. Lives under the main header so the shared header stays untouched. */
 export function AdminNav() {
@@ -51,6 +52,7 @@ export function AdminNav() {
                   className={`${chip} ${active ? "bg-ink text-paper" : "text-muted hover:bg-card hover:text-ink"}`}
                 >
                   {link.label}
+                  <LinkPending />
                 </Link>
               );
             })}
@@ -66,6 +68,7 @@ export function AdminNav() {
           <svg viewBox="0 0 24 24" className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M15 6l-6 6 6 6" />
           </svg>
+          <LinkPending />
         </Link>
       </div>
     </nav>
