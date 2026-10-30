@@ -2,7 +2,7 @@
 
 Status: prepared 2026-10-30, not executed. Production has not been changed. Each step marked **go** needs K's explicit go.
 
-Release: the `dev` head. All commands below assume `SHA=$(git rev-parse dev)` in the local shell. The image was built at `3d78163` and retagged to that head; every later commit touches only `*.md`, which `.dockerignore` excludes (check: `git diff --name-only 3d78163 dev`). It fast-forwards `main` from `8b37129`, the commit production runs now. Migrations 15 to 18 apply to production schema v14.
+Release: the `dev` head. All commands below assume `SHA=$(git rev-parse dev)` in the local shell. The image was built at `3d78163` and retagged to that head; later commits touch only `docs/` and `ops/release/cutover.sh`. Neither reaches the runtime stage of the image (checked: no ops or docs files in the built image; `git diff --name-only 3d78163 dev` lists the changes). It fast-forwards `main` from `8b37129`, the commit production runs now. Migrations 15 to 18 apply to production schema v14.
 
 ## How downtime stays short
 
