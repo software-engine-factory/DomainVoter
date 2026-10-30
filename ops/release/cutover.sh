@@ -4,6 +4,7 @@
 #   CONFIRM=yes cutover.sh autodeploy on|off  Coolify "auto deploy on push" (off before pushing main, on again after)
 #   CONFIRM=yes cutover.sh go SHA            stop -> final backup -> migrate (new image) -> screening sets -> deploy prebuilt image -> verify
 #   CONFIRM=yes cutover.sh screen SHA        (re)apply the name-screening sets 6-8 only; safe to repeat, app may be up
+#   cutover.sh backup SHA                    online backup now (app keeps running) -> ~/dvote-backups/<ts>-pre-go-online
 #   CONFIRM=yes cutover.sh reopen-old        migration failed: start the previous deployment again (DB is compatible)
 # Never runs two app versions on the volume at once. Downtime = stop .. new container healthy.
 set -euo pipefail
@@ -28,16 +29,20 @@ migrate() { sudo -n docker run --rm --network none --cpus="$CPUS" -u "$(sudo -n 
 # Name-screening collections (pool.set_6..8, migration 19). Data only; failure does not block the release.
 screen_apply() { sudo -n docker run --rm --network none --cpus="$CPUS" -u "$(sudo -n stat -c %u:%g "$VOL/voting.db")" -e NODE_PATH=/app/node_modules -v "$VOL:/app/data" \n  -v "$HERE/screen-apply.cjs:/tool/screen-apply.cjs:ro" -v "$HERE/screen-categories.tsv.gz:/tool/screen-categories.tsv.gz:ro" \n  --entrypoint node "$APP:$SHA" /tool/screen-apply.cjs --db /app/data/voting.db --file /tool/screen-categories.tsv.gz "$@"; }
 
-# App stopped, so nothing writes: this backup holds every committed vote. Opened read-write as the file owner so SQLite
-# can recover the WAL index after the stop; it only folds committed WAL frames into voting.db, as the migration would.
-backup_stopped() {
-  local out=$HOME/dvote-backups/$TS-pre-perf-release; mkdir -p "$out"; chmod 700 "$out"
-  sudo -n -u "#$(sudo -n stat -c %u "$VOL/voting.db")" sqlite3 "$VOL/voting.db" ".backup '$out/voting.db'" || return 1
+# Backup with VACUUM INTO, run in a throwaway container of the release image as the volume owner (the SSH user
+# cannot traverse /var/lib/docker, so host sqlite3 cannot open the volume). VACUUM INTO reads one consistent snapshot,
+# WAL included, so it is safe while the app runs; with the app stopped it holds every committed vote.
+#   backup_db <label>   -> ~/dvote-backups/<ts>-<label>/{voting.db,voting.db.sha256,meta.json}
+backup_db() {
+  local out=$HOME/dvote-backups/$TS-$1; mkdir -p "$out"; chmod 700 "$out"
+  sudo -n docker run --rm --network none -u "$(sudo -n stat -c %u:%g "$VOL/voting.db")" -e NODE_PATH=/app/node_modules -v "$VOL:/app/data" -v "$out:/backup" \
+    --entrypoint node "$APP:$SHA" -e 'const D=require("better-sqlite3"),db=new D("/app/data/voting.db"),q=String.fromCharCode(39);db.pragma("busy_timeout = 10000");db.exec("VACUUM INTO "+q+"/backup/voting.db"+q);db.close()' || return 1
   [ "$(sqlite3 -readonly "$out/voting.db" 'pragma quick_check')" = ok ] || { say "backup quick_check failed"; return 1; }
   (cd "$out" && sha256sum voting.db > voting.db.sha256)
   sqlite3 -readonly "$out/voting.db" "select json_object('user_version',(select max(version) from schema_migrations),'users',(select count(*) from users),'rounds',(select count(*) from rounds),'domains',(select count(*) from domains),'votes',(select count(*) from votes),'views',(select count(*) from views),'pool',(select count(*) from pool))" > "$out/meta.json"
   chmod 600 "$out"/*; say "backup $out $(cat "$out/meta.json") sha256=$(cut -c1-16 "$out/voting.db.sha256")"
 }
+backup_stopped() { backup_db pre-perf-release; }
 
 preflight() {
   local ok=1 c img
@@ -86,9 +91,10 @@ case "${1:-}" in
     say "DOWNTIME END after $(( $(date +%s) - T0 ))s: health $h, running $(sudo -n docker inspect -f '{{.Config.Image}}' "$(container)")"
     migrate check > "$LOG/check-$TS.json" && say "schema check ok" || say "FAIL schema check, see $LOG/check-$TS.json"
     say "next: CONFIRM=yes $0 autodeploy on, then copy $HOME/dvote-backups/$TS-pre-perf-release off the host";;
+  backup) SHA=${2:?SHA}; backup_db pre-go-online || { say "FAIL online backup"; exit 1; };;
   screen) need_confirm; SHA=${2:?SHA}; screen_apply | tee "$LOG/screen-$TS.json";;
   reopen-old) need_confirm
     api "$API/applications/$APP/start" -o /dev/null -w "start %{http_code}\n"
     for i in $(seq 1 120); do h=$(health); [ "$h" = 200 ] && break; sleep 2; done; say "reopened previous deployment, health $h";;
-  *) sed -n '2,9p' "$0"; exit 1;;
+  *) sed -n '2,10p' "$0"; exit 1;;
 esac

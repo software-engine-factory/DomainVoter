@@ -68,7 +68,7 @@ ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy off'   # go: Cool
 git push factory $SHA:main                                    # go: shared branch, fast-forward, deploys nothing
 ssh contabo "CONFIRM=yes ~/dvote-release/cutover.sh go $SHA"  # go: online backup, then the downtime window
 ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy on'   # restore the previous setting
-ops/release/fetch-backup.sh   # on the PC: copies the newest ~/dvote-backups/*-pre-perf-release to D:/K Studio/backups/dvote/ and checks sha256
+ops/release/fetch-backup.sh   # on the PC: copies the newest ~/dvote-backups/* into .backups/ (git-ignored) and checks sha256
 ```
 
 `go` does, in order: preflight, Coolify stop, a final backup of the stopped database, `migrate.cjs apply --quick-check` in a throwaway container of the new image, `screen-apply.cjs` (fills the new collections, pool sets 6 to 8), Coolify deploy, a wait for `/health` 200, then `migrate.cjs check` on the live volume. Logs go to `~/dvote-release/logs/`.
