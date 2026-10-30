@@ -1,0 +1,42 @@
+{
+  "behnevis_keys": 213162,
+  "geonames": {
+    "rows": 254985,
+    "names": 753179,
+    "skipped_lowercase_skeleton_alternates": 604701,
+    "skipped_code_alternates": 528,
+    "distinct_tokens": 113739,
+    "kept": 24411,
+    "new_vs_behnevis": 18794
+  },
+  "given_names": {
+    "citizen_given_names": 1306,
+    "citizen_is_given_name": 1226,
+    "citizen_accepted": 756,
+    "persian_language_items": 414,
+    "persian_language_rows": 937,
+    "strings": 2919,
+    "kept": 1184,
+    "new_vs_behnevis": 366
+  },
+  "wd_labels": {
+    "rows": 896,
+    "distinct_labels": 526,
+    "distinct_tokens": 688,
+    "kept": 430,
+    "new_vs_behnevis": 181
+  },
+  "ext_total": 19285,
+  "ext_by_len": {
+    "3": 64,
+    "4": 1173,
+    "5": 3880,
+    "6": 4652,
+    "7": 3673,
+    "8": 2715,
+    "9": 1619,
+    "10": 903,
+    "11": 396,
+    "12": 210
+  }
+}

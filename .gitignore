@@ -46,3 +46,4 @@ next-env.d.ts
 
 # release bundles (built from scripts/ops, see docs/deployment/cutover-runbook.md)
 /ops/release/*.cjs
+/ops/release/*.tsv.gz
