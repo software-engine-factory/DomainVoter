@@ -532,3 +532,4 @@ export function runMigrations(sqlite: Database.Database) {
 }
 
 export const LATEST_SCHEMA_VERSION = Math.max(...MIGRATIONS.map((m) => m.version));
+export const MIGRATION_VERSIONS = MIGRATIONS.map((m) => m.version);

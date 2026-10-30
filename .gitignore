@@ -43,3 +43,6 @@ next-env.d.ts
 # local database and session secret
 /data
 /.branch-archives/
+
+# release bundles (built from scripts/ops, see docs/deployment/cutover-runbook.md)
+/ops/release/*.cjs
