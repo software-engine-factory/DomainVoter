@@ -28,7 +28,9 @@ CPUS=${CPUS:-4}
 migrate() { sudo -n docker run --rm --network none --cpus="$CPUS" -u "$(sudo -n stat -c %u:%g "$VOL/voting.db")" -e NODE_PATH=/app/node_modules -v "$VOL:/app/data" \
   -v "$HERE/migrate.cjs:/tool/migrate.cjs:ro" --entrypoint node "$APP:$SHA" /tool/migrate.cjs "$@" --db /app/data/voting.db; }
 # Name-screening collections (pool.set_6..8, migration 19). Data only; failure does not block the release.
-screen_apply() { sudo -n docker run --rm --network none --cpus="$CPUS" -u "$(sudo -n stat -c %u:%g "$VOL/voting.db")" -e NODE_PATH=/app/node_modules -v "$VOL:/app/data" \n  -v "$HERE/screen-apply.cjs:/tool/screen-apply.cjs:ro" -v "$HERE/screen-categories.tsv.gz:/tool/screen-categories.tsv.gz:ro" \n  --entrypoint node "$APP:$SHA" /tool/screen-apply.cjs --db /app/data/voting.db --file /tool/screen-categories.tsv.gz "$@"; }
+screen_apply() { sudo -n docker run --rm --network none --cpus="$CPUS" -u "$(sudo -n stat -c %u:%g "$VOL/voting.db")" -e NODE_PATH=/app/node_modules -v "$VOL:/app/data" \
+  -v "$HERE/screen-apply.cjs:/tool/screen-apply.cjs:ro" -v "$HERE/screen-categories.tsv.gz:/tool/screen-categories.tsv.gz:ro" \
+  --entrypoint node "$APP:$SHA" /tool/screen-apply.cjs --db /app/data/voting.db --file /tool/screen-categories.tsv.gz "$@"; }
 
 # Backup with VACUUM INTO, run in a throwaway container of the release image as the volume owner (the SSH user
 # cannot traverse /var/lib/docker, so host sqlite3 cannot open the volume). VACUUM INTO reads one consistent snapshot,
@@ -68,7 +70,7 @@ case "${1:-}" in
   go) need_confirm; SHA=${2:?SHA}; preflight
     [ "$(autodeploy_state)" = False ] || { say "FAIL turn auto-deploy off first, then push main"; exit 1; }
     T0=$(date +%s); say "DOWNTIME START: stopping app"
-    api "$API/applications/$APP/stop" -o /dev/null -w "stop %{http_code}\n"
+    api -X POST "$API/applications/$APP/stop" -o /dev/null -w "stop %{http_code}\n"
     for i in $(seq 1 60); do [ -z "$(container)" ] && break; sleep 1; done
     [ -z "$(container)" ] || { say "FAIL app did not stop; starting nothing, investigate"; exit 1; }
     say "stopped after $(( $(date +%s) - T0 ))s; final backup"
@@ -81,7 +83,9 @@ case "${1:-}" in
     else say "migrated after $(( $(date +%s) - T0 ))s; applying screening sets"
       screen_apply > "$LOG/screen-$TS.json" && say "screening sets $(cat "$LOG/screen-$TS.json")" || say "WARN screening sets failed (see $LOG/screen-$TS.json); release continues, rerun: CONFIRM=yes $0 screen $SHA"; fi
     say "screening done after $(( $(date +%s) - T0 ))s; deploying prebuilt $APP:$SHA"
-    D=$(api "$API/deploy?uuid=$APP&force=false" | python3 -c 'import json,sys; print(json.load(sys.stdin)["deployments"][0]["deployment_uuid"])')
+    # Coolify 4.4.7 refuses GET on some action routes (stop answered 405); try GET, then POST.
+    dep_uuid() { python3 -c 'import json,sys; print(json.load(sys.stdin)["deployments"][0]["deployment_uuid"])' 2>/dev/null; }
+    D=$(api "$API/deploy?uuid=$APP&force=false" | dep_uuid) || D=$(api -X POST "$API/deploy?uuid=$APP&force=false" | dep_uuid) || { say "FAIL could not start the deployment; DB is migrated. Deploy from the Coolify UI, or: CONFIRM=yes $0 reopen-old"; exit 1; }
     say "deployment $D"
     for i in $(seq 1 180); do
       st=$(api "$API/deployments/$D" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))'); [ "$st" = finished ] || [ "$st" = failed ] && break; sleep 2
@@ -96,7 +100,7 @@ case "${1:-}" in
   backup) SHA=${2:?SHA}; backup_db pre-go-online || { say "FAIL online backup"; exit 1; };;
   screen) need_confirm; SHA=${2:?SHA}; screen_apply | tee "$LOG/screen-$TS.json";;
   reopen-old) need_confirm
-    api "$API/applications/$APP/start" -o /dev/null -w "start %{http_code}\n"
+    api -X POST "$API/applications/$APP/start" -o /dev/null -w "start %{http_code}\n"
     for i in $(seq 1 120); do h=$(health); [ "$h" = 200 ] && break; sleep 2; done; say "reopened previous deployment, health $h";;
   *) sed -n '2,11p' "$0"; exit 1;;
 esac
