@@ -39,7 +39,7 @@ Source: `D:/K Studio/backups/dvote/2026-10-29_1827-prod-live/voting.db`, sha256 
 | New image on the migrated DB | healthy in 1.9 s; same pages 200; no errors logged |
 | Test suite (Linux builder stage of the image) | 48 pass, 0 fail |
 
-Uncapped on Windows the same migration took 34.8 s. Expected downtime on Contabo A: about 10 s to stop, 30 to 40 s to migrate and check, and about 15 s for Coolify to start the container. **Roughly 1 minute**, plus whatever WAL recovery adds (see below). Unauthenticated pages only; signed-in voting was not exercised against the old image.
+Uncapped on Windows the same migration took 34.8 s. Expected downtime on Contabo A: about 10 s to stop, 10 to 30 s for the final backup, 30 to 40 s to migrate and check, and about 15 s for Coolify to start the container. **Roughly 1 to 2 minutes**, plus whatever WAL recovery adds (see below). Unauthenticated pages only; signed-in voting was not exercised against the old image.
 
 ## Staging (no production effect, can be done any time before go)
 
@@ -65,9 +65,14 @@ ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy off'   # go: Cool
 git push factory $SHA:main                                    # go: shared branch, fast-forward, deploys nothing
 ssh contabo "CONFIRM=yes ~/dvote-release/cutover.sh go $SHA"  # go: online backup, then the downtime window
 ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy on'   # restore the previous setting
+# copy the final backup off the host (the script prints its folder, ~/dvote-backups/<ts>-pre-perf-release)
+B=<folder from the log>; L="D:/K Studio/backups/dvote/$(basename $B)"; mkdir -p "$L"
+scp "contabo:$B/voting.db" "contabo:$B/voting.db.sha256" "contabo:$B/meta.json" "$L/" && (cd "$L" && sha256sum -c voting.db.sha256)
 ```
 
-`go` does, in order: preflight, online backup through `~/dvote-import/import-forsale.sh backup` (no downtime), Coolify stop, `migrate.cjs apply --quick-check` in a throwaway container of the new image, Coolify deploy, a wait for `/health` 200, then `migrate.cjs check` on the live volume. Logs go to `~/dvote-release/logs/`.
+`go` does, in order: preflight, Coolify stop, a final backup of the stopped database, `migrate.cjs apply --quick-check` in a throwaway container of the new image, Coolify deploy, a wait for `/health` 200, then `migrate.cjs check` on the live volume. Logs go to `~/dvote-release/logs/`.
+
+The backup is taken after the stop, so it holds every committed vote, including writes still in the WAL (tested with a database left by a killed process). It runs `sqlite3 .backup` as the volume owner, then `quick_check`, sha256 and row counts, into `~/dvote-backups/<ts>-pre-perf-release/` in the layout `import-forsale.sh restore` expects. Locally this took 11 s for the 1.15 GB database. If it fails, the script starts the old app again before anything is migrated.
 
 `migrate.cjs apply` fails unless every preserved table (users, rounds, domains, votes, views, round batches and items, supplements, picks) has the same rows and the same hash over its pre-migration columns, `quick_check` is `ok`, and no migration is left pending.
 
@@ -75,7 +80,8 @@ ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy on'   # restore t
 
 | Where | What happens | Action |
 | --- | --- | --- |
-| Preflight or backup | Nothing changed, app still up | Fix and rerun |
+| Preflight | Nothing changed, app still up | Fix and rerun |
+| Final backup | App was stopped, nothing migrated. The script reopens the old app | Fix and rerun |
 | Migration | App stays down. Each migration is its own transaction, so completed ones stay recorded | Read `migrate-*.json`. `CONFIRM=yes cutover.sh reopen-old` starts the previous deployment. The old image boots and serves pages on a migrated database (rehearsed with unauthenticated pages only). Or restore the backup with `import-forsale.sh restore` |
 | Deploy reports a rebuild | Downtime grows by the build time, 2 to 4 minutes (the last five Coolify deploys took 117 to 234 s) | Let it finish |
 | Deploy fails | Database is migrated, app down | `reopen-old`, check which image is running, then investigate |
@@ -86,4 +92,6 @@ ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy on'   # restore t
 - The 4.2 GB WAL could not be rehearsed. The backup has no WAL. Recovery work on first open after stop is unmeasured. The migration's `wal_checkpoint(TRUNCATE)` shrinks it to zero afterwards.
 - There is no maintenance page. During the window, Traefik answers with an error for `dvote.kayhan.world`.
 - Resource caps (2 CPU / 2 GiB) and `DV_RO_WORKERS=1` from the rollout guide are not applied by the script. Production has no limits today. Set them in Coolify before go if wanted; runtime limits do not force a rebuild.
+- Do not delete or copy around `voting.db-wal` by hand. It holds committed writes; only the SQLite backup and the migration handle it correctly.
+- After reopening, rounds created by the new version use compact storage the old image cannot read. Holding off on new rounds for the first day keeps a rollback cheap.
 - The leftover `_bk.db` (1.15 GB, 2026-10-29) in the production volume is not touched.

@@ -2,7 +2,7 @@
 # Performance release cutover on Contabo A (Coolify app isawmwwcmnfj28hyo3irrvt0). Runbook: docs/deployment/cutover-runbook.md
 #   cutover.sh preflight SHA                 read-only: running app, prebuilt image, Coolify settings, disk, other writers
 #   CONFIRM=yes cutover.sh autodeploy on|off  Coolify "auto deploy on push" (off before pushing main, on again after)
-#   CONFIRM=yes cutover.sh go SHA            backup -> stop -> migrate (new image) -> deploy prebuilt image -> verify
+#   CONFIRM=yes cutover.sh go SHA            stop -> final backup -> migrate (new image) -> deploy prebuilt image -> verify
 #   CONFIRM=yes cutover.sh reopen-old        migration failed: start the previous deployment again (DB is compatible)
 # Never runs two app versions on the volume at once. Downtime = stop .. new container healthy.
 set -euo pipefail
@@ -22,6 +22,17 @@ autodeploy_state() { api "$API/applications/$APP" | python3 -c 'import json,sys;
 # Same throwaway-container pattern as ops/import-forsale: the NEW image's node + better-sqlite3, app uid, no network.
 migrate() { sudo -n docker run --rm --network none -u "$(sudo -n stat -c %u:%g "$VOL/voting.db")" -e NODE_PATH=/app/node_modules -v "$VOL:/app/data" \
   -v "$HERE/migrate.cjs:/tool/migrate.cjs:ro" --entrypoint node "$APP:$SHA" /tool/migrate.cjs "$@" --db /app/data/voting.db; }
+
+# App stopped, so nothing writes: this backup holds every committed vote. Opened read-write as the file owner so SQLite
+# can recover the WAL index after the stop; it only folds committed WAL frames into voting.db, as the migration would.
+backup_stopped() {
+  local out=$HOME/dvote-backups/$TS-pre-perf-release; mkdir -p "$out"; chmod 700 "$out"
+  sudo -n -u "#$(sudo -n stat -c %u "$VOL/voting.db")" sqlite3 "$VOL/voting.db" ".backup '$out/voting.db'" || return 1
+  [ "$(sqlite3 -readonly "$out/voting.db" 'pragma quick_check')" = ok ] || { say "backup quick_check failed"; return 1; }
+  (cd "$out" && sha256sum voting.db > voting.db.sha256)
+  sqlite3 -readonly "$out/voting.db" "select json_object('user_version',(select max(version) from schema_migrations),'users',(select count(*) from users),'rounds',(select count(*) from rounds),'domains',(select count(*) from domains),'votes',(select count(*) from votes),'views',(select count(*) from views),'pool',(select count(*) from pool))" > "$out/meta.json"
+  chmod 600 "$out"/*; say "backup $out $(cat "$out/meta.json") sha256=$(cut -c1-16 "$out/voting.db.sha256")"
+}
 
 preflight() {
   local ok=1 c img
@@ -44,12 +55,13 @@ case "${1:-}" in
     say "coolify auto-deploy now $(autodeploy_state)";;
   go) need_confirm; SHA=${2:?SHA}; preflight
     [ "$(autodeploy_state)" = False ] || { say "FAIL turn auto-deploy off first, then push main"; exit 1; }
-    say "safety backup (online, no downtime)"; "$HOME/dvote-import/import-forsale.sh" backup pre-perf-release >/dev/null
     T0=$(date +%s); say "DOWNTIME START: stopping app"
     api "$API/applications/$APP/stop" -o /dev/null -w "stop %{http_code}\n"
     for i in $(seq 1 60); do [ -z "$(container)" ] && break; sleep 1; done
     [ -z "$(container)" ] || { say "FAIL app did not stop; starting nothing, investigate"; exit 1; }
-    say "stopped after $(( $(date +%s) - T0 ))s; migrating"
+    say "stopped after $(( $(date +%s) - T0 ))s; final backup"
+    backup_stopped || { say "FAIL backup; nothing migrated, reopening the old app"; "$0" reopen-old; exit 1; }
+    say "backed up after $(( $(date +%s) - T0 ))s; migrating"
     if ! migrate apply --quick-check | tee "$LOG/migrate-$TS.json"; then
       say "FAIL migration (see $LOG/migrate-$TS.json). App is DOWN. Decide: CONFIRM=yes $0 reopen-old, or restore the backup"; exit 1
     fi
@@ -65,7 +77,7 @@ case "${1:-}" in
     for i in $(seq 1 60); do h=$(health); [ "$h" = 200 ] && break; sleep 1; done
     say "DOWNTIME END after $(( $(date +%s) - T0 ))s: health $h, running $(sudo -n docker inspect -f '{{.Config.Image}}' "$(container)")"
     migrate check > "$LOG/check-$TS.json" && say "schema check ok" || say "FAIL schema check, see $LOG/check-$TS.json"
-    say "next: CONFIRM=yes $0 autodeploy on";;
+    say "next: CONFIRM=yes $0 autodeploy on, then copy $HOME/dvote-backups/$TS-pre-perf-release off the host";;
   reopen-old) need_confirm
     api "$API/applications/$APP/start" -o /dev/null -w "start %{http_code}\n"
     for i in $(seq 1 120); do h=$(health); [ "$h" = 200 ] && break; sleep 2; done; say "reopened previous deployment, health $h";;
