@@ -2,11 +2,11 @@
 
 Status: prepared 2026-10-30, not executed. Production has not been changed. Each step marked **go** needs K's explicit go.
 
-Release: `dev` at `RELEASE_SHA`. It fast-forwards `main` from `8b37129`, the commit production runs now. Migrations 15 to 18 apply to production schema v14.
+Release: the `dev` head. All commands below assume `SHA=$(git rev-parse dev)` in the local shell. The image was built at `3d78163` and retagged to that head; every later commit touches only `*.md`, which `.dockerignore` excludes (check: `git diff --name-only 3d78163 dev`). It fast-forwards `main` from `8b37129`, the commit production runs now. Migrations 15 to 18 apply to production schema v14.
 
 ## How downtime stays short
 
-- The release image is built and rehearsed in advance, then loaded on Contabo A as `isawmwwcmnfj28hyo3irrvt0:RELEASE_SHA`. Coolify skips the build when an image tagged with the deployed commit SHA already exists ("Image found ... Build step skipped"). The cutover is then a container swap, not a 5-minute build.
+- The release image is built and rehearsed in advance, then loaded on Contabo A as `isawmwwcmnfj28hyo3irrvt0:$SHA`. Coolify skips the build when an image tagged with the deployed commit SHA already exists ("Image found ... Build step skipped"). The cutover is then a container swap, not a 2 to 4 minute build.
 - Coolify auto-deploy is turned off before `main` is pushed, so the push itself deploys nothing. The deploy is started by the script, after the migration has run.
 - The old app is stopped before the migration starts, so two versions never write the SQLite volume at the same time.
 - Downtime runs from stopping the app until the new container is healthy. The rehearsal below measures it.
@@ -44,13 +44,16 @@ Uncapped on Windows the same migration took 34.8 s. Expected downtime on Contabo
 ## Staging (no production effect, can be done any time before go)
 
 ```sh
+# 0. Rebuild the ignored bundle if missing, and tag the rehearsed image with the release head
+npx -y esbuild@0.28.1 scripts/ops/migrate.ts --bundle --platform=node --format=cjs --alias:@=./src   --external:better-sqlite3 --external:bcryptjs --outfile=ops/release/migrate.cjs
+docker tag isawmwwcmnfj28hyo3irrvt0:3d78163607224c790e9c52c4334017833190aa6e isawmwwcmnfj28hyo3irrvt0:$SHA
 # 1. Ship the rehearsed image and the scripts to Contabo A (load only, nothing restarts)
-docker save isawmwwcmnfj28hyo3irrvt0:RELEASE_SHA | gzip | ssh contabo 'gunzip | sudo -n docker load'
+docker save isawmwwcmnfj28hyo3irrvt0:$SHA | gzip | ssh contabo 'gunzip | sudo -n docker load'
 ssh contabo 'mkdir -p ~/dvote-release'
 scp ops/release/migrate.cjs contabo:dvote-release/
-git show RELEASE_SHA:ops/release/cutover.sh | ssh contabo 'cat > ~/dvote-release/cutover.sh && chmod +x ~/dvote-release/cutover.sh'
+git show $SHA:ops/release/cutover.sh | ssh contabo 'cat > ~/dvote-release/cutover.sh && chmod +x ~/dvote-release/cutover.sh'
 # 2. Read-only preflight
-ssh contabo '~/dvote-release/cutover.sh preflight RELEASE_SHA'
+ssh contabo "~/dvote-release/cutover.sh preflight $SHA"
 ```
 
 ## Go (K says go)
@@ -59,8 +62,8 @@ Avoid the minutes when people are actively voting if possible. Nobody should be 
 
 ```sh
 ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy off'   # go: Coolify setting
-git push factory RELEASE_SHA:main                                    # go: shared branch, fast-forward, deploys nothing
-ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh go RELEASE_SHA'  # go: online backup, then the downtime window
+git push factory $SHA:main                                    # go: shared branch, fast-forward, deploys nothing
+ssh contabo "CONFIRM=yes ~/dvote-release/cutover.sh go $SHA"  # go: online backup, then the downtime window
 ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy on'   # restore the previous setting
 ```
 
@@ -73,9 +76,9 @@ ssh contabo 'CONFIRM=yes ~/dvote-release/cutover.sh autodeploy on'   # restore t
 | Where | What happens | Action |
 | --- | --- | --- |
 | Preflight or backup | Nothing changed, app still up | Fix and rerun |
-| Migration | App stays down. Each migration is its own transaction, so completed ones stay recorded | Read `migrate-*.json`. `CONFIRM=yes cutover.sh reopen-old` starts the previous deployment, which runs correctly on a migrated database (rehearsed). Or restore the backup with `import-forsale.sh restore` |
+| Migration | App stays down. Each migration is its own transaction, so completed ones stay recorded | Read `migrate-*.json`. `CONFIRM=yes cutover.sh reopen-old` starts the previous deployment. The old image boots and serves pages on a migrated database (rehearsed with unauthenticated pages only). Or restore the backup with `import-forsale.sh restore` |
 | Deploy reports a rebuild | Downtime grows by the build time, 2 to 4 minutes (the last five Coolify deploys took 117 to 234 s) | Let it finish |
-| Deploy fails | Database is migrated, app down | `reopen-old`, then investigate |
+| Deploy fails | Database is migrated, app down | `reopen-old`, check which image is running, then investigate |
 | After reopening | New writes exist | Fix forward. Do not restore a backup or roll the image back without reconciling new rounds and votes first (see [the rollout guide](production-rollout.md#6-recovery-rules)) |
 
 ## Not covered
