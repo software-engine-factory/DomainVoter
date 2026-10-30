@@ -7,3 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Deployment
+
+Before planning or changing migrations, release branches or deployment configuration, read [the production rollout guide](docs/deployment/production-rollout.md). It covers preserving current production data, required release safeguards, local rehearsal, Coolify cutover and recovery. The guide is a plan, not authorization to push, test on production or deploy.
