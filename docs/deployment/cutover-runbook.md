@@ -40,7 +40,7 @@ Source: `D:/K Studio/backups/dvote/2026-10-29_1827-prod-live/voting.db`, sha256 
 | New image on the migrated DB | healthy in 1.9 s; same pages 200; no errors logged |
 | Test suite (Linux builder stage of the image) | 48 pass, 0 fail |
 
-Expected downtime on Contabo A for `d73b339`, from the measured steps: about 10 s to stop, 10 to 30 s for the final backup, 30 to 45 s to migrate and check, 25 to 40 s for the screening sets, about 15 s for Coolify to start the container. **About 1.5 to 2.5 minutes**, plus whatever folding the 4.2 GB WAL adds (unmeasured, see below). The upper ends allow for Contabo's cores being slower than the rehearsal PC. Running the screening after reopening (`cutover.sh screen`) instead would take 25 to 40 s off the window.
+Expected downtime on Contabo A for `d73b339`, from the measured steps: about 10 s to stop, 10 to 30 s for the final backup, 30 to 45 s to migrate and check, 25 to 40 s for the screening sets, about 15 s for Coolify to start the container. **Measured on the server 2026-10-30: migrate 86 s, screening 63 s, online backup with the 4.2 GB WAL 163 s. Expect about 4 to 6 minutes with SCREEN_AFTER=1, 5 to 7 without** (the rehearsal-PC figure of 1.5 to 2.5 minutes was too low), plus whatever folding the 4.2 GB WAL adds (unmeasured, see below). The upper ends allow for Contabo's cores being slower than the rehearsal PC. Running the screening after reopening (`cutover.sh screen`) instead would take 25 to 40 s off the window.
 
 ## Staging (no production effect, can be done any time before go)
 

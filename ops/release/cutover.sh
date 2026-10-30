@@ -3,6 +3,7 @@
 #   cutover.sh preflight SHA                 read-only: running app, prebuilt image, Coolify settings, disk, other writers
 #   CONFIRM=yes cutover.sh autodeploy on|off  Coolify "auto deploy on push" (off before pushing main, on again after)
 #   CONFIRM=yes cutover.sh go SHA            stop -> final backup -> migrate (new image) -> screening sets -> deploy prebuilt image -> verify
+#                                            SCREEN_AFTER=1 skips the screening sets in the window; run `screen` after reopening
 #   CONFIRM=yes cutover.sh screen SHA        (re)apply the name-screening sets 6-8 only; safe to repeat, app may be up
 #   cutover.sh backup SHA                    online backup now (app keeps running) -> ~/dvote-backups/<ts>-pre-go-online
 #   CONFIRM=yes cutover.sh reopen-old        migration failed: start the previous deployment again (DB is compatible)
@@ -76,8 +77,9 @@ case "${1:-}" in
     if ! migrate apply --quick-check | tee "$LOG/migrate-$TS.json"; then
       say "FAIL migration (see $LOG/migrate-$TS.json). App is DOWN. Decide: CONFIRM=yes $0 reopen-old, or restore the backup"; exit 1
     fi
-    say "migrated after $(( $(date +%s) - T0 ))s; applying screening sets"
-    screen_apply > "$LOG/screen-$TS.json" && say "screening sets $(cat "$LOG/screen-$TS.json")" || say "WARN screening sets failed (see $LOG/screen-$TS.json); release continues, rerun: CONFIRM=yes $0 screen $SHA"
+    if [ "${SCREEN_AFTER:-}" = 1 ]; then say "migrated after $(( $(date +%s) - T0 ))s; screening sets deferred until after reopen (SCREEN_AFTER=1)"
+    else say "migrated after $(( $(date +%s) - T0 ))s; applying screening sets"
+      screen_apply > "$LOG/screen-$TS.json" && say "screening sets $(cat "$LOG/screen-$TS.json")" || say "WARN screening sets failed (see $LOG/screen-$TS.json); release continues, rerun: CONFIRM=yes $0 screen $SHA"; fi
     say "screening done after $(( $(date +%s) - T0 ))s; deploying prebuilt $APP:$SHA"
     D=$(api "$API/deploy?uuid=$APP&force=false" | python3 -c 'import json,sys; print(json.load(sys.stdin)["deployments"][0]["deployment_uuid"])')
     say "deployment $D"
@@ -96,5 +98,5 @@ case "${1:-}" in
   reopen-old) need_confirm
     api "$API/applications/$APP/start" -o /dev/null -w "start %{http_code}\n"
     for i in $(seq 1 120); do h=$(health); [ "$h" = 200 ] && break; sleep 2; done; say "reopened previous deployment, health $h";;
-  *) sed -n '2,10p' "$0"; exit 1;;
+  *) sed -n '2,11p' "$0"; exit 1;;
 esac
