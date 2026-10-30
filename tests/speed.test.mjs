@@ -52,3 +52,30 @@ test("aggregates cached until the data changes (free upload, import, rollback)",
   assert.equal(n, db.prepare("SELECT COUNT(*) n FROM pool WHERE name_len = 4").get().n);
   assert.equal(await browse.countBrowse(browse.parseBrowse({ lmin: "3", lmax: "9" })), db.prepare("SELECT COUNT(*) n FROM pool WHERE name_len BETWEEN 3 AND 9").get().n);
 });
+
+test("userRoundProgress counts only that user's own views/votes per round, via the user_id index", async () => {
+  const rounds = await j.import("@/lib/rounds");
+  const db = getSqlite();
+  const now = Date.now();
+  db.pragma("foreign_keys = OFF"); // synthetic ids, no users/rounds/domains rows
+  db.prepare("DELETE FROM views WHERE user_id IN (9001, 9002)").run();
+  db.prepare("DELETE FROM votes WHERE user_id IN (9001, 9002)").run();
+  const iv = db.prepare("INSERT INTO views (round_id, domain_id, user_id, viewed_at) VALUES (?, ?, ?, ?)");
+  const ivo = db.prepare("INSERT INTO votes (round_id, domain_id, user_id, created_at) VALUES (?, ?, ?, ?)");
+  for (let d = 1; d <= 5; d++) iv.run(70001, 880000 + d, 9001, now);
+  for (let d = 1; d <= 2; d++) ivo.run(70001, 880000 + d, 9001, now);
+  iv.run(70002, 880100, 9001, now);
+  for (let d = 1; d <= 9; d++) iv.run(70001, 881000 + d, 9002, now);
+  const m = rounds.userRoundProgress(9001);
+  assert.deepEqual(m.get(70001), { seen: 5, voted: 2 });
+  assert.deepEqual(m.get(70002), { seen: 1, voted: 0 });
+  assert.equal(rounds.userRoundProgress(9003).size, 0);
+  for (const sql of ["SELECT round_id, COUNT(*) FROM views WHERE user_id = 9001 GROUP BY round_id", "SELECT round_id, COUNT(*) FROM votes WHERE user_id = 9001 GROUP BY round_id"]) {
+    const plan = db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all().map((r) => r.detail).join(" | ");
+    assert.match(plan, /USING (COVERING )?INDEX/, plan);
+    assert.doesNotMatch(plan, /SCAN (views|votes)\b(?! USING)/, plan);
+  }
+  db.prepare("DELETE FROM views WHERE user_id IN (9001, 9002)").run();
+  db.prepare("DELETE FROM votes WHERE user_id IN (9001, 9002)").run();
+  db.pragma("foreign_keys = ON");
+});

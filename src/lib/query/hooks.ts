@@ -2,6 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toggleVote } from "@/lib/actions/votes";
+import { t } from "@/lib/copy/fa";
 import { viewParams, type VoteView } from "@/lib/vote-view";
 import { fetchMyVotes, fetchRoundCards, type CardsPage, type MyVotes } from "./fetchers";
 import { qk } from "./keys";
@@ -44,7 +45,13 @@ export function useToggleVote(roundId: number, view: string, ids: number[]) {
   const key = myVotesQuery(roundId, view, ids).queryKey;
   return useMutation({
     mutationFn: async (domainId: number) => {
-      const result = await toggleVote(domainId);
+      let result: Awaited<ReturnType<typeof toggleVote>>;
+      try {
+        result = await toggleVote(domainId);
+      } catch {
+        // Network failure or a non-app response (server down or restarting): "Failed to fetch" means nothing to voters.
+        throw new Error(t.vote.serverDown);
+      }
       if ("error" in result) throw new Error(result.error);
       return { domainId, ...result };
     },

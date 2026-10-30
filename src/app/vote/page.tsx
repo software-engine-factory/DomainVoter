@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Badge } from "@/components/ui";
-import { formatWhen } from "@/lib/format";
+import { Badge, ProgressBar } from "@/components/ui";
+import { formatPercent, formatWhen } from "@/lib/format";
 import { requireVoter } from "@/lib/auth";
-import { listOpenRounds } from "@/lib/rounds";
+import { listOpenRounds, userRoundProgress } from "@/lib/rounds";
 import { t } from "@/lib/copy/fa";
 
 export const metadata: Metadata = { title: t.vote.listTitle };
@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function VoteHomePage() {
   const session = await requireVoter();
   const rounds = listOpenRounds(session.userId);
+  const progress = userRoundProgress(session.userId);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
@@ -24,20 +25,30 @@ export default async function VoteHomePage() {
         </div>
       ) : (
         <ul className="mt-8 divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
-          {rounds.map((round) => (
+          {rounds.map((round) => {
+            const mine = progress.get(round.id) ?? { seen: 0, voted: 0 };
+            const fa = (n: number) => n.toLocaleString("fa-IR");
+            return (
             <li key={round.id}>
-              <Link href={`/vote/${round.id}`} className="flex items-start justify-between gap-4 px-5 py-5 transition hover:bg-paper">
+              <Link href={`/vote/${round.id}`} className="grid gap-3 px-5 py-5 transition hover:bg-paper sm:grid-cols-[1fr_14rem]" title={t.myProgress.tip(fa(mine.seen), fa(round.domainCount), fa(mine.voted))}>
                 <div>
-                  <h2 className="font-display text-3xl">{round.title}</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-display text-3xl">{round.title}</h2>
+                    <Badge tone="accent">{t.common.open}</Badge>
+                  </div>
                   <p className="mt-1 text-sm text-muted">
                     {round.domainCount} {t.common.domains} · {t.common.openedAt} {formatWhen(round.createdAt)}
                   </p>
                   {round.parentTitle ? <p className="mt-1 text-sm text-muted">{t.common.fromParent(round.parentTitle)}</p> : null}
                 </div>
-                <Badge tone="accent">{t.common.open}</Badge>
+                <div className="flex flex-col justify-center gap-2">
+                  <ProgressBar value={formatPercent(mine.seen, round.domainCount)} label={t.myProgress.seenLabel} />
+                  <p className="text-xs text-muted">{t.myProgress.votedCount(fa(mine.voted))}</p>
+                </div>
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </main>

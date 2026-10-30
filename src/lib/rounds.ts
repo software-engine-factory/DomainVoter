@@ -62,6 +62,17 @@ export function listRounds(visibleTo?: number): RoundListItem[] {
     .all(...(visibleTo === undefined ? [] : [visibleTo])) as RoundListItem[];
 }
 
+/** One user's own seen/voted counts per round: two grouped passes over that user's rows (user_id index), never the whole tables. */
+export function userRoundProgress(userId: number): Map<number, { seen: number; voted: number }> {
+  const db = getSqlite();
+  const out = new Map<number, { seen: number; voted: number }>();
+  const slot = (id: number) => out.get(id) ?? (out.set(id, { seen: 0, voted: 0 }), out.get(id)!);
+  // (domain_id, user_id) is unique in both tables, so COUNT(*) is a distinct count.
+  for (const r of db.prepare("SELECT round_id AS id, COUNT(*) AS n FROM views WHERE user_id = ? GROUP BY round_id").all(userId) as Array<{ id: number; n: number }>) slot(r.id).seen = r.n;
+  for (const r of db.prepare("SELECT round_id AS id, COUNT(*) AS n FROM votes WHERE user_id = ? GROUP BY round_id").all(userId) as Array<{ id: number; n: number }>) slot(r.id).voted = r.n;
+  return out;
+}
+
 export function listOpenRounds(userId: number): RoundListItem[] {
   return listRounds(userId).filter((round) => round.status === "open");
 }

@@ -80,6 +80,7 @@ export const t = {
     evidence: "نشانهٔ فروش",
   },
   vote: {
+    serverDown: "ارتباط با سرور برقرار نیست؛ رأی ثبت نشد. احتمالاً برنامه در حال به‌روزرسانی است. چند دقیقهٔ دیگر دوباره امتحان کنید.",
     listTitle: "دورهای باز",
     listLead: "",
     emptyTitle: "فعلاً دور بازی وجود ندارد",
@@ -139,6 +140,11 @@ export const t = {
     emptyBody: "برای ساخت اولین دور، از فهرست دامنه‌ها استفاده کنید یا فایل CSV وارد کنید.",
     seenLabel: "دامنه‌های دیده‌شده",
     seenCount: (seen: number, total: number) => `${seen} از ${total} دامنه دیده شده است`,
+  },
+  myProgress: {
+    seenLabel: "دامنه‌های دیده‌شدهٔ شما",
+    tip: (seen: string, total: string, voted: string) => `${seen} از ${total} دامنه را دیده‌اید · ${voted} رأی داده‌اید`,
+    votedCount: (voted: string) => `${voted} رأی از شما`,
   },
   picks: {
     title: "منتخب‌ها",
