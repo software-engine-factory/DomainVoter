@@ -1,7 +1,8 @@
 import { getSqlite } from "@/db";
+import { shownNameSql } from "@/lib/display-name";
 
-export type Assignee = { id: number; username: string };
-export type AssignableUser = Assignee & { role: "voter" | "admin" };
+export type Assignee = { id: number; /** Shown name (display name, else username). */ username: string };
+export type AssignableUser = Assignee & { login: string; role: "voter" | "admin" };
 
 /**
  * Round visibility on the voter side: a round with no assignees is visible to everyone; a round with
@@ -19,19 +20,19 @@ export function canSeeRound(roundId: number, userId: number) {
 }
 
 export function listAssignableUsers(): AssignableUser[] {
-  return getSqlite().prepare("SELECT id, username, role FROM users ORDER BY role = 'admin', username").all() as AssignableUser[];
+  return getSqlite().prepare(`SELECT u.id, ${shownNameSql("u")} AS username, u.username AS login, u.role FROM users u ORDER BY u.role = 'admin', username`).all() as AssignableUser[];
 }
 
 export function listAssignees(roundId: number): Assignee[] {
   return getSqlite()
-    .prepare("SELECT u.id, u.username FROM round_assignees ra JOIN users u ON u.id = ra.user_id WHERE ra.round_id = ? ORDER BY u.username")
+    .prepare(`SELECT u.id, ${shownNameSql("u")} AS username FROM round_assignees ra JOIN users u ON u.id = ra.user_id WHERE ra.round_id = ? ORDER BY username`)
     .all(roundId) as Assignee[];
 }
 
 /** roundId → assignees, for the admin round list. */
 export function assigneesByRound(): Map<number, Assignee[]> {
   const rows = getSqlite()
-    .prepare("SELECT ra.round_id AS roundId, u.id, u.username FROM round_assignees ra JOIN users u ON u.id = ra.user_id ORDER BY u.username")
+    .prepare(`SELECT ra.round_id AS roundId, u.id, ${shownNameSql("u")} AS username FROM round_assignees ra JOIN users u ON u.id = ra.user_id ORDER BY username`)
     .all() as Array<Assignee & { roundId: number }>;
   const map = new Map<number, Assignee[]>();
   for (const { roundId, ...user } of rows) map.set(roundId, [...(map.get(roundId) ?? []), user]);

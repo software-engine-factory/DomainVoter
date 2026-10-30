@@ -9,7 +9,7 @@ import { buttonClass } from "@/components/ui";
 import { t } from "@/lib/copy/fa";
 import type { ThemeId } from "@/lib/theme/themes";
 
-export function Header({ session, theme, freeTab = false }: { session: SessionUser | null; theme: ThemeId; freeTab?: boolean }) {
+export function Header({ session, name, theme, freeTab = false }: { session: SessionUser | null; name?: string; theme: ThemeId; freeTab?: boolean }) {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper">
       <a
@@ -31,8 +31,8 @@ export function Header({ session, theme, freeTab = false }: { session: SessionUs
           ) : null}
           {session ? (
             <form action={logoutAction} className="flex items-center gap-2">
-              <span dir="ltr" className="hidden text-sm text-muted md:inline">
-                {session.username}
+              <span dir="auto" className="hidden text-sm text-muted md:inline">
+                {name ?? session.username}
               </span>
               <button className={`${buttonClass("ghost", "sm")} px-2 sm:px-3`}>{t.nav.logout}</button>
             </form>

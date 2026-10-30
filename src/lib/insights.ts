@@ -1,4 +1,5 @@
 import { getSqlite } from "@/db";
+import { shownNameSql } from "@/lib/display-name";
 import { normalizeSetIds, setSumsSql } from "@/lib/sets";
 
 /** Day buckets follow the team's clock (Tbilisi, UTC+4) unless STATS_TZ_OFFSET_MINUTES says otherwise. */
@@ -7,7 +8,10 @@ const DAY_SQL = (column: string) => `date((${column} + ${TZ_OFFSET_MS}) / 1000, 
 
 export type UserStat = {
   id: number;
+  /** Shown name (display name, else username). */
   username: string;
+  /** Login username. */
+  login: string;
   role: string;
   createdAt: number;
   views: number;
@@ -24,7 +28,7 @@ export type UserStat = {
 export function listUserStats(): UserStat[] {
   return getSqlite()
     .prepare(
-      `SELECT u.id, u.username, u.role, u.created_at AS createdAt,
+      `SELECT u.id, ${shownNameSql("u")} AS username, u.username AS login, u.role, u.created_at AS createdAt,
               COALESCE(w.views, 0) AS views, COALESCE(v.votes, 0) AS votes, COALESCE(w.rounds, 0) AS rounds,
               w.firstSeen, w.lastSeen, COALESCE(w.views24h, 0) AS views24h, COALESCE(w.activeDays, 0) AS activeDays,
               COALESCE(h.hits, 0) AS bookmarkedHits
@@ -41,15 +45,15 @@ export function listUserStats(): UserStat[] {
          FROM votes v JOIN domains d ON d.id = v.domain_id JOIN picks k ON k.name = lower(d.name)
          GROUP BY v.user_id
        ) h ON h.user_id = u.id
-       ORDER BY bookmarkedHits DESC, votes DESC, views DESC, u.username`,
+       ORDER BY bookmarkedHits DESC, votes DESC, views DESC, username`,
     )
     .all(Date.now() - 86_400_000) as UserStat[];
 }
 
 export function getUser(id: number) {
   if (!Number.isInteger(id)) return undefined;
-  return getSqlite().prepare("SELECT id, username, role, created_at AS createdAt FROM users WHERE id = ?").get(id) as
-    | { id: number; username: string; role: string; createdAt: number }
+  return getSqlite().prepare(`SELECT u.id, ${shownNameSql("u")} AS username, u.username AS login, u.role, u.created_at AS createdAt FROM users u WHERE u.id = ?`).get(id) as
+    | { id: number; username: string; login: string; role: string; createdAt: number }
     | undefined;
 }
 
@@ -185,7 +189,7 @@ function activitySource(q: ActivityQuery) {
     if (q.bookmarkedOnly) where.push("k.name IS NOT NULL");
     if (q.votedOnly) where.push("vv.id IS NOT NULL");
     parts.push(
-      `SELECT '${kind}' AS kind, e.${time} AS at, e.user_id AS userId, u.username, e.round_id AS roundId, r.title AS roundTitle,
+      `SELECT '${kind}' AS kind, e.${time} AS at, e.user_id AS userId, ${shownNameSql("u")} AS username, e.round_id AS roundId, r.title AS roundTitle,
               d.id AS domainId, d.position, d.name, p.dns_parking_provider AS provider, p.evidence,
               COALESCE(p.lp_price, p.best_price, d.price) AS price, COALESCE(p.lp_currency, d.currency) AS currency, p.lp_url AS url,
               CASE WHEN vv.id IS NULL THEN 0 ELSE 1 END AS voted, CASE WHEN k.name IS NULL THEN 0 ELSE 1 END AS bookmarked
@@ -306,7 +310,7 @@ export function dailyByUser(days = 30, userId?: number) {
   const since = Date.now() - days * 86_400_000;
   const rows = getSqlite()
     .prepare(
-      `SELECT ${DAY_SQL("w.viewed_at")} AS day, u.username, COUNT(*) AS n
+      `SELECT ${DAY_SQL("w.viewed_at")} AS day, ${shownNameSql("u")} AS username, COUNT(*) AS n
        FROM views w JOIN users u ON u.id = w.user_id
        WHERE w.viewed_at >= ? ${userId ? "AND w.user_id = ?" : ""}
        GROUP BY day, u.id`,
@@ -314,7 +318,7 @@ export function dailyByUser(days = 30, userId?: number) {
     .all(...(userId ? [since, userId] : [since])) as Array<{ day: string; username: string; n: number }>;
   const votes = getSqlite()
     .prepare(
-      `SELECT ${DAY_SQL("v.created_at")} AS day, u.username, COUNT(*) AS n
+      `SELECT ${DAY_SQL("v.created_at")} AS day, ${shownNameSql("u")} AS username, COUNT(*) AS n
        FROM votes v JOIN users u ON u.id = v.user_id
        WHERE v.created_at >= ? ${userId ? "AND v.user_id = ?" : ""}
        GROUP BY day, u.id`,
@@ -377,11 +381,11 @@ export function nameProvenance(names: string[]) {
   const rows = getSqlite()
     .prepare(
       `SELECT name, userId, username, roundId, roundTitle, MIN(votedAt) AS votedAt, MAX(live) AS live, MAX(captured) AS captured FROM (
-         SELECT lower(d.name) AS name, v.user_id AS userId, u.username, d.round_id AS roundId, r.title AS roundTitle, v.created_at AS votedAt, 1 AS live, 0 AS captured
+         SELECT lower(d.name) AS name, v.user_id AS userId, ${shownNameSql("u")} AS username, d.round_id AS roundId, r.title AS roundTitle, v.created_at AS votedAt, 1 AS live, 0 AS captured
          FROM votes v JOIN domains d ON d.id = v.domain_id JOIN users u ON u.id = v.user_id JOIN rounds r ON r.id = d.round_id
          WHERE lower(d.name) IN (${placeholders})
          UNION ALL
-         SELECT pp.name, pp.user_id, u.username, pp.round_id, r.title, pp.voted_at, 0, 1
+         SELECT pp.name, pp.user_id, ${shownNameSql("u")}, pp.round_id, r.title, pp.voted_at, 0, 1
          FROM pick_provenance pp JOIN users u ON u.id = pp.user_id LEFT JOIN rounds r ON r.id = pp.round_id
          WHERE pp.name IN (${placeholders})
        ) GROUP BY name, userId, roundId ORDER BY votedAt ASC`,
@@ -407,7 +411,7 @@ export type ProvenanceEntry = {
 };
 
 export function voterOptions() {
-  return getSqlite().prepare("SELECT id, username FROM users ORDER BY username").all() as Array<{
+  return getSqlite().prepare(`SELECT u.id, ${shownNameSql("u")} AS username FROM users u ORDER BY username`).all() as Array<{
     id: number;
     username: string;
   }>;

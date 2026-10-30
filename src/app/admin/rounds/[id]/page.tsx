@@ -461,7 +461,7 @@ function Ballots({ base, roundId, voterId }: { base: string; roundId: number; vo
                 className={`flex items-center justify-between gap-3 px-4 py-3 text-sm ${active ? "bg-accent-soft" : "hover:bg-paper"}`}
                 aria-current={active ? "true" : undefined}
               >
-                <span dir="ltr" className="font-medium">{ballot.username}</span>
+                <span dir="auto" className="font-medium">{ballot.username}</span>
                 <span className="tabular-nums text-muted">{ballot.votes}</span>
               </Link>
             </li>
@@ -471,7 +471,7 @@ function Ballots({ base, roundId, voterId }: { base: string; roundId: number; vo
       <section>
         {selected ? (
           <>
-            <h2 dir="ltr" className="font-display text-2xl">{selected.username}</h2>
+            <h2 dir="auto" className="font-display text-2xl">{selected.username}</h2>
             <p className="mt-1 text-sm text-muted">{selected.votes} {t.round.providerVotes}</p>
             <ul className="mt-4 divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
               {votes.map((domain) => (

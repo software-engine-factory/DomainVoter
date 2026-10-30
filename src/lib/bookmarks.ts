@@ -1,4 +1,5 @@
 import { getSqlite } from "@/db";
+import { shownNameSql } from "@/lib/display-name";
 import { t } from "@/lib/copy/fa";
 
 export const PICK_STATUSES = ["shortlist", "contacted", "bought", "bonus_paid", "passed"] as const;
@@ -109,8 +110,8 @@ export function listBookmarks(filter: { status?: string; userId?: number | null;
   }
   return getSqlite()
     .prepare(
-      `SELECT k.name, k.note, k.created_at AS createdAt, k.status, k.source_user_id AS sourceUserId, su.username AS sourceUsername,
-              k.bonus_user_id AS bonusUserId, bu.username AS bonusUsername,
+      `SELECT k.name, k.note, k.created_at AS createdAt, k.status, k.source_user_id AS sourceUserId, ${shownNameSql("su")} AS sourceUsername,
+              k.bonus_user_id AS bonusUserId, ${shownNameSql("bu")} AS bonusUsername,
               COALESCE(p.lp_price, p.best_price) AS price, p.lp_currency AS currency, p.dns_parking_provider AS provider,
               p.lp_marketplace AS marketplace, p.lp_url AS url, p.evidence
        FROM picks k

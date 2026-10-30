@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { t } from "@/lib/copy/fa";
 
-export type PickerUser = { id: number; username: string; role: "voter" | "admin" };
+export type PickerUser = { id: number; username: string; login?: string; role: "voter" | "admin" };
 
 /**
  * Optional multi-select of users who may see a round. Nothing checked = everyone sees it.
@@ -14,7 +14,7 @@ export function AssigneePicker({ users, initial = [], compact = false }: { users
   const [picked, setPicked] = useState<Set<number>>(() => new Set(initial));
   const [q, setQ] = useState("");
   const needle = q.trim().toLowerCase();
-  const shown = needle ? users.filter((u) => u.username.toLowerCase().includes(needle)) : users;
+  const shown = needle ? users.filter((u) => u.username.toLowerCase().includes(needle) || !!u.login?.toLowerCase().includes(needle)) : users;
 
   function toggle(id: number) {
     setPicked((prev) => {
@@ -66,7 +66,7 @@ export function AssigneePicker({ users, initial = [], compact = false }: { users
                   <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="m2.5 6.5 2.2 2 4.8-5" /></svg>
                 ) : null}
               </span>
-              <span dir="ltr">{u.username}</span>
+              <span dir="auto">{u.username}</span>
               {u.role === "admin" ? <span className="text-[10px] text-muted">{c.adminTag}</span> : null}
             </label>
           );

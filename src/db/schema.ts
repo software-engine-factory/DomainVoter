@@ -3,6 +3,7 @@ import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlit
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
+  displayName: text("display_name"),
   passwordHash: text("password_hash").notNull(),
   role: text("role", { enum: ["admin", "voter"] }).notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),

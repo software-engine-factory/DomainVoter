@@ -495,6 +495,13 @@ const MIGRATIONS: Array<{ version: number; name: string; sql: string; run?: (sql
       ALTER TABLE free_names ADD COLUMN set_8 INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: 20,
+    name: "User display names (shown instead of the username when set; login still uses username)",
+    sql: `
+      ALTER TABLE users ADD COLUMN display_name TEXT;
+    `,
+  },
 ];
 
 /** Rewrites set ids 2 → 3 in a stored filter ({sets:[…]} or {explore:{sets:"1,2"}}); null when unchanged or unparseable. */

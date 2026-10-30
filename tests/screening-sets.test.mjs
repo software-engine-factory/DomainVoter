@@ -24,9 +24,9 @@ const indexes = (d) => d.prepare("SELECT name FROM sqlite_master WHERE type = 'i
 const versions = (d) => d.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map((r) => r.version);
 
 test("migration 19 on a fresh database: columns, defaults, partial indexes; replay applies nothing", () => {
-  assert.equal(LATEST_SCHEMA_VERSION, 19);
+  assert.ok(LATEST_SCHEMA_VERSION >= 19);
   assert.ok(versions(db).includes(19));
-  assert.equal(db.pragma("user_version", { simple: true }), 19);
+  assert.equal(db.pragma("user_version", { simple: true }), LATEST_SCHEMA_VERSION);
   for (const t of ["pool", "free_names"]) {
     for (const c of NEW) {
       const info = cols(db, t).find((x) => x.name === c);
@@ -63,7 +63,7 @@ test("migration 19 on a v18 database keeps every row and leaves the new sets at 
     const totals = old.prepare("SELECT * FROM pool_length_totals ORDER BY name_len, avail").all();
 
     runMigrations(old);
-    assert.deepEqual(versions(old).filter((v) => v >= 18), [18, 19]);
+    assert.deepEqual(versions(old).filter((v) => v === 18 || v === 19), [18, 19]);
     assert.equal(old.pragma("user_version", { simple: true }), 19);
     const after = old.prepare("SELECT * FROM pool ORDER BY name").all();
     assert.equal(after.length, snapshot.length);

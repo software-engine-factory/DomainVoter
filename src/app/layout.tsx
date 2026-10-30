@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { QueryProvider } from "@/components/query-provider";
 import { ThemeScript } from "@/components/theme-script";
 import { getSession } from "@/lib/auth";
+import { shownNameFor } from "@/lib/display-name";
 import { getDatasetVersion } from "@/lib/dataset-version";
 import { DEFAULT_THEME, THEME_COOKIE, isTheme } from "@/lib/theme/themes";
 import "./globals.css";
@@ -89,7 +90,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         <QueryProvider datasetVersion={getDatasetVersion()}>
-          <Header session={session} theme={theme} freeTab={session ? getVoterFreeTab() : false} />
+          <Header session={session} name={session ? shownNameFor(session.userId, session.username) : undefined} theme={theme} freeTab={session ? getVoterFreeTab() : false} />
           <div id="content" className="flex-1">
             {children}
           </div>

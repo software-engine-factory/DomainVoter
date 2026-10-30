@@ -1,6 +1,7 @@
 import { hasFilters, patternActive, type VoteView } from "@/lib/vote-view";
 import { eq } from "drizzle-orm";
 import { roundVisibleSql } from "@/lib/assignees";
+import { shownNameSql } from "@/lib/display-name";
 import { getDb, getSqlite } from "@/db";
 import { rounds } from "@/db/schema";
 import type { RoundFilters } from "@/lib/filters";
@@ -140,12 +141,12 @@ export function getUserVotedIds(roundId: number, userId: number, domainIds: numb
 export function getDomainVoters(roundId: number, domainId: number) {
   return getSqlite()
     .prepare(
-      `SELECT u.id, u.username
+      `SELECT u.id, ${shownNameSql("u")} AS username
        FROM votes v
        JOIN users u ON u.id = v.user_id
        JOIN domains d ON d.id = v.domain_id
        WHERE v.domain_id = ? AND d.round_id = ?
-       ORDER BY u.username ASC`,
+       ORDER BY username ASC`,
     )
     .all(domainId, roundId) as Array<{ id: number; username: string }>;
 }
@@ -153,12 +154,12 @@ export function getDomainVoters(roundId: number, domainId: number) {
 export function getBallots(roundId: number) {
   return getSqlite()
     .prepare(
-      `SELECT u.id, u.username, COUNT(v.id) AS votes
+      `SELECT u.id, ${shownNameSql("u")} AS username, COUNT(v.id) AS votes
        FROM votes v
        JOIN users u ON u.id = v.user_id
        WHERE v.round_id = ?
        GROUP BY u.id
-       ORDER BY votes DESC, u.username ASC`,
+       ORDER BY votes DESC, username ASC`,
     )
     .all(roundId) as Array<{ id: number; username: string; votes: number }>;
 }
@@ -723,8 +724,8 @@ export function roundVoteSummary(roundId: number, maxUsers = 5, maxNames = 3): V
   const sqlite = getSqlite();
   const people = sqlite
     .prepare(
-      `SELECT u.id, u.username, COUNT(*) AS total FROM votes v JOIN users u ON u.id = v.user_id
-       WHERE v.round_id = ? GROUP BY u.id ORDER BY total DESC, u.username`,
+      `SELECT u.id, ${shownNameSql("u")} AS username, COUNT(*) AS total FROM votes v JOIN users u ON u.id = v.user_id
+       WHERE v.round_id = ? GROUP BY u.id ORDER BY total DESC, username`,
     )
     .all(roundId) as { id: number; username: string; total: number }[];
   const namesOf = sqlite.prepare(
